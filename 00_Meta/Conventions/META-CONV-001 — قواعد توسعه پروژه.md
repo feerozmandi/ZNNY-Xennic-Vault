@@ -19,34 +19,69 @@ tags: [meta, conventions, rules, governance]
 هر توسعه‌دهنده جدید، **قبل از شروع کار** باید این سند را مطالعه کند.
 
 ---
-
-## قاعده ۱ — ساختار Git Flow
+## قاعده ۱ — ساختار Git Flow و PR اجباری
 
 ### شاخه‌ها
 | شاخه | هدف | قواعد |
 |---|---|---|
-| `main` | نسخه پایدار | فقط از `dev` merge می‌شود |
-| `dev` | شاخه توسعه اصلی | همه featureها از آن ساخته و به آن merge می‌شوند |
-| `feature/<NODE-ID>-<slug>` | یک نود یا یک قابلیت | فقط یک نود در هر شاخه |
+| `main` | نسخه پایدار | فقط از `dev` از طریق PR |
+| `dev` | شاخه توسعه اصلی | فقط از `feature/*` از طریق PR |
+| `feature/<NODE-ID>-<slug>` | یک نود یا قابلیت | فقط یک نود در هر شاخه |
 
-### قواعد
-- هیچ‌کس مستقیم روی `main` کامیت نمی‌کند
-- هیچ‌کس مستقیم روی `dev` کامیت نمی‌کند
-- هر نود = یک شاخه = یک PR
+### قواعد PR (اجباری)
+- **هیچ کامیتی مستقیم روی `main` مجاز نیست**
+- **هیچ کامیتی مستقیم روی `dev` مجاز نیست**
+- **همه تغییرات باید از طریق Pull Request (PR) ادغام شوند**
+- حتی برای اصلاح یک غلط املایی، PR الزامی است
+- برای پروژه‌های کوچک (تنها توسعه‌دهنده)، می‌توانید PR بسازید و خودتان Merge کنید
+- برای پروژه‌های تیمی، حداقل یک بازبین (Reviewer) الزامی است
 
-### چرخه کار استاندارد
-```
-1. git checkout dev
-2. git pull origin dev
-3. git checkout -b feature/FND-XXX-slug
-4. [کار روی نود]
-5. git add .
-6. git commit -m "founder(FND-XXX): description"
-7. git push -u origin feature/FND-XXX-slug
-8. Merge به dev (از GitHub PR یا مستقیم)
-9. حذف شاخه feature
-10. برگشت به dev
-```
+### چرخه کار استاندارد (اجباری)
+git checkout dev
+
+git pull origin dev
+
+git checkout -b feature/FND-XXX-slug
+
+[کار روی نود]
+
+git add .
+
+git commit -m "founder(FND-XXX): description"
+
+git push -u origin feature/FND-XXX-slug
+
+رفتن به GitHub → Create Pull Request
+
+base: dev ← compare: feature/FND-XXX-slug
+
+بازبینی و تایید
+
+Merge PR در GitHub
+
+حذف شاخه feature (از GitHub یا محلی)
+
+git checkout dev
+
+git pull origin dev
+
+text
+
+### قواعد نام‌گذاری PR
+عنوان PR: <type>(<NODE-ID>): <description>
+
+مثال:
+founder(FND-002): add distribution operations experience
+docs(META-CONV-001): add mandatory PR rule
+
+text
+
+### قواعد توضیحات PR
+هر PR باید شامل:
+- **چه چیزی تغییر کرد** (What)
+- **چرا** (Why)
+- **ارجاعات** (به NODE-ID یا Issue مرتبط)
+- **چک‌لیست بازبینی**
 
 ---
 
@@ -366,8 +401,8 @@ private/
 ---
 
 ## Changelog
+- v1.1.0 (2026-10-01): افزودن قاعده PR اجباری
 - v1.0.0 (2026-10-01): ایجاد اولیه با ۱۵ قاعده و ۴ ADR
-
 ---
 
 ## ارجاعات
