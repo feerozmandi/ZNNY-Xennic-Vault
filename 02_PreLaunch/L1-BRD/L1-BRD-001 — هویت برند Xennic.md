@@ -385,7 +385,7 @@ tags: [brand, identity, prelaunch, core-asset]
 
 ### ۸.۲. ارجاعات به اسناد
 
-- [[attachments/xennic-logo-final.png]]
+- [[xennic-logo-final.png]]
 - [[attachments/xennic-logo-dark.png]]
 - [[attachments/xennic-logo-monochrome.png]]
 - [[attachments/xennic-palette.png]]
