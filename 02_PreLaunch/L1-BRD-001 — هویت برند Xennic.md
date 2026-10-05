@@ -28,5 +28,5 @@ title: هویت برند Xennic
 - پلتفرم Xennic
 - شبکه‌های اجتماعی
 - مکاتبات رسمی
-![[600d300e.png]]
-![[900d760.jpg]]![[900d760c.jpg]]
+![[xennic-logo-text.png]]
+![[900d760.jpg]]![[xennic-logo-dark.jpg]]
