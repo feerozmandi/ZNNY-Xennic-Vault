@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 500 450">
+  <!-- Generator: Adobe Illustrator 29.6.1, SVG Export Plug-In . SVG Version: 2.1.1 Build 9)  -->
+  <defs>
+    <filter id="drop-shadow-1" x="39.4" y="33.4" width="387.8" height="344.4" filterUnits="userSpaceOnUse">
+      <feOffset dx="7" dy="7"/>
+      <feGaussianBlur result="blur" stdDeviation="8"/>
+      <feFlood flood-color="#231f20" flood-opacity=".4"/>
+      <feComposite in2="blur" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+    <filter id="drop-shadow-2" x="26.4" y="68.6" width="458.4" height="365.5" filterUnits="userSpaceOnUse">
+      <feOffset dx="7" dy="7"/>
+      <feGaussianBlur result="blur1" stdDeviation="8"/>
+      <feFlood flood-color="#231f20" flood-opacity=".4"/>
+      <feComposite in2="blur1" operator="in"/>
+      <feComposite in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <path d="M104.5,331.2c-16.6-25.6-26.6-55.8-27.1-88.4-1.7-92.7,72-169.6,164.7-171.3,56.3-1.1,106.8,25.6,138.1,67.6l15.8-14.1c-35.2-46.3-91.6-75.9-154.1-74.6-104.4,2.1-187.5,88.2-185.4,192.7.8,38.4,13,74,33.3,103.4l14.9-15.4h-.2Z" fill="#f3bf19" filter="url(#drop-shadow-1)"/>
+  <g filter="url(#drop-shadow-2)">
+    <polygon points="453.8 85.7 264.5 247.5 312.7 318.3 284.4 318.3 246.9 262.6 229.6 277.6 272.4 341.1 355.8 341.1 292.3 247.3 453.8 85.7" fill="#ea272a"/>
+    <polygon points="232.6 241.3 184.6 170.3 212.8 170.3 250.3 226 267.7 211.1 224.9 147.5 141.4 147.5 204.9 241.5 43.5 403.1 232.6 241.3" fill="#ea272a"/>
+  </g>
+</svg>
