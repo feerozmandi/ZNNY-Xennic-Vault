@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════════
+# Xennic Vault Configuration for MCP Server
+# ═══════════════════════════════════════════
+
+profile:
+  name: "xennic"
+  description: "ZNNY-Xennic-Vault for Xennic engineering company"
+  language: "fa-IR"
+  
+  # Tool Sets فعال
+  tool_sets:
+    - "notes_write"       # ایجاد و ویرایش نودها
+    - "vault_analysis"    # آمار و تحلیل Vault
+    # - "obsidianrag"     # جستجوی معنایی (در آینده)
+    # - "youtube"         # (اختیاری)
+    # - "canvas"          # (اختیاری)
+  
+  # Prompt Sets فعال
+  prompt_sets:
+    - "default"
+    - "mermaid"
+  
+  # Standards و Local Docs
+  standards:
+    coding: "00_Meta/Conventions/META-CONV-001 — قواعد توسعه پروژه.md"
+    naming: "00_Meta/Conventions/META-CONV-001 — قواعد توسعه پروژه.md"
+  
+  local_docs:
+    index: "Dashboard.md"
+    readme: "Welcome.md"
+
+# ═══════════════════════════════════════════
+# Protected Paths (نودهای حساس)
+# ═══════════════════════════════════════════
+
+protected_paths:
+  - "00_Meta/Conventions/"
+  - ".obsidian/"
+  - ".git/"
+  - ".agents/"
+
+# ═══════════════════════════════════════════
+# Default Note Template
+# ═══════════════════════════════════════════
+
+templates:
+  note: "00_Meta/Templates/node-template.md"
