@@ -3,6 +3,13 @@ id: DASHBOARD
 title: داشبورد مرکزی Xennic
 type: dashboard
 created: 2026-10-08
+layer: Meta
+domain: CONV
+status: draft
+owner: احمد فیروزمندی
+version: 0.1.0
+dependencies: []
+tags: [dashboard]
 ---
 
 # 🎯 داشبورد مرکزی Xennic

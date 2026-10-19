@@ -1,4 +1,3 @@
-
 ---
 id: META-CONV-001
 title: قواعد توسعه پروژه ZNNY-Xennic-Vault
@@ -7,7 +6,7 @@ domain: Conventions
 status: approved
 owner: احمد فیروزمندی
 created: 2026-10-01
-version: 1.0.0
+version: 1.1.1
 dependencies: []
 tags: [meta, conventions, rules, governance]
 ---
@@ -423,6 +422,7 @@ private/
 در PowerShell، برای تایپ em-dash از `Alt+0151` (نوم‌پد) استفاده کنید یا از Obsidian/VS Code کپی کنید.
 
 ## Changelog
+- v1.1.1 (2026-10-19): اصلاح فرانت‌متر (حذف خط خالی ابتدای فایل) و همگام‌سازی نسخه
 - v1.1.0 (2026-10-01): افزودن قاعده PR اجباری
 - v1.0.0 (2026-10-01): ایجاد اولیه با ۱۵ قاعده و ۴ ADR
 ---
