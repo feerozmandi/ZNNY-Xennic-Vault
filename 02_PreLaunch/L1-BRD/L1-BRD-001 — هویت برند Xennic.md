@@ -6,7 +6,7 @@ domain: BRD
 status: draft
 owner: احمد فیروزمندی بندپی
 created: 2026-10-07
-version: 0.1.0
+version: 0.1.1
 dependencies: [L1-LEG-001, L1-LEG-002, L1-LEG-003, FND-008]
 tags: [brand, identity, prelaunch, core-asset]
 ---
@@ -374,22 +374,22 @@ tags: [brand, identity, prelaunch, core-asset]
 
 ### ۸.۱. ارجاعات داخلی
 
-- [[L1-LEG-001]] ثبت شرکت سهامی خاص
-- [[L1-LEG-002]] موضوع فعالیت جامع
-- [[L1-LEG-003]] ثبت علامت تجاری Xennic
-- [[L1-BRD-002]] راهنمای برند (Brand Guideline)
-- [[L1-FIN-001]] مدل مالی
-- [[L1-MKT-001]] تحلیل بازار
-- [[L1-MKT-002]] تحلیل رقبا
-- [[FND-008]] ماتریس مهارت‌ها
+- [[L1-LEG-001 — ثبت شرکت سهامی خاص|L1-LEG-001]] ثبت شرکت سهامی خاص
+- [[L1-LEG-002 — موضوع فعالیت جامع|L1-LEG-002]] موضوع فعالیت جامع
+- [[L1-LEG-003 — ثبت علامت تجاری Xennic|L1-LEG-003]] ثبت علامت تجاری Xennic
+- [[L1-BRD-002 — راهنمای برند Xennic|L1-BRD-002]] راهنمای برند (Brand Guideline)
+- [[L1-FIN-001 — مدل مالی پنج‌ساله|L1-FIN-001]] مدل مالی
+- [[L1-MKT-001 — تحلیل بازار برق ایران|L1-MKT-001]] تحلیل بازار
+- [[L1-MKT-002 — تحلیل رقبا|L1-MKT-002]] تحلیل رقبا
+- [[FND-008 — ماتریس مهارت‌ها|FND-008]] ماتریس مهارت‌ها
 
 ### ۸.۲. ارجاعات به اسناد
 
-- [[xennic-logo-final.png]]
-- [[attachments/xennic-logo-dark.png]]
-- [[attachments/xennic-logo-monochrome.png]]
-- [[attachments/xennic-palette.png]]
-- [[کتابچه ۲۸ فصلی]] فصل ۲ و ۲۴
+- xennic-logo-final.png
+- attachments/xennic-logo-dark.png
+- attachments/xennic-logo-monochrome.png
+- attachments/xennic-palette.png
+- [[کتابچه تأسیس، هویت سازمانی و معماری Xennic.txt|کتابچه ۲۸ فصلی]] فصل ۲ و ۲۴
 
 ### ۸.۳. ارجاعات خارجی
 
@@ -402,10 +402,11 @@ tags: [brand, identity, prelaunch, core-asset]
 
 ### ۸.۴. ارجاعات آینده
 
-- [[L2-PLT-001]] Xennic v1
-- [[L2-MKT-001]] استراتژی محتوا
+- [[L2-PLT-001 — Xennic v1|L2-PLT-001]] Xennic v1
+- [[L2-MKT-001 — استراتژی محتوا و شبکه‌های اجتماعی|L2-MKT-001]] استراتژی محتوا
 - [[L3-INT-001]] حضور بین‌المللی
 
 ## ۹. Changelog
 
-- v0.1.0 (2026-10-07): ایجاد اولیه بر اساس مصاحبه ساختاریافته ۸ بخشی
+- v0.1.1 (۱۴۰۵-۰۷-۲۷): نرمال‌سازی ساختار، لینک‌های Obsidian و قالب تاریخ
+- v0.1.0 (۱۴۰۵-۰۷-۱۵): ایجاد اولیه بر اساس مصاحبه ساختاریافته ۸ بخشی

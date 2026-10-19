@@ -7,8 +7,8 @@ created: 2026-10-12
 tags: [integration, rag, qdrant, obsidian]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -16,6 +16,7 @@ dependencies: []
 
 ## هدف
 ذخیره‌سازی نودهای Obsidian در Qdrant برای جستجوی معنایی مشترک.
+
 
 ## معماری نهایی
 
@@ -33,26 +34,36 @@ dependencies: []
        ↓
 [HTTP Request: Qdrant Upsert]
 
+
 ## Collection
 - نام: `xennic_shared_knowledge`
 - ابعاد: 1536
 - Distance: Cosine
 - Indexها: source, node_id, notebook_id, tags, language
 
+
 ## داده‌های ذخیره‌شده
 - ۸ فایل Founder (FND-001 تا FND-008)
 - ۱۹ chunk
 - ۱۹ point در Qdrant
+
 
 ## مدل Embedding
 - Provider: gapgpt.app (OpenAI-compatible)
 - Model: text-embedding-3-small
 - ابعاد: 1536
 
+
 ## نتیجه تست
 - جستجوی "خط گرم" → Score: [مقدار]
 - جستجوی "دیسپاچینگ" → Score: [مقدار]
 
-## لینک‌های مرتبط
+## ارجاعات
+### لینک‌های مرتبط
 - [[META-INT-009]] — Qdrant Collection Creation
 - [[1.1-rag-open-notebook-qdrant]]
+
+## Changelog
+
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
+- v1.0.0 (۰۷۸۴-۰۴-۲۹): ایجاد اولیه

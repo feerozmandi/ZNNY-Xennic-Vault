@@ -6,7 +6,7 @@ created: 2026-10-08
 layer: Meta
 domain: CONV
 status: draft
-owner: احمد فیروزمندی
+owner: احمد فیروزمندی بندپی
 version: 0.1.0
 dependencies: []
 tags: [dashboard]

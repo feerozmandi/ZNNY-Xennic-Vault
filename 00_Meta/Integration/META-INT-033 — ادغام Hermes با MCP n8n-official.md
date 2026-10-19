@@ -7,8 +7,8 @@ created: 2026-10-15
 tags: [integration, hermes, mcp, n8n, oauth]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -16,6 +16,7 @@ dependencies: []
 
 ## هدف
 اتصال Hermes به n8n از طریق MCP Server رسمی n8n-official.
+
 
 ## پیکربندی
 
@@ -27,12 +28,14 @@ dependencies: []
 | **Authentication** | OAuth 2.1 |
 | **OAuth Callback** | `http://127.0.0.1:27890/callback` |
 
+
 ## OAuth Flow
 
 1. `hermes mcp login n8n-official`
 2. مرورگر باز می‌شود
 3. در n8n → **Authorize**
 4. توکن دریافت می‌شود
+
 
 ## Toolهای در دسترس (۱۴ عدد)
 
@@ -43,6 +46,7 @@ dependencies: []
 - List projects
 - List tags
 - List/Read/Write data tables
+
 
 ## استفاده
 
@@ -57,6 +61,7 @@ hermes mcp list
 hermes mcp test n8n-official
 ```
 
+
 ## نکات مهم
 
 - **Workflow باید Available in MCP باشد** تا Hermes آن را ببیند
@@ -64,11 +69,15 @@ hermes mcp test n8n-official
 - **OAuth توکن** به‌طور خودکار تمدید می‌شود
     
 - **MCP Server n8n** روی همان پورت ۵۶۷۸ (نه ۵۶۷۹)
-    
 
-## لینک‌های مرتبط
+## ارجاعات
+### لینک‌های مرتبط
 
 - [[3.1-semantic-search-api]] — API جستجو
     
 - [[3.3-hermes-mcp-integration]] — ادغام MCP
 
+## Changelog
+
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
+- v1.0.0 (۰۷۸۴-۰۵-۰۱): ایجاد اولیه

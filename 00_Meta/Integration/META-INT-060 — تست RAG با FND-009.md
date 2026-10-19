@@ -1,6 +1,6 @@
 ---
-id: META-INT-6.0
-title: rag-test-with-fnd-009
+id: META-INT-060
+title: تست RAG با FND-009
 type: integration
 status: done
 created: 2026-10-17
@@ -8,16 +8,17 @@ updated: 2026-10-17
 tags: [integration, rag, test, qdrant, obsidian]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
-# rag-test-with-fnd-009
+# تست RAG با FND-009
 
 ## هدف
 
 تست بروزرسانی RAG با نود جدید FND-009 و اطمینان از ایندکس‌شدن صحیح در Qdrant.
+
 
 ## معماری
 
@@ -27,6 +28,7 @@ nود FND-009 (Obsidian)
         → Qdrant collection: xennic_shared_knowledge
             → Webhook Search: http://localhost:5678/webhook/search
 ```
+
 
 ## پیکربندی
 
@@ -42,12 +44,14 @@ nود FND-009 (Obsidian)
 - **وضعیت:** غیرفعال (اجرای دستی)
 - **MCP Access:** فعال ✅
 
+
 ## تست
 
 ```bash
 # جستجوی معنایی با query "تست اتوماسیون"
 curl "http://localhost:5678/webhook/search?query=تست%20اتوماسیون&limit=5"
 ```
+
 
 ## نتایج
 
@@ -61,12 +65,14 @@ curl "http://localhost:5678/webhook/search?query=تست%20اتوماسیون&lim
 
 نود FND-009 با بالاترین امتیاز در نتایج جستجوی معنایی ظاهر شد که نشان‌دهنده ایندکس‌شدن موفق و embedding صحیح است.
 
-## لینک‌های مرتبط
+## ارجاعات
+### لینک‌های مرتبط
 
-- [[3.4-hermes-rag-integration]]
-- [[FND-009]]
-- [[5.0-hermes-setup-complete]]
+- [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]]
+- [[FND-009 — تجربه تست اتوماسیون نود|FND-009]]
+- [[META-INT-050 — راه‌اندازی کامل Hermes|META-INT-050]]
 
 ## Changelog
 
-- v6.0 (2026-10-17): تست موفق RAG با نود جدید FND-009 — Score ۰.۸۲ (جایگاه اول)، points_count: ۷۸
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
+- v6.0 (۱۴۰۵-۰۷-۲۵): تست موفق RAG با نود جدید FND-009 — Score ۰.۸۲ (جایگاه اول)، points_count: ۷۸

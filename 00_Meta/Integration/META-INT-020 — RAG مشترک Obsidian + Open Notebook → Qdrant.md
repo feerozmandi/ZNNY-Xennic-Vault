@@ -7,8 +7,8 @@ created: 2026-10-15
 tags: [integration, rag, qdrant, obsidian, open-notebook, e5]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -16,6 +16,7 @@ dependencies: []
 
 ## هدف
 ایجاد یک پایگاه دانش مشترک از نودهای Obsidian و اسناد Open Notebook برای جستجوی معنایی.
+
 
 ## معماری نهایی
 
@@ -73,6 +74,7 @@ dependencies: []
 | **پیشوند Document** | `passage: ` |
 | **max_input_length** | ۵۱۲ توکن |
 
+
 ## Collection Qdrant
 
 | مورد         | مقدار                                        |
@@ -81,6 +83,8 @@ dependencies: []
 | **ابعاد**    | ۱۰۲۴                                         |
 | **Distance** | Cosine                                       |
 | **Indexها**  | source, node_id, notebook_id, tags, language |
+
+
 ## ساختار Payload
 
 ```json
@@ -109,6 +113,7 @@ dependencies: []
 |خط گرم|۰.۷۷|FND-002, FND-003|
 |دیسپاچینگ|۰.۷۷|FND-002, FND-004|
 
+
 ## چالش‌های حل‌شده
 
 1. **gapgpt برای فارسی ضعیف بود** (Score ۰.۱۴) → مهاجرت به BGE-M3 (Score ۰.۴۰) → مهاجرت به E5-large (Score ۰.۷۷)
@@ -118,19 +123,7 @@ dependencies: []
 3. **UUID v4 تصادفی** → در آینده با UUID v5 تکرارپذیر می‌شود
     
 4. **داده‌های تکراری** → برای RAG مشکلی ایجاد نمی‌کند (نتایج یکسان)
-    
 
-## لینک‌های مرتبط
-
-- [[META-INT-003]] — Credential Open Notebook
-    
-- [[META-INT-010]] — Qdrant Collection
-    
-- [[3.0-n8n-automation]]
-
-
-
----
 
 ## 🎯 گام ۳: اتوماسیون‌های n8n
 
@@ -147,6 +140,7 @@ dependencies: []
 | ۷ | اطلاع‌رسانی به Telegram / SMS | پایین |
 
 ---
+
 
 ## 🎯 پیشنهاد: شروع با اتوماسیون ۵ (Backup خودکار Vault)
 
@@ -170,3 +164,20 @@ dependencies: []
 
 ---
 
+## ارجاعات
+### لینک‌های مرتبط
+
+- [[META-INT-003]] — Credential Open Notebook
+    
+- [[META-INT-010 — RAG Obsidian → Qdrant — تکمیل|META-INT-010]] — Qdrant Collection
+    
+- [[3.0-n8n-automation]]
+
+
+
+---
+
+## Changelog
+
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
+- v1.0.0 (۰۷۸۴-۰۵-۰۱): ایجاد اولیه

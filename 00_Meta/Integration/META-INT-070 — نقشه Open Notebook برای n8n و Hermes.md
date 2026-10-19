@@ -1,5 +1,5 @@
 ---
-id: META-INT-7.0
+id: META-INT-070
 title: نقشه Open Notebook برای n8n و Hermes
 type: integration
 status: draft
@@ -7,8 +7,8 @@ created: 2026-10-18
 tags: [integration, open-notebook, n8n, hermes, api, notebook-map]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -17,6 +17,7 @@ dependencies: []
 ## هدف
 
 این نود مرجع یکتای **شناسه‌های Notebookهای تخصصی** در Open Notebook است. هدف: حذف خطاهای ناشی از IDهای اشتباه و ایجاد یک **قرارداد داده (Data Contract)** مشترک بین سه سرویس Open Notebook، n8n و Hermes. با این نقشه، هیچ‌کدام از سرویس‌ها نیازی به جستجوی دستی یا Hard-code کردن ID ندارند.
+
 
 ## جدول شناسه‌ها
 
@@ -29,6 +30,7 @@ dependencies: []
 | `AI-Engineering` | Xennic-AI-Engineering | `notebook:ju2ge870m1pjk0ko83qt` | arXiv، OpenAI، Anthropic، Deep Learning |
 | `Iran-Regulations` | Xennic-Iran-Regulations | `notebook:o13t4eplyako6yfvkl7i` | قوانین ایران، مبحث ۱۳، توانیر، تأمین اجتماعی |
 | `Corporate` | Xennic-Corporate | `notebook:0vqwu4xktotir43w8w11` | اسناد اختصاصی Xennic (محرمانه — نیاز به مدل محلی) |
+
 
 ## فرمت JSON (مرجع ماشینی)
 
@@ -47,6 +49,7 @@ dependencies: []
 
 ```
 
+
 ## محل استفاده
 
 |سرویس|نحوه استفاده|مسیر/پارامتر|
@@ -54,6 +57,7 @@ dependencies: []
 |**n8n**|در گره HTTP Request، فیلد `notebook_id` از این نقشه مقداردهی شود|`{{ $json.notebookMap["Power-Systems"] }}`|
 |**Hermes**|در System Prompt یا ابزار MCP، این نقشه به عنوان مرجع معرفی شود|ارجاع به این نود یا `notebook_map.json`|
 |**PowerShell**|اسکریپت‌های آپلود از فایل `notebook_map.json` می‌خوانند|`F:\ahmad\open-notebook\scripts\notebook_map.json`|
+
 
 ## قواعد استفاده (SOP)
 
@@ -63,8 +67,8 @@ dependencies: []
     
 3. **نام کلیدها (Key) ثابت است** — حتی اگر نام نمایشی Notebook تغییر کند، کلیدها تغییر نمی‌کنند تا وابستگی‌ها نشکنند.
     
-4. **دسترسی به `Corporate`** فقط با مدل محلی (Ollama) — هرگز به API خارجی ارسال نشود (طبق قاعده [[4.0-content-separation]]).
-    
+4. **دسترسی به `Corporate`** فقط با مدل محلی (Ollama) — هرگز به API خارجی ارسال نشود (طبق قاعده [[META-INT-040 — قواعد تفکیک محتوا (جلوگیری از موازی‌کاری)|META-INT-040]]).
+
 
 ## تفکیک نقش ابزارها
 
@@ -75,6 +79,7 @@ dependencies: []
 |**Hermes**|AI Agent برای خواندن/نوشتن در Vault|❌ ذخیره اسناد|
 |**n8n**|اتوماسیون Workflowها|❌ ذخیره‌سازی|
 |**Qdrant**|Vector DB مشترک برای RAG|❌ دیتابیس اصلی|
+
 
 ## اقدامات
 
@@ -101,7 +106,7 @@ dependencies: []
 - □
     
     تست خواندن نقشه از Hermes (پس از افزودن)
-    
+
 
 ## خروجی (Deliverable)
 
@@ -110,7 +115,7 @@ dependencies: []
 - **فایل JSON**: `F:\ahmad\open-notebook\scripts\notebook_map.json` (مرجع ماشینی)
     
 - **فایل متنی**: `F:\ahmad\open-notebook\scripts\notebook_ids.txt` (پشتیبان)
-    
+
 
 ## ریسک‌ها
 
@@ -122,18 +127,17 @@ dependencies: []
 |ارسال اسناد Corporate به API خارجی|پایین|بسیار بالا|استفاده اجباری از Ollama محلی برای این Notebook|
 
 ## ارجاعات
-
-- [[3.3-hermes-mcp-n8n]]
+- [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]]
     
-- [[3.4-hermes-rag-integration]]
+- [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]]
     
-- [[4.0-content-separation]]
+- [[META-INT-040 — قواعد تفکیک محتوا (جلوگیری از موازی‌کاری)|META-INT-040]]
     
-- [[5.0-hermes-setup-complete]]
+- [[META-INT-050 — راه‌اندازی کامل Hermes|META-INT-050]]
     
 - مستندات API Open Notebook: `http://localhost:5055/docs`
-    
 
 ## Changelog
 
-- v0.1.0 (2026-10-18): ایجاد اولیه پس از ساخت ۷ Notebook تخصصی
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
+- v0.1.0 (۱۴۰۵-۰۷-۲۶): ایجاد اولیه پس از ساخت ۷ Notebook تخصصی

@@ -7,8 +7,8 @@ created: 2026-10-17
 tags: [integration, rules, content, separation]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -27,6 +27,7 @@ dependencies: []
 | PDF، کتاب، استاندارد | Open Notebook |
 | قوانین، مقررات | Open Notebook |
 | مقالات و اسناد | Open Notebook |
+
 
 ## Metadata مشترک
 
@@ -62,9 +63,6 @@ created: 2026-10-02
 
 ### Obsidian → Open Notebook
 
-## منابع مرتبط
-- [[OpenNotebook:source:1i9j5enf9dv2q2p7vczm]] — خط گرم (PDF)
-منبع مرتبط: FND-003 (رزومه خط گرم)
 
 ## قواعد تکرار
 
@@ -84,7 +82,7 @@ created: 2026-10-02
 - خلاصه در یک منبع + لینک به منبع اصلی
     
 - Metadata یکسان برای ردیابی
-    
+
 
 ## Qdrant Collection
 
@@ -105,8 +103,18 @@ created: 2026-10-02
   "created_at": "..."
 }
 
-## لینک‌های مرتبط
+## ارجاعات
+### منابع مرتبط
+- OpenNotebook:source:1i9j5enf9dv2q2p7vczm — خط گرم (PDF)
+منبع مرتبط: FND-003 (رزومه خط گرم)
 
-- [[2.0-rag-shared-complete]] — RAG مشترک
+### لینک‌های مرتبط
+
+- [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant|META-INT-020]] — RAG مشترک
     
 - [[3.1-semantic-search-api]] — API جستجو
+
+## Changelog
+
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
+- v1.0.0 (۰۷۸۴-۰۵-۰۳): ایجاد اولیه
