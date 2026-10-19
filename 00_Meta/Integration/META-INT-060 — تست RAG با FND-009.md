@@ -9,7 +9,7 @@ tags: [integration, rag, test, qdrant, obsidian]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.0.1
+version: 1.0.2
 dependencies: []
 ---
 
@@ -69,10 +69,11 @@ curl "http://localhost:5678/webhook/search?query=تست%20اتوماسیون&lim
 ### لینک‌های مرتبط
 
 - [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]]
-- [[FND-009 — تجربه تست اتوماسیون نود|FND-009]]
+- FND-009 (حذف‌شده)
 - [[META-INT-050 — راه‌اندازی کامل Hermes|META-INT-050]]
 
 ## Changelog
 
+- v1.0.2 (۱۴۰۵-۰۷-۲۷): حذف نود FND-009 و تبدیل لینک به متن ساده
 - v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
 - v6.0 (۱۴۰۵-۰۷-۲۵): تست موفق RAG با نود جدید FND-009 — Score ۰.۸۲ (جایگاه اول)، points_count: ۷۸
