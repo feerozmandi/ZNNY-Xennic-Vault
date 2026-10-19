@@ -7,8 +7,8 @@ created: 2026-10-15
 tags: [integration, hermes, mcp, n8n, oauth]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -79,4 +79,5 @@ hermes mcp test n8n-official
 
 ## Changelog
 
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
 - v1.0.0 (۰۷۸۴-۰۵-۰۱): ایجاد اولیه

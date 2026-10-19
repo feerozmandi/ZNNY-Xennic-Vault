@@ -7,8 +7,8 @@ created: 2026-10-12
 tags: [integration, rag, qdrant, obsidian]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -65,4 +65,5 @@ dependencies: []
 
 ## Changelog
 
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
 - v1.0.0 (۰۷۸۴-۰۴-۲۹): ایجاد اولیه

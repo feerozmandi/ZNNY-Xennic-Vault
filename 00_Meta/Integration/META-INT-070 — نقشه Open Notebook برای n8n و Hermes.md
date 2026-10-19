@@ -1,5 +1,5 @@
 ---
-id: META-INT-7.0
+id: META-INT-070
 title: نقشه Open Notebook برای n8n و Hermes
 type: integration
 status: draft
@@ -7,8 +7,8 @@ created: 2026-10-18
 tags: [integration, open-notebook, n8n, hermes, api, notebook-map]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -67,7 +67,7 @@ dependencies: []
     
 3. **نام کلیدها (Key) ثابت است** — حتی اگر نام نمایشی Notebook تغییر کند، کلیدها تغییر نمی‌کنند تا وابستگی‌ها نشکنند.
     
-4. **دسترسی به `Corporate`** فقط با مدل محلی (Ollama) — هرگز به API خارجی ارسال نشود (طبق قاعده [[4.0-content-separation]]).
+4. **دسترسی به `Corporate`** فقط با مدل محلی (Ollama) — هرگز به API خارجی ارسال نشود (طبق قاعده [[META-INT-040 — قواعد تفکیک محتوا (جلوگیری از موازی‌کاری)|META-INT-040]]).
 
 
 ## تفکیک نقش ابزارها
@@ -127,16 +127,17 @@ dependencies: []
 |ارسال اسناد Corporate به API خارجی|پایین|بسیار بالا|استفاده اجباری از Ollama محلی برای این Notebook|
 
 ## ارجاعات
-- [[3.3-hermes-mcp-n8n]]
+- [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]]
     
-- [[3.4-hermes-rag-integration]]
+- [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]]
     
-- [[4.0-content-separation]]
+- [[META-INT-040 — قواعد تفکیک محتوا (جلوگیری از موازی‌کاری)|META-INT-040]]
     
-- [[5.0-hermes-setup-complete]]
+- [[META-INT-050 — راه‌اندازی کامل Hermes|META-INT-050]]
     
 - مستندات API Open Notebook: `http://localhost:5055/docs`
 
 ## Changelog
 
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
 - v0.1.0 (۱۴۰۵-۰۷-۲۶): ایجاد اولیه پس از ساخت ۷ Notebook تخصصی

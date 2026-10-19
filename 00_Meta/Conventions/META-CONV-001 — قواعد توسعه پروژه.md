@@ -4,9 +4,9 @@ title: قواعد توسعه پروژه ZNNY-Xennic-Vault
 layer: Meta
 domain: Conventions
 status: approved
-owner: احمد فیروزمندی
+owner: احمد فیروزمندی بندپی
 created: 2026-10-01
-version: 1.3.0
+version: 1.4.0
 dependencies: []
 tags: [meta, conventions, rules, governance]
 ---
@@ -187,8 +187,8 @@ chore(00_META): update node template
 ---
 id: <NODE-ID>
 title: <عنوان>
-layer: <Founder|PreLaunch|Launch|Future|Meta>
-domain: <FND|LEG|FIN|BRD|MKT|TEC|PLT|AI|OPS|...>
+layer: <Founder|PreLaunch|Launch|Future|Knowledge|Meta>
+domain: <FND|LEG|FIN|BRD|MKT|TEC|PLT|AI|OPS|KNW|INT|...>
 status: <draft|review|approved|archived>
 owner: <نام>
 created: <YYYY-MM-DD>
@@ -236,6 +236,7 @@ tags: [tag1, tag2]
 | OPS | عملیات |
 | RND | تحقیق و توسعه |
 | INT | بین‌المللی |
+| KNW | دانش و منابع (Knowledge) |
 | CONV | قواعد (Meta) |
 
 ### مثال‌ها
@@ -260,6 +261,7 @@ tags: [tag1, tag2]
 | PreLaunch | قبل از راه‌اندازی | L1-* | — |
 | Launch | ۰ تا ۱۸ ماه | L2-* | ۰ تا ۱۸ ماه |
 | Future | ۱۸ ماه به بعد | L3-* | ۱۸ ماه به بعد |
+| Knowledge | منابع و دانش مرجع | L1-KNW-* | مستمر |
 
 ### قواعد
 
@@ -470,6 +472,7 @@ private/
 
 ## Changelog
 
+- **v1.4.0 (۱۴۰۵-۰۷-۲۷):** افزودن لایه Knowledge و دامنه KNW؛ افزودن دامنه INT به جدول؛ استانداردسازی شناسه نودهای Integration به META-INT-NNN؛ تصریح نام کامل مالک.
 - **v1.3.0 (۱۴۰۵-۰۷-۲۷):** حذف سند META-CONV-002 (سابقه کامیت‌های استثنایی) و حذف ارجاع به آن؛ تصریح عدم پذیرش استثنا در قاعده ۳.
 - **v1.2.0 (۱۴۰۵-۰۷-۲۷):** بازسازی ساختار برای Obsidian؛ افزودن callout، فهرست قواعد، جدول‌ها و مثال‌های کدی؛ تصحیح شماره قاعده ۱۶؛ تصریح frontmatter در خط اول؛ افزودن قواعد فایل‌های ضمیمه و لینک‌دهی کامل.
 - **v1.1.1 (۱۴۰۵-۰۷-۲۷):** اصلاح فرانت‌متر (حذف خط خالی ابتدای فایل) و همگام‌سازی نسخه.

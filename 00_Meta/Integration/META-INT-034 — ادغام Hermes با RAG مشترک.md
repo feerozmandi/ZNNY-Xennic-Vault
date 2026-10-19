@@ -7,8 +7,8 @@ created: 2026-10-17
 tags: [integration, hermes, rag, webhook, get]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -147,11 +147,11 @@ tags: [founder, experience, live-line]
 ## ارجاعات
 ### لینک‌های مرتبط
 
-- [[2.0-rag-shared-complete]] — RAG مشترک
+- [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant|META-INT-020]] — RAG مشترک
     
 - [[3.1-semantic-search-api]] — API جستجو
     
-- [[3.3-hermes-mcp-n8n]] — ادغام MCP
+- [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]] — ادغام MCP
 
 
 
@@ -166,4 +166,5 @@ tags: [founder, experience, live-line]
 
 ## Changelog
 
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
 - v1.0.0 (۰۷۸۴-۰۵-۰۳): ایجاد اولیه

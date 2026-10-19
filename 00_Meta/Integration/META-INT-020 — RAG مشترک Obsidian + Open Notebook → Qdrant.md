@@ -7,8 +7,8 @@ created: 2026-10-15
 tags: [integration, rag, qdrant, obsidian, open-notebook, e5]
 layer: Meta
 domain: INT
-owner: احمد فیروزمندی
-version: 1.0.0
+owner: احمد فیروزمندی بندپی
+version: 1.0.1
 dependencies: []
 ---
 
@@ -169,7 +169,7 @@ dependencies: []
 
 - [[META-INT-003]] — Credential Open Notebook
     
-- [[1.0-rag-obsidian-qdrant-complete|META-INT-010]] — Qdrant Collection
+- [[META-INT-010 — RAG Obsidian → Qdrant — تکمیل|META-INT-010]] — Qdrant Collection
     
 - [[3.0-n8n-automation]]
 
@@ -179,4 +179,5 @@ dependencies: []
 
 ## Changelog
 
+- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
 - v1.0.0 (۰۷۸۴-۰۵-۰۱): ایجاد اولیه
