@@ -6,7 +6,7 @@ domain: BRD
 status: draft
 owner: احمد فیروزمندی بندپی
 created: 2026-10-07
-version: 0.1.1
+version: 0.1.2
 dependencies: [L1-LEG-001, L1-LEG-002, L1-LEG-003, FND-008]
 tags: [brand, identity, prelaunch, core-asset]
 ---
@@ -100,16 +100,27 @@ tags: [brand, identity, prelaunch, core-asset]
 | **معنا** | جرقه — هم‌راستا با معنای مازندرانی زننیک |
 | **نسخه نهایی** | `900d760.png` در `F:\ahmad\xennic\logo\` |
 | **نسخه کپی‌شده** | `02_PreLaunch/L1-BRD/attachments/xennic-logo-final.png` |
-| **فرمت‌های موجود** | PNG, JPG |
-| **امکان ساخت** | SVG, AI, PDF, سیاه‌وسفید |
+| **فرمت‌های موجود** | PNG, SVG |
+| **امکان ساخت** | AI, PDF (در صورت نیاز) |
 
 **نسخه‌های موجود**:
 | # | فایل | نوع |
 |---|---|---|
-| ۱ | xennic-logo-final.png | نسخه نهایی |
-| ۲ | xennic-logo-dark.png | نسخه dark |
-| ۳ | xennic-logo-monochrome.png | نسخه تک‌رنگ |
-| ۴ | xennic-palette.png | پالت رنگ |
+| ۱ | xennic-logo-final.png | نسخه نهایی رنگی، بدون شعار، برای کاربرد عمومی |
+| ۲ | xennic-logo-tagline-color.png | نسخه رنگی همراه با شعار «Power Electrical Engineering» |
+| ۳ | xennic-logo-tagline-black.png | نسخه تک‌رنگ (مشکی) همراه با شعار، برای چاپ و زمینه روشن |
+| ۴ | xennic-logo-website.png | نسخه رنگی بدون شعار، سایز بهینه برای هدر وب‌سایت |
+| ۵ | xennic-logo-website-dark.png | نسخه روشن (تیل کم‌رنگ) برای استفاده روی پس‌زمینه تیره (Dark Mode) |
+| ۶ | xennic-icon-color.png | آیکون تنها (بدون متن)، رنگی — برای فاوآیکون و شبکه‌های اجتماعی |
+| ۷ | xennic-icon-black.png | آیکون تنها (بدون متن)، تک‌رنگ |
+| ۸ | xennic-icon-master.svg | فایل برداری اصلی آیکون (مرجع ساخت سایر نسخه‌ها) |
+
+**موارد تولیدنشده** (در صورت نیاز آینده باید طراحی شوند؛ فعلاً فایل مستقلی برای آن‌ها وجود ندارد):
+- نسخه واژه‌نگاره تنها (Wordmark بدون آیکون)
+- تصویر مستقل پالت رنگ (در حال حاضر پالت رنگ به‌صورت جدول در بخش ۳.۲ همین نود مستند شده است)
+
+> **یادداشت انطباق با قاعده**: طبق [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]] نسخه ۱.۵.۰ (قاعده ۷)، ضمیمه‌ها (ازجمله لوگو) باید در Open Notebook نگهداری شوند، نه در Git. تا راه‌اندازی کامل اتصال Open Notebook، نگهداری فایل‌های لوگو در پوشه `attachments/` همین نود یک **استثنای موقت و مستندشده** است؛ پس از آماده‌شدن Open Notebook، این فایل‌ها باید منتقل و ارجاع نود به‌صورت متنی (`Open Notebook: <نام Notebook> / <نام فایل>`) بازنویسی شود.
+
 
 ### ۳.۲. پالت رنگ
 
@@ -385,10 +396,14 @@ tags: [brand, identity, prelaunch, core-asset]
 
 ### ۸.۲. ارجاعات به اسناد
 
-- xennic-logo-final.png
-- attachments/xennic-logo-dark.png
-- attachments/xennic-logo-monochrome.png
-- attachments/xennic-palette.png
+- attachments/xennic-logo-final.png
+- attachments/xennic-logo-tagline-color.png
+- attachments/xennic-logo-tagline-black.png
+- attachments/xennic-logo-website.png
+- attachments/xennic-logo-website-dark.png
+- attachments/xennic-icon-color.png
+- attachments/xennic-icon-black.png
+- attachments/xennic-icon-master.svg
 - [[کتابچه تأسیس، هویت سازمانی و معماری Xennic.txt|کتابچه ۲۸ فصلی]] فصل ۲ و ۲۴
 
 ### ۸.۳. ارجاعات خارجی
@@ -408,5 +423,6 @@ tags: [brand, identity, prelaunch, core-asset]
 
 ## ۹. Changelog
 
+- v0.1.2 (۱۴۰۵-۰۷-۲۹): اصلاح ارجاعات شکسته به فایل‌های لوگو، هم‌نام‌سازی با فایل‌های واقعی موجود در attachments/، افزودن یادداشت انطباق با META-CONV-001 v1.5.0
 - v0.1.1 (۱۴۰۵-۰۷-۲۷): نرمال‌سازی ساختار، لینک‌های Obsidian و قالب تاریخ
 - v0.1.0 (۱۴۰۵-۰۷-۱۵): ایجاد اولیه بر اساس مصاحبه ساختاریافته ۸ بخشی

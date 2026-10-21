@@ -6,7 +6,7 @@ domain: BRD
 status: draft
 owner: احمد فیروزمندی بندپی
 created: 2026-10-08
-version: 0.1.1
+version: 0.1.2
 dependencies: [L1-BRD-001, L1-LEG-003]
 tags: [brand, guideline, identity, prelaunch, core-asset]
 ---
@@ -30,15 +30,17 @@ tags: [brand, guideline, identity, prelaunch, core-asset]
 
 | # | نسخه | کاربرد | فایل |
 |---|---|---|---|
-| ۱ | **لوگوی اصلی (رنگی)** | استفاده عمومی | `xennic-logo-final.png` |
-| ۲ | **لوگوی تیره (Dark)** | پس‌زمینه روشن | `xennic-logo-dark.jpg` |
-| ۳ | **لوگوی با نوشتار** | سربرگ، اسناد رسمی | `xennic-logo-text.png` |
-| ۴ | **لوگوی تک‌رنگ (Monochrome)** | چاپ سیاه‌وسفید | قابل ساخت از ارجینال |
-| ۵ | **لوگوی افقی (Horizontal)** | وب، هدر | قابل ساخت از ارجینال |
-| ۶ | **لوگوی عمودی (Vertical)** | کارت ویزیت، مهر | قابل ساخت از ارجینال |
-| ۷ | **آیکون (Favicon)** | وب، اپ | قابل ساخت از ارجینال |
+| ۱ | **لوگوی اصلی (رنگی، بدون شعار)** | استفاده عمومی | `xennic-logo-final.png` |
+| ۲ | **لوگوی رنگی همراه با شعار** | سربرگ، اسناد رسمی، معرفی رسمی | `xennic-logo-tagline-color.png` |
+| ۳ | **لوگوی تک‌رنگ همراه با شعار** | چاپ سیاه‌وسفید، اسناد چاپی | `xennic-logo-tagline-black.png` |
+| ۴ | **لوگوی وب‌سایت (روشن)** | هدر وب‌سایت، پس‌زمینه روشن | `xennic-logo-website.png` |
+| ۵ | **لوگوی وب‌سایت (برای پس‌زمینه تیره)** | وب، Dark Mode | `xennic-logo-website-dark.png` |
+| ۶ | **آیکون رنگی (Favicon)** | وب، اپ، شبکه‌های اجتماعی | `xennic-icon-color.png` |
+| ۷ | **آیکون تک‌رنگ** | کاربرد چاپی محدود | `xennic-icon-black.png` |
+| ۸ | **لوگوی عمودی (Vertical)** | کارت ویزیت، مهر | هنوز تولید نشده — قابل ساخت از فایل اصلی |
+| ۹ | **واژه‌نگاره تنها (Wordmark)** | کاربردهای مینیمال | هنوز تولید نشده — قابل ساخت از فایل اصلی |
 
-**فایل ارجینال (AI/SVG)** موجود است و از آن هر فرمت و اندازه‌ای قابل ساخت است.
+**فایل اصلی برداری (SVG)** با نام `xennic-icon-master.svg` موجود است و مرجع ساخت سایر نسخه‌ها (اندازه، فرمت) از آن است.
 
 ### ۲.۲. اندازه‌های استاندارد
 
@@ -515,15 +517,27 @@ tags: [brand, guideline, identity, prelaunch, core-asset]
 
 ### ۹.۲. ارجاعات به اسناد
 
-- attachments/xennic-logo-final.png
+- attachments/xennic-logo-final.png (نسخه نهایی رنگی، بدون شعار)
     
-- attachments/xennic-logo-dark.jpg
+- attachments/xennic-logo-tagline-color.png (نسخه رنگی همراه با شعار)
     
-- attachments/xennic-logo-text.png
+- attachments/xennic-logo-tagline-black.png (نسخه تک‌رنگ همراه با شعار، برای چاپ)
     
-- attachments/xennic-palette.png
+- attachments/xennic-logo-website.png (نسخه رنگی، سایز هدر وب‌سایت)
+    
+- attachments/xennic-logo-website-dark.png (نسخه روشن برای پس‌زمینه تیره)
+    
+- attachments/xennic-icon-color.png (آیکون تنها، رنگی)
+    
+- attachments/xennic-icon-black.png (آیکون تنها، تک‌رنگ)
+    
+- attachments/xennic-icon-master.svg (فایل برداری اصلی آیکون)
+    
+- پالت رنگ به‌صورت جدول در [[L1-BRD-001 — هویت برند Xennic|L1-BRD-001]] بخش ۳.۲ مستند است (فایل تصویری مستقل برای پالت هنوز تولید نشده است)
     
 - [[کتابچه تأسیس، هویت سازمانی و معماری Xennic.txt|کتابچه ۲۸ فصلی]] فصل ۲ و ۲۴
+
+> **یادداشت انطباق با قاعده**: طبق [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]] نسخه ۱.۵.۰ (قاعده ۷)، ضمیمه‌ها باید در Open Notebook نگهداری شوند، نه در Git. نگهداری فایل‌های لوگو در پوشه `attachments/` این نود، تا راه‌اندازی کامل Open Notebook، یک استثنای موقت و مستندشده است.
     
 
 ### ۹.۳. ارجاعات خارجی
@@ -550,5 +564,6 @@ tags: [brand, guideline, identity, prelaunch, core-asset]
 
 ## ۱۰. Changelog
 
+- v0.1.2 (۱۴۰۵-۰۷-۲۹): اصلاح ارجاعات شکسته به فایل‌های لوگو، هم‌نام‌سازی با فایل‌های واقعی موجود در attachments/، افزودن یادداشت انطباق با META-CONV-001 v1.5.0
 - v0.1.1 (۱۴۰۵-۰۷-۲۷): نرمال‌سازی ساختار، لینک‌های Obsidian و قالب تاریخ
 - v0.1.0 (۱۴۰۵-۰۷-۱۶): ایجاد اولیه بر اساس مصاحبه ساختاریافته ۹ بخشی
