@@ -1,14 +1,13 @@
 ---
 id: META-INT-034
 title: ادغام Hermes با RAG مشترک
-type: integration
-status: done
+status: approved
 created: 2026-10-17
 tags: [integration, hermes, rag, webhook, get]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.0.1
+version: 1.1.0
 dependencies: []
 ---
 
@@ -127,51 +126,10 @@ curl.exe -s "http://localhost:5678/webhook/search?query=%D8%AE%D8%B7%20%DA%AF%D8
 
 ## 🎯 گام ۴: جلوگیری از موازی‌کاری
 
-حالا که RAG مشترک کامل است، باید قواعدی برای **جلوگیری از موازی‌کاری** تعریف کنیم.
+حالا که RAG مشترک کامل است، باید قواعدی برای **جلوگیری از موازی‌کاری** رعایت شود تا محتوای تکراری (مثلاً نود FND-003 «خط گرم» در Obsidian + Source «خط گرم» در Open Notebook) باعث نتایج تکراری در RAG نشود.
 
-### چالش
-
-**موازی‌کاری ممکن:** محتوای تکراری در Obsidian و Open Notebook.
-
-**مثال:** نود FND-003 (خط گرم) در Obsidian + Source «خط گرم» در Open Notebook.
-
-**نتیجه:** نتایج تکراری در RAG.
-
-### راه‌حل: قواعد تفکیک
-
-| مورد | Obsidian | Open Notebook |
-|---|---|---|
-| **نودهای سازمانی** | ✅ | ❌ |
-| **تصمیمات** | ✅ | ❌ |
-| **جلسات** | ✅ | ❌ |
-| **PDF و کتاب** | ❌ | ✅ |
-| **استانداردها** | ❌ | ✅ |
-| **قوانین** | ❌ | ✅ |
-
-### Metadata مشترک
-
-**در Obsidian (frontmatter):**
-```yaml
----
-id: FND-003
-source: obsidian
-type: node
-tags: [founder, experience, live-line]
----
-```
-
-**در Open Notebook (payload):**
-
-{
-  "source": "open_notebook",
-  "source_id": "source:...",
-  "type": "document",
-  "tags": ["standards", "pdf"]
-}
-
-### لینک‌دهی بین دو منبع
-
-**در Obsidian:** اگر نودی به یک سند Open Notebook اشاره دارد:
+> [!note] مرجع یکتا
+> جدول تفکیک محتوا، قرارداد Metadata مشترک و روش لینک‌دهی متقابل بین Obsidian و Open Notebook به‌طور کامل در [[META-INT-040 — قواعد تفکیک محتوا (جلوگیری از موازی‌کاری)|META-INT-040]] مستند شده‌اند. برای جلوگیری از دوباره‌کاری محتوا (طبق قاعده ۹ در META-CONV-001)، آن قواعد اینجا تکرار نمی‌شوند.
 
 ---
 
@@ -179,25 +137,14 @@ tags: [founder, experience, live-line]
 ### لینک‌های مرتبط
 
 - [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant|META-INT-020]] — RAG مشترک
-    
-- [[3.1-semantic-search-api]] — API جستجو
-    
 - [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]] — ادغام MCP
-
-
-
----
-
-### منابع مرتبط
-- OpenNotebook: source:1i9j5enf9dv2q2p7vczm — خط گرم
-
-**در Open Notebook:** اگر سندی به نود Obsidian اشاره دارد:
-
-منبع مرتبط: FND-003 (Obsidian)
+- [[META-INT-040 — قواعد تفکیک محتوا (جلوگیری از موازی‌کاری)|META-INT-040]] — قواعد تفکیک و لینک‌دهی متقابل
+- [[3.1-semantic-search-api]] — API جستجو
 
 ---
 
 ## Changelog
 
+- **v1.1.0 (۱۴۰۵-۰۷-۳۰):** تصحیح `status` به مقدار معتبر `approved` (قبلاً `done`)؛ حذف فیلد غیراستاندارد `type`؛ حذف تکرار کامل محتوای META-INT-040 («جدول تفکیک» و «Metadata مشترک») و جایگزینی با ارجاع مستقیم طبق قاعده ۹ (جلوگیری از موازی‌کاری)؛ تعمیر بخش ناقص «لینک‌دهی بین دو منبع» که در نسخه قبلی نیمه‌کاره رها شده و با بخش ارجاعات قاطی شده بود.
 - **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
 - **v1.0.0 (۰۷۸۴-۰۵-۰۳):** ایجاد اولیه

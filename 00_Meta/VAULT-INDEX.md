@@ -111,7 +111,6 @@ tags: [meta, index, navigation]
 
 ## ۴. یکپارچه‌سازی فنی (Meta / Integration)
 
-- [**META-INT-010** — RAG Obsidian → Qdrant — تکمیل](<./Integration/META-INT-010 — RAG Obsidian → Qdrant — تکمیل.md>) — ذخیره‌سازی نودهای Obsidian در Qdrant برای جستجوی معنایی مشترک.
 - [**META-INT-020** — RAG مشترک Obsidian + Open Notebook → Qdrant](<./Integration/META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant.md>) — ایجاد یک پایگاه دانش مشترک از نودهای Obsidian و اسناد Open Notebook برای جستجوی معنایی.
 - [**META-INT-033** — ادغام Hermes با MCP n8n-official](<./Integration/META-INT-033 — ادغام Hermes با MCP n8n-official.md>) — اتصال Hermes به n8n از طریق MCP Server رسمی n8n-official.
 - [**META-INT-034** — ادغام Hermes با RAG مشترک](<./Integration/META-INT-034 — ادغام Hermes با RAG مشترک.md>) — اتصال Hermes به RAG مشترک (Obsidian + Open Notebook) از طریق Webhook GET.
@@ -120,6 +119,10 @@ tags: [meta, index, navigation]
 - [**META-INT-060** — تست RAG با FND-009](<./Integration/META-INT-060 — تست RAG با FND-009.md>) — تست بروزرسانی RAG با نود جدید FND-009 و اطمینان از ایندکس‌شدن صحیح در Qdrant.
 - [**META-INT-070** — نقشه Open Notebook برای n8n و Hermes](<./Integration/META-INT-070 — نقشه Open Notebook برای n8n و Hermes.md>) — این نود مرجع یکتای **شناسه‌های Notebookهای تخصصی** در Open Notebook است. هدف: حذف خطاهای ناشی از IDهای اشتباه و ایجاد یک **قرارداد داده (Data Contract)** مشترک بین سه سرویس Open Notebook، n8n و Hermes. با این نقشه، هیچ‌کدام از سرویس‌ها نیازی به جستجوی دستی یا Hard-code کردن ID ندارند.
 - [**META-INT-080** — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic](<./Integration/META-INT-080 — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic.md>) — این نود مرجع رسمی و مادر معماری **سیستم‌عامل هوشمند سازمانی (Intelligent Enterprise Operating System)** شرکت زر نور نیرو یکتا (Xennic) است. هدف این سند، تعریف یک چارچوب واحد برای اداره هوشمند شرکت است؛ چارچوبی که دانش سازمانی، تصمیم‌گیری، اجرای فرایندها، خدمات مهندسی، بازاریابی، فروش و توسعه محصول را به یکدیگر متصل می‌کند و چهار ابزار فعلی شرکت — **Obsidian**، **Open Notebook**، **n8n** و **Hermes** — را در کنار پلتفرم عملیاتی **Xennic** در یک نقشه مسئولیت واحد سازمان‌دهی می‌کند.
+- [**META-INT-090** — رجیستری Workflowهای n8n](<./Integration/META-INT-090 — رجیستری Workflowهای n8n.md>) — این نود مرجع یکتای **فهرست همه Workflowهای n8n** در زیرساخت Xennic است: نام، شناسه فنی، نوع Trigger، وضعیت فعال/غیرفعال، مالک و آخرین بازبینی. بدون این رجیستری، هیچ‌کس — نه انسان و نه عامل هوشمند (Hermes) — تصویر کاملی از این‌که «چه اتوماسیون‌هایی در حال اجرا هستند» ندارد.
+- [**META-INT-100** — مدیریت Secrets و Credentials](<./Integration/META-INT-100 — مدیریت Secrets و Credentials.md>) — تعیین سیاست یکتا برای ذخیره‌سازی، دسترسی و چرخش (Rotation) کلیدهای API، توکن‌های OAuth و Credentialهای زیرساخت اتوماسیون (n8n، Hermes، Qdrant، Open Notebook، GitHub) — موضوعی که در سیاست کلی امنیت اطلاعات شرکت ([[L2-SEC-001 — امنیت اطلاعات|L2-SEC-001]]) در سطح عملیاتی پوشش داده نشده است.
+- [**META-INT-110** — زیرساخت به‌صورت کد و بازیابی پس از خرابی](<./Integration/META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی.md>) — مستندسازی وضعیت فعلی زیرساخت اتوماسیون (n8n، Qdrant، TEI Embedding، Open Notebook) و تعریف مسیر رسیدن به **زیرساخت بازتولیدپذیر** (Infrastructure as Code) به‌جای وابستگی کامل به پیکربندی دستی روی یک کامپیوتر شخصی.
+- [**META-INT-120** — نظارت، هشدار و مدیریت خطا](<./Integration/META-INT-120 — نظارت، هشدار و مدیریت خطا.md>) — تعریف سیاست نظارت (Observability) بر اجرای Workflowهای n8n و عامل‌های هوشمند (Hermes)، به‌طوری‌که هر شکست خودکار شناسایی، ثبت و در صورت لزوم به یک مسئول انسانی گزارش شود — طبق «قاعده توقف امن» در [[META-INT-080 — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic|META-INT-080]] (بند ۴).
 
 
 ## ۵. پایگاه دانش (Knowledge)
@@ -139,7 +142,7 @@ tags: [meta, index, navigation]
 - [00_Meta/Sources](<./Sources/README.md>) — اسناد خام منبع که هنوز به‌طور کامل به نود تبدیل نشده‌اند.
 - [00_Meta/Archive](<./Archive/README.md>) — اسناد منسوخ‌شده‌ای که محتوایشان به نودهای رسمی منتقل شده است.
 
-**تعداد کل نودهای رسمی: 41**
+**تعداد کل نودهای رسمی: 44**
 **آخرین به‌روزرسانی خودکار: ۱۴۰۵-۰۷-۳۰**
 
 <!-- AUTO-GENERATED:END -->
