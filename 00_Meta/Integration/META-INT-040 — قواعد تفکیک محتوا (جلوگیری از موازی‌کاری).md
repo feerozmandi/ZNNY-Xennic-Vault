@@ -1,14 +1,13 @@
 ---
 id: META-INT-040
 title: قواعد تفکیک محتوا (جلوگیری از موازی‌کاری)
-type: integration
-status: done
+status: approved
 created: 2026-10-17
 tags: [integration, rules, content, separation]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.0.1
+version: 1.1.0
 dependencies: []
 ---
 
@@ -82,8 +81,21 @@ created: 2026-10-02
 
 ## لینک‌دهی بین منابع
 
+برای این‌که بتوان محتوای مرتبط در دو منبع را دنبال کرد، باید یک **ارجاع متقابل صریح** ثبت شود — نه کپی محتوا.
+
 ### Obsidian → Open Notebook
 
+اگر نودی در Obsidian به یک سند Open Notebook اشاره دارد، در بخش «ارجاعات» همان نود یک سطر اضافه می‌شود:
+
+> منبع مرتبط: OpenNotebook:source:1i9j5enf9dv2q2p7vczm — خط گرم (PDF)
+
+**نمونه واقعی:** نود FND-003 (رزومه خط گرم) به سند «خط گرم» در Open Notebook ارجاع می‌دهد.
+
+### Open Notebook → Obsidian
+
+اگر سندی در Open Notebook به یک نود Obsidian اشاره دارد، در بخش Notes همان سند یک سطر اضافه می‌شود:
+
+> منبع مرتبط: FND-003 (Obsidian)
 
 ---
 
@@ -131,10 +143,6 @@ created: 2026-10-02
 ---
 
 ## ارجاعات
-### منابع مرتبط
-- OpenNotebook:source:1i9j5enf9dv2q2p7vczm — خط گرم (PDF)
-منبع مرتبط: FND-003 (رزومه خط گرم)
-
 ### لینک‌های مرتبط
 
 - [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant|META-INT-020]] — RAG مشترک
@@ -145,5 +153,6 @@ created: 2026-10-02
 
 ## Changelog
 
+- **v1.1.0 (۱۴۰۵-۰۷-۳۰):** تصحیح `status` به مقدار معتبر `approved` (قبلاً `done`)؛ حذف فیلد غیراستاندارد `type`؛ بازسازی بخش ناقص «لینک‌دهی بین منابع» (مثال‌های FND-003 و منبع Open Notebook که به‌اشتباه در بخش ارجاعات افتاده بودند، به جای درست خود منتقل شدند).
 - **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
 - **v1.0.0 (۰۷۸۴-۰۵-۰۳):** ایجاد اولیه
