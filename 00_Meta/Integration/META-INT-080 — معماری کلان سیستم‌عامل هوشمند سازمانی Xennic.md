@@ -7,8 +7,8 @@ tags: [integration, strategy, ai-governance, automation, obsidian, open-notebook
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.2.0
-dependencies: [L1-STR-001, L1-STR-002, META-CONV-001, META-INT-020, META-INT-033, META-INT-034, META-INT-040, META-INT-050, META-INT-070, META-INT-090, META-INT-100, META-INT-110, META-INT-120, L2-PLT-001, L2-AI-001]
+version: 0.3.0
+dependencies: [L1-STR-001, L1-STR-002, META-CONV-001, META-INT-020, META-INT-033, META-INT-034, META-INT-040, META-INT-050, META-INT-070, META-INT-090, META-INT-100, META-INT-110, META-INT-120, META-INT-130, L2-PLT-001, L2-AI-001]
 ---
 
 # META-INT-080 — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic
@@ -308,6 +308,7 @@ Source → Evidence → Rule/Constraint → Assumption → Calculation → Concl
 - [[META-INT-100 — مدیریت Secrets و Credentials|META-INT-100]]
 - [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی|META-INT-110]]
 - [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]]
+- [[META-INT-130 — معماری هدف و نقشه راه مدرن‌سازی زیرساخت اتوماسیون و RAG|META-INT-130]] — ادامه فنی فاز ۰: معماری هدف و نقشه راه مدرن‌سازی مبتنی بر یافته‌های فاز ۰
 - [[L2-PLT-001 — Xennic v1|L2-PLT-001]]
 - [[L2-AI-001 — دستیار مدیریت روزانه|L2-AI-001]]
 - [[L2-SEC-001 — امنیت اطلاعات|L2-SEC-001]]
@@ -326,5 +327,6 @@ Source → Evidence → Rule/Constraint → Assumption → Calculation → Concl
 
 ## ۱۴. Changelog
 
+- **v0.3.0 (۱۴۰۵-۰۷-۳۰):** افزودن ارجاع و وابستگی به [[META-INT-130 — معماری هدف و نقشه راه مدرن‌سازی زیرساخت اتوماسیون و RAG|META-INT-130]] که ادامه فنی فاز ۰ (معماری هدف و نقشه راه مدرن‌سازی مبتنی بر یافته‌های واقعی META-INT-090/100/110/120) است.
 - **v0.2.0 (۱۴۰۵-۰۷-۳۰):** حذف فیلد غیراستاندارد `type`؛ رفع ارجاعات به META-INT-010 (بایگانی‌شده) از لیست وابستگی‌ها و ارجاعات فعال؛ رفع ابهام دو ردیف هم‌شماره «فاز ۱» در نقشه راه با برچسب ۱-الف/۱-ب و یادداشت توضیحی موازی‌بودن آن‌ها؛ افزودن ارجاع و وابستگی به چهار نود جدید که خروجی فاز ۰ را پر می‌کنند: META-INT-090 (رجیستری n8n)، META-INT-100 (مدیریت Secrets)، META-INT-110 (IaC و بازیابی)، META-INT-120 (نظارت و هشدار).
 - **v0.1.0 (۱۴۰۵-۰۷-۲۹):** ایجاد اولیه؛ تدوین معماری کلان سیستم‌عامل هوشمند سازمانی بر اساس طرح راهبردی مصوب و تعریف سه پروژه آزمایشی مستقل.
