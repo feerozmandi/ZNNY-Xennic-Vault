@@ -1,14 +1,13 @@
 ---
 id: META-INT-070
 title: نقشه Open Notebook برای n8n و Hermes
-type: integration
-status: draft
+status: review
 created: 2026-10-18
 tags: [integration, open-notebook, n8n, hermes, api, notebook-map]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.0.1
+version: 1.1.0
 dependencies: []
 ---
 
@@ -111,29 +110,12 @@ dependencies: []
 
 ## اقدامات
 
-- ☑
-    
-    ایجاد ۷ Notebook در Open Notebook (تاریخ: 2026-10-18)
-    
-- ☑
-    
-    ذخیره IDها در `notebook_ids.txt` و `notebook_map.json`
-    
-- □
-    
-    به‌روزرسانی این نود در صورت تغییر IDها
-    
-- □
-    
-    افزودن این نقشه به Hermes MCP Server (فاز بعدی)
-    
-- □
-    
-    ایجاد Workflow n8n برای آپلود خودکار با استفاده از این نقشه
-    
-- □
-    
-    تست خواندن نقشه از Hermes (پس از افزودن)
+- [x] ایجاد ۷ Notebook در Open Notebook (تاریخ: 2026-10-18)
+- [x] ذخیره IDها در `notebook_ids.txt` و `notebook_map.json`
+- [ ] به‌روزرسانی این نود در صورت تغییر IDها
+- [ ] افزودن این نقشه به Hermes MCP Server (فاز بعدی)
+- [ ] ایجاد Workflow n8n برای آپلود خودکار با استفاده از این نقشه
+- [ ] تست خواندن نقشه از Hermes (پس از افزودن)
 
 
 ---
@@ -175,5 +157,6 @@ dependencies: []
 
 ## Changelog
 
+- **v1.1.0 (۱۴۰۵-۰۷-۳۰):** تصحیح `status` به مقدار معتبر `review` (قبلاً `draft`؛ نقشه در تولید در حال استفاده است اما ۴ مورد از ۶ اقدام هنوز باز است)؛ حذف فیلد غیراستاندارد `type`؛ تبدیل چک‌لیست از کاراکترهای یونیکد ☑/□ به سینتکس استاندارد Markdown (`- [x]` / `- [ ]`) تا در Obsidian به‌صورت چک‌باکس تعاملی رندر شود.
 - **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
 - **v0.1.0 (۱۴۰۵-۰۷-۲۶):** ایجاد اولیه پس از ساخت ۷ Notebook تخصصی

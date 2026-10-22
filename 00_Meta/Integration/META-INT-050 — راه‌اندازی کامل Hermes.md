@@ -1,15 +1,13 @@
 ---
 id: META-INT-050
 title: راه‌اندازی کامل Hermes
-type: integration
-status: done
+status: approved
 created: 2026-10-16
-updated: 2026-10-16
 tags: [integration, hermes, mcp, obsidian, n8n]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.0.1
+version: 1.1.0
 dependencies: []
 ---
 
@@ -131,5 +129,6 @@ curl "http://localhost:5678/webhook/search?query=خط گرم&limit=5"
 
 ## Changelog
 
+- **v1.1.0 (۱۴۰۵-۰۷-۳۰):** تصحیح `status` به مقدار معتبر `approved` (قبلاً `done`)؛ حذف فیلدهای غیراستاندارد `type` و `updated`.
 - **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
-- v5.0 (۱۴۰۵-۰۷-۲۴): راه‌اندازی کامل Hermes با ۲ MCP Server (obsidian + n8n-official)
+- **v0.5.0 (۱۴۰۵-۰۷-۲۴):** راه‌اندازی کامل Hermes با ۲ MCP Server (obsidian + n8n-official) — در نسخه اصلی این سطر به‌اشتباه «v5.0» ثبت شده بود؛ هنگام یکپارچه‌سازی این نود در طرح شماره‌گذاری SemVer فعلی، به v0.5.0 اصلاح شد تا با توالی نسخه‌های بالا (v1.0.0 → v1.0.1) سازگار باشد.

@@ -1,14 +1,13 @@
 ---
 id: META-INT-033
 title: ادغام Hermes با MCP n8n-official
-type: integration
-status: done
+status: approved
 created: 2026-10-15
 tags: [integration, hermes, mcp, n8n, oauth]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.0.1
+version: 1.1.0
 dependencies: []
 ---
 
@@ -111,5 +110,6 @@ hermes mcp test n8n-official
 
 ## Changelog
 
+- **v1.1.0 (۱۴۰۵-۰۷-۳۰):** تصحیح `status` به مقدار معتبر `approved` طبق قاعده ۱۱ (قبلاً `done`)؛ حذف فیلد غیراستاندارد `type`.
 - **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
 - **v1.0.0 (۰۷۸۴-۰۵-۰۱):** ایجاد اولیه
