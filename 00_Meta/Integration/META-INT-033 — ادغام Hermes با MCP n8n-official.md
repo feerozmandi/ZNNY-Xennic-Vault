@@ -7,7 +7,7 @@ tags: [integration, hermes, mcp, n8n, oauth]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.1.0
+version: 1.2.0
 dependencies: []
 ---
 
@@ -97,6 +97,8 @@ hermes mcp test n8n-official
     
 - **MCP Server n8n** روی همان پورت ۵۶۷۸ (نه ۵۶۷۹)
 
+- **بدون موازی‌کاری با بسته Community:** در `config.yaml` هرمس، یک ردیف سوم با نام `n8n` (بسته جامعه‌محور `uvx n8n-mcp-server`) هم موجود است، اما طبق تأیید `hermes mcp list` (۱۴۰۵-۰۷-۳۰) وضعیت آن `✗ disabled` است. تنها `n8n-official` فعال است — بنابراین این نود همچنان تنها مرجع صحیح ادغام n8n است. حذف بلوک غیرفعال از `config.yaml` یک اقدام نظافتی جزئی پیشنهادی است، نه الزام حاکمیتی.
+
 ---
 
 ## ارجاعات
@@ -110,6 +112,7 @@ hermes mcp test n8n-official
 
 ## Changelog
 
+- **v1.2.0 (۱۴۰۵-۰۷-۳۰):** ثبت تأیید `hermes mcp list` مبنی بر عدم موازی‌کاری واقعی بین `n8n-official` و بسته Community غیرفعال `n8n`.
 - **v1.1.0 (۱۴۰۵-۰۷-۳۰):** تصحیح `status` به مقدار معتبر `approved` طبق قاعده ۱۱ (قبلاً `done`)؛ حذف فیلد غیراستاندارد `type`.
 - **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
 - **v1.0.0 (۰۷۸۴-۰۵-۰۱):** ایجاد اولیه

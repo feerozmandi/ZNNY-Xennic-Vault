@@ -1,14 +1,14 @@
 ---
 id: META-INT-090
 title: رجیستری Workflowهای n8n
-status: draft
+status: review
 created: 2026-10-22
 tags: [integration, n8n, registry, governance, automation]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.1.0
-dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-060]
+version: 0.2.0
+dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-060, META-INT-100]
 ---
 
 # رجیستری Workflowهای n8n
@@ -38,27 +38,35 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 
 ## ۲. چرا این نود لازم شد
 
-در بررسی نودهای [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant|META-INT-020]]، [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]]، [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]] و [[META-INT-060 — تست RAG با FND-009|META-INT-060]] مشخص شد که:
+در بررسی نودهای [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant|META-INT-020]]، [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]]، [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]] و [[META-INT-060 — تست RAG با FND-009|META-INT-060]] مشخص شد که فقط **یک** Workflow شناسه فنی ثبت‌شده داشت (`RAG-01`) و بقیه فقط با نام نمایشی ذکر شده بودند — بدون ID، بدون تاریخ، بدون مالک مشخص. این سطح از ابهام دقیقاً همان ریسکی است که META-INT-080 (بند ۱۲) با عنوان «ساخت سرویس‌های تکراری» هشدار می‌دهد.
 
-- فقط **یک** Workflow شناسه فنی ثبت‌شده دارد (`RAG-01`، ID: `DlHi16COhc9f0IkQ`).
-- بقیه فقط با نام نمایشی (مثلاً `[API-01] Semantic Search`) در نثر مستندات ذکر شده‌اند — بدون ID، بدون تاریخ آخرین اجرا، بدون مالک مشخص.
-- اتوماسیون «Backup خودکار Vault به GitHub» در META-INT-020 به‌عنوان پیشنهاد (اولویت بالا) طراحی شد، اما مشخص نیست آیا واقعاً به‌صورت Workflow n8n ساخته شده یا نه — راه‌حل فعلی Backup همان افزونه `obsidian-git` است (طبق [[META-INT-050 — راه‌اندازی کامل Hermes|META-INT-050]])، نه یک n8n Workflow.
-
-این سطح از ابهام دقیقاً همان ریسکی است که META-INT-080 (بند ۱۲) با عنوان «ساخت سرویس‌های تکراری» هشدار می‌دهد.
+> [!success] به‌روزرسانی ۱۴۰۵-۰۷-۳۰ — داده واقعی استخراج شد
+> با اجرای `docker exec xennic-n8n n8n export:workflow --all` (چون n8n در این زیرساخت به‌صورت کانتینر Docker اجرا می‌شود، نه نصب native — بنابراین دستورات CLI مستقیم مثل `n8n list:workflow` روی هاست کار نمی‌کنند)، فهرست کامل و واقعی ۸ Workflow موجود استخراج شد. جدول بخش ۳ اکنون بر اساس این داده واقعی است، نه حدس.
 
 ---
 
 ## ۳. جدول رجیستری
 
-> [!warning] وضعیت داده
-> بسیاری از ستون‌های زیر از مستندات موجود **قابل استخراج نبودند** و با `نامشخص` علامت‌گذاری شده‌اند. اولین اقدام این نود (بخش ۸) تکمیل این جدول با داده واقعی از n8n است، نه حدس‌زدن مقادیر.
+> [!info] منبع داده
+> خروجی کامل `docker exec xennic-n8n n8n export:workflow --all --output=/tmp/workflows.json` در تاریخ ۱۴۰۵-۰۷-۳۰. تمام Workflowها متعلق به پروژه شخصی «Ahmad Feerozmandi» در n8n هستند (تک‌مالکی — ریسک مرتبط در بخش ۷).
 
-| نام نمایشی | ID فنی | Trigger | هدف | وضعیت | مالک | آخرین بازبینی | ارجاع |
-|---|---|---|---|---|---|---|---|
-| `[RAG-01] Obsidian Founder → Qdrant` | `DlHi16COhc9f0IkQ` | Manual (در META-INT-060: غیرفعال/اجرای دستی) | ایندکس نودهای Obsidian در Qdrant | فعال (دستی) | احمد فیروزمندی بندپی | ۱۴۰۵-۰۷-۲۵ | [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant\|META-INT-020]]، [[META-INT-060 — تست RAG با FND-009\|META-INT-060]] |
-| `RAG-02` (Open Notebook → Qdrant) | نامشخص | Manual | ایندکس اسناد Open Notebook در Qdrant | نامشخص | احمد فیروزمندی بندپی | نامشخص | [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant\|META-INT-020]] |
-| `[API-01] Semantic Search` | نامشخص | Webhook GET (`/webhook/search`) | جستجوی معنایی مشترک برای Hermes | فعال (تأیید‌شده با تست) | احمد فیروزمندی بندپی | ۱۴۰۵-۰۷-۲۷ (تست در META-INT-034) | [[META-INT-033 — ادغام Hermes با MCP n8n-official\|META-INT-033]]، [[META-INT-034 — ادغام Hermes با RAG مشترک\|META-INT-034]] |
-| Backup خودکار Vault به GitHub | — | Schedule (پیشنهادی: روزانه ساعت ۲۳) | جلوگیری از از دست رفتن داده Vault | **نامشخص — شاید هرگز ساخته نشده** (Backup فعلی از طریق افزونه `obsidian-git` انجام می‌شود، نه n8n) | — | — | [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant\|META-INT-020]] (بخش ۸، پیشنهاد اولویت‌دار) |
+| نام نمایشی | ID فنی | Active | Trigger | هدف | ایجاد / آخرین تغییر | وضعیت توصیه‌شده |
+|---|---|---|---|---|---|---|
+| `[RAG-01] Obsidian Founder → Qdrant` | `DlHi16COhc9f0IkQ` | ❌ false | Manual | ایندکس نودهای `01_Founder/*.md` در Qdrant (طبق [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant\|META-INT-020]]) | ایجاد ۲۰۲۶-۱۰-۱۰ / تغییر ۲۰۲۶-۱۰-۱۷ | فعال (دستی) — availableInMCP: true — ⚠️ **باگ احتمالی**: گره Code با نام «Parse & Chunk» حاوی خط `for (const block offileBlocks)` است (به‌نظر فاقد فاصله/کلمه کلیدی `of` صحیح — در صورت اجرای واقعی خطای Syntax جاوااسکریپت می‌دهد)؛ نیاز به بررسی و اصلاح مستقیم در n8n توسط مالک (این نود فقط مستندسازی می‌کند و Workflow را ویرایش نمی‌کند) |
+| `[RAG-02] Open Notebook → Qdrant` | `4KWc6FUbJrK9aOSU` | ❌ false | Manual | ایندکس Sourceهای Open Notebook در Qdrant | ایجاد ۲۰۲۶-۱۰-۱۳ / تغییر ۲۰۲۶-۱۰-۱۵ | فعال (دستی) — availableInMCP: نامشخص؛ پوشش واقعی ناقص (بخش ۷) |
+| `[API-01] Semantic Search` (نسخه **زنده**) | `iB4FcmXQxCsI5by9` | ✅ **true** | Webhook GET `/search` | جستجوی معنایی زنده — همانی که Hermes و `/webhook/search` استفاده می‌کنند | ایجاد و تغییر ۲۰۲۶-۱۰-۱۷ | **فعال — Production** — availableInMCP: true |
+| `[API-01] Semantic Search` (نسخه قدیمی) | `JTzPnp11wUFYPaMd` | ❌ false, isArchived: **true** | Webhook GET | نسخه قبلی همین جستجو؛ خود n8n آن را بایگانی کرده | ایجاد ۲۰۲۶-۱۰-۱۵ | منسوخ — از قبل درست بایگانی شده، اقدامی لازم نیست |
+| `[KNW-02] Smart Source Downloader (Fixed)` | `KbZkNJsqsQCxP7SX` | ❌ false | Manual | دانلود خودکار منابع فهرست‌شده در [[L1-KNW-001 — فهرست جامع منابع مهندسی برق\|L1-KNW-001]]، تفکیک رایگان/غیررایگان، آپلود به Open Notebook، اطلاع‌رسانی نتیجه | ایجاد و تغییر ۲۰۲۶-۱۰-۱۸ | فعال (دستی) — **🆕 قبلاً در هیچ نود META-INT مستند نشده بود** |
+| `My workflow` | `4Rab1lMRwaGlfUTe` | ❌ false | Manual | بدون نام/هدف مشخص؛ کپی ناقص از منطق RAG-02 (فقط دریافت فهرست Sourceها) | ایجاد و تغییر ۲۰۲۶-۱۰-۱۳ | **کاندید حذف** — باقی‌مانده آزمایشی بدون نام‌گذاری استاندارد |
+| `[TEST] Open Notebook Connection` | `gmAPeHeg5c68XBON` | ❌ false | Manual | تست اولیه اتصال به API Open Notebook | ایجاد و تغییر ۲۰۲۶-۱۰-۱۰ | **کاندید حذف** — هدفش با ساخت RAG-02 محقق شد |
+| `[TEST] Open Notebook API` | `u2NQHmHbnK6VOXWO` | ❌ false | Manual | تست endpointهای `/api/notebooks`, `/api/credentials`, `/api/sources` | ایجاد ۲۰۲۶-۱۰-۱۳ | **کاندید حذف** — همان دلیل بالا |
+
+> [!warning] اطلاع‌رسانی خطا از طریق Bale Messenger است، نه Telegram
+> در Workflow `[KNW-02]`، اعلان موفقیت/خطا از طریق **Bale Messenger** (پیام‌رسان ایرانی) پیاده‌سازی شده (گره‌های `n8n-nodes-bale-messenger-alpha.baleMessenger`)، نه Telegram که در پیشنهاد اولیه META-INT-020 (اتوماسیون ۷) ذکر شده بود. [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]] بر این اساس اصلاح شد.
+
+### Workflowهای کاندید حذف/بایگانی
+
+سه Workflow (`My workflow`، `[TEST] Open Notebook Connection`، `[TEST] Open Notebook API`) باقی‌مانده آزمایشی اولیه هستند که هدفشان با ساخت نسخه نهایی RAG-02 محقق شده. طبق [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]] (قاعده ۹، جلوگیری از شلوغی/موازی‌کاری)، پیشنهاد می‌شود پس از تأیید مالک، این سه حذف یا در n8n به‌صورت Archived علامت‌گذاری شوند. **این نود فقط ثبت می‌کند، حذف نمی‌کند** — تصمیم نهایی با مالک انسانی است.
 
 ---
 
@@ -92,19 +100,26 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 
 ## ۷. شکاف‌های شناسایی‌شده
 
-| # | شکاف | ریسک |
+| # | شکاف | وضعیت |
 |---|---|---|
-| ۱ | ID فنی ۳ از ۴ Workflow نامشخص است | در صورت خرابی/حذف اشتباه، امکان ردیابی پیکربندی دقیق نیست |
-| ۲ | مشخص نیست Workflow «Backup به GitHub» ساخته شده یا نه | ریسک این‌که تصور شود Backup به‌صورت دوگانه (هم obsidian-git هم n8n) انجام می‌شود در حالی‌که فقط یکی فعال است |
-| ۳ | هیچ Workflowای در Git نسخه‌بندی (export) نشده | از دست رفتن کامل پیکربندی در صورت خرابی سیستم — رجوع کنید به [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی|META-INT-110]] |
+| ۱ | ID فنی Workflowها نامشخص بود | ✅ **برطرف شد** — همه ۸ ID واقعی در بخش ۳ ثبت شد |
+| ۲ | مشخص نبود Workflow «Backup به GitHub» ساخته شده یا نه | ✅ **برطرف شد** — تأیید شد چنین Workflowای در n8n وجود ندارد؛ Backup واقعی فقط از طریق افزونه `obsidian-git` انجام می‌شود (طبق [[META-INT-050 — راه‌اندازی کامل Hermes\|META-INT-050]]) |
+| ۳ | هیچ Workflowای در Git نسخه‌بندی (export) نشده بود | ⚠️ **همچنان باز** — فایل `workflows.json` فقط در ترمینال محلی دیده شد، هنوز در مخزن Commit نشده (رجوع کنید به [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی\|META-INT-110]]) |
+| ۴ | `RAG-02` فقط یک ID دارد اما پوشش واقعی آن نامشخص بود | ⚠️ **تشدید شد** — طبق Qdrant (`notebook_id` فقط روی ۱ از ۷۸ point ایندکس شده)، `RAG-02` عملاً فقط برای ۱ سند اجرا شده، نه برای محتوای ۷ Notebook تخصصی توصیف‌شده در [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes\|META-INT-070]] |
+| ۵ | ۳ Workflow آزمایشی بلااستفاده در n8n باقی مانده‌اند | 🆕 **یافته جدید** — `My workflow`، `[TEST] Open Notebook Connection`، `[TEST] Open Notebook API` (جدول بالا) |
+| ۶ | یک Workflow واقعی (`[KNW-02]`) هیچ‌جا مستند نبود | 🆕 **یافته جدید، اکنون ثبت شد** در بخش ۳ |
+| ۷ | تمام Workflowها زیر پروژه شخصی یک کاربر n8n هستند | ⚠️ **تأیید شد** — ریسک تک‌نفره بودن واقعی است، نه فرضی |
 
 ---
 
 ## ۸. اقدامات
 
-- [ ] ورود به n8n و استخراج ID، Trigger، وضعیت واقعی هر ۴ Workflow بالا
-- [ ] بررسی این‌که آیا Workflow «Backup به GitHub» واقعاً ساخته شده است یا فقط پیشنهاد باقی مانده
-- [ ] Export JSON هر Workflow فعال و ذخیره در مخزن (پیش‌نیاز META-INT-110)
+- [x] ورود به n8n (از طریق `docker exec`) و استخراج ID، Trigger، وضعیت واقعی همه Workflowها
+- [x] بررسی این‌که آیا Workflow «Backup به GitHub» واقعاً ساخته شده است — تأیید شد که نه
+- [ ] **فوری:** اصلاح باگ Syntax (`for (const block offileBlocks)`) در گره Code «Parse & Chunk» از Workflow `[RAG-01]` مستقیماً در n8n (خارج از دامنه این Vault)
+- [ ] Export JSON هر Workflow فعال و Commit در مخزن (پوشه `infra/n8n-workflows/`، پیش‌نیاز META-INT-110)
+- [ ] تصمیم‌گیری درباره حذف/بایگانی ۳ Workflow آزمایشی بلااستفاده (نیازمند تأیید مالک انسانی)
+- [ ] بررسی چرا `RAG-02` فقط ۱ point در Qdrant ایندکس کرده و اجرای کامل آن برای هر ۷ Notebook
 - [ ] تعیین مالک مشخص برای هر Workflow (در حال حاضر همه روی یک نفر متمرکزند — ریسک تک‌نفره بودن)
 - [ ] افزودن این رجیستری به‌عنوان منبع ارجاع در System Prompt یا ابزار MCP مربوط به Hermes
 
@@ -117,11 +132,15 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 - [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]]
 - [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]]
 - [[META-INT-060 — تست RAG با FND-009|META-INT-060]]
+- [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes|META-INT-070]]
+- [[L1-KNW-001 — فهرست جامع منابع مهندسی برق|L1-KNW-001]] — منبع ورودی Workflow جدید `[KNW-02]`
 - [[META-INT-100 — مدیریت Secrets و Credentials|META-INT-100]]
 - [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی|META-INT-110]]
+- [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]]
 
 ---
 
 ## ۱۰. Changelog
 
+- **v0.2.0 (۱۴۰۵-۰۷-۳۰):** تکمیل کامل جدول رجیستری با داده واقعی استخراج‌شده از `docker exec xennic-n8n n8n export:workflow --all` — همه ۸ ID واقعی، وضعیت Active، و تاریخ ثبت شد؛ کشف و ثبت Workflow قبلاً مستندنشده `[KNW-02] Smart Source Downloader`؛ شناسایی ۳ Workflow آزمایشی کاندید حذف؛ تصحیح کانال اطلاع‌رسانی خطا از Telegram به Bale Messenger (واقعیت پیاده‌سازی‌شده)؛ تأیید عدم وجود Workflow «Backup به GitHub»؛ شناسایی شکاف پوشش ناقص `RAG-02` (فقط ۱ point ایندکس‌شده در Qdrant)؛ ثبت باگ Syntax احتمالی در گره Code از `[RAG-01]`؛ تغییر وضعیت به `review`.
 - **v0.1.0 (۱۴۰۵-۰۷-۳۰):** ایجاد اولیه در پی ممیزی کامل پوشه `00_Meta/Integration` — مستندسازی شکاف «عدم وجود رجیستری رسمی Workflowها» که در META-INT-080 پیش‌بینی شده بود اما پیاده نشده بود.
