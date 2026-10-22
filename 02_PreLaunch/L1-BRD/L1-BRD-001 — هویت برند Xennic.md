@@ -425,14 +425,14 @@ tags: [brand, identity, prelaunch, core-asset]
 
 ### ۸.۲. ارجاعات به اسناد
 
-- attachments/xennic-logo-final.png
-- attachments/xennic-logo-tagline-color.png
-- attachments/xennic-logo-tagline-black.png
-- attachments/xennic-logo-website.png
-- attachments/xennic-logo-website-dark.png
-- attachments/xennic-icon-color.png
-- attachments/xennic-icon-black.png
-- attachments/xennic-icon-master.svg
+- [[xennic-logo-final.png]]
+- [[xennic-logo-tagline-color.png]]
+- [[xennic-logo-tagline-black.png]]
+- [[xennic-logo-website.png]]
+- [[xennic-logo-website-dark.png]]
+- [[xennic-icon-color.png]]
+- [[xennic-icon-black.png]]
+-[[xennic-icon-master.svg]]
 - [[کتابچه تأسیس، هویت سازمانی و معماری Xennic.txt|کتابچه ۲۸ فصلی]] فصل ۲ و ۲۴
 
 ### ۸.۳. ارجاعات خارجی
