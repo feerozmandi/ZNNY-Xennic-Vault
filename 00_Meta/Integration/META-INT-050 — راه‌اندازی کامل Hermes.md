@@ -7,7 +7,7 @@ tags: [integration, hermes, mcp, obsidian, n8n]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 1.1.0
+version: 1.2.0
 dependencies: []
 ---
 
@@ -66,6 +66,9 @@ Hermes Agent (desktop app)
 |--------|-------|-------|
 | obsidian | 42 | `F:\ahmad\obsidian\ZNNY-Xennic-Vault` |
 | n8n-official | 51 | `http://localhost:5678` |
+
+> [!success] تأیید مستقل ۱۴۰۵-۰۷-۳۰ — بدون موازی‌کاری
+> خروجی `hermes mcp list` مستقیماً تأیید کرد که دقیقاً همین ۲ Server فعال‌اند و وضعیت `✓ enabled` دارند. یک ردیف سوم با نام `n8n` (ترنسپورت `uvx n8n-mcp-server`، بسته MCP جامعه‌محور/Community) هم در `config.yaml` موجود است اما وضعیت آن `✗ disabled` است — یعنی **هیچ تداخل یا موازی‌کاری واقعی بین دو MCP برای n8n وجود ندارد**؛ فقط یک پیکربندی قدیمی/آزمایشی غیرفعال باقی مانده که پاک‌سازی آن (حذف بلوک مربوطه از `config.yaml`) یک اقدام نظافتی جزئی و کم‌اولویت است، نه یک ریسک حاکمیتی. جزئیات بیشتر در [[META-INT-033 — ادغام Hermes با MCP n8n-official|META-INT-033]].
 
 ### Vault
 - مسیر: `F:\ahmad\obsidian\ZNNY-Xennic-Vault`
@@ -129,6 +132,7 @@ curl "http://localhost:5678/webhook/search?query=خط گرم&limit=5"
 
 ## Changelog
 
+- **v1.2.0 (۱۴۰۵-۰۷-۳۰):** تأیید مستقل تعداد MCP Server فعال از طریق `hermes mcp list`؛ ثبت وجود یک ردیف Community غیرفعال (`n8n`) در `config.yaml` به‌عنوان یادآوری نظافتی کم‌اولویت، نه موازی‌کاری واقعی.
 - **v1.1.0 (۱۴۰۵-۰۷-۳۰):** تصحیح `status` به مقدار معتبر `approved` (قبلاً `done`)؛ حذف فیلدهای غیراستاندارد `type` و `updated`.
 - **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
 - **v0.5.0 (۱۴۰۵-۰۷-۲۴):** راه‌اندازی کامل Hermes با ۲ MCP Server (obsidian + n8n-official) — در نسخه اصلی این سطر به‌اشتباه «v5.0» ثبت شده بود؛ هنگام یکپارچه‌سازی این نود در طرح شماره‌گذاری SemVer فعلی، به v0.5.0 اصلاح شد تا با توالی نسخه‌های بالا (v1.0.0 → v1.0.1) سازگار باشد.
