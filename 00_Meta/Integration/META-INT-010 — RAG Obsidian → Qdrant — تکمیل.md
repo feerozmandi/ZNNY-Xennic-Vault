@@ -14,9 +14,29 @@ dependencies: []
 
 # RAG Obsidian → Qdrant — تکمیل
 
+> [!abstract] هدف
+> ذخیره‌سازی نودهای Obsidian در Qdrant برای جستجوی معنایی مشترک.
+
+## فهرست
+
+| # | بخش |
+|---|---|
+| ۱ | هدف |
+| ۲ | معماری نهایی |
+| ۳ | Collection |
+| ۴ | داده‌های ذخیره‌شده |
+| ۵ | مدل Embedding |
+| ۶ | نتیجه تست |
+| ۷ | ارجاعات |
+| ۸ | Changelog |
+
+---
+
 ## هدف
 ذخیره‌سازی نودهای Obsidian در Qdrant برای جستجوی معنایی مشترک.
 
+
+---
 
 ## معماری نهایی
 
@@ -35,6 +55,8 @@ dependencies: []
 [HTTP Request: Qdrant Upsert]
 
 
+---
+
 ## Collection
 - نام: `xennic_shared_knowledge`
 - ابعاد: 1536
@@ -42,11 +64,15 @@ dependencies: []
 - Indexها: source, node_id, notebook_id, tags, language
 
 
+---
+
 ## داده‌های ذخیره‌شده
 - ۸ فایل Founder (FND-001 تا FND-008)
 - ۱۹ chunk
 - ۱۹ point در Qdrant
 
+
+---
 
 ## مدل Embedding
 - Provider: gapgpt.app (OpenAI-compatible)
@@ -54,16 +80,22 @@ dependencies: []
 - ابعاد: 1536
 
 
+---
+
 ## نتیجه تست
 - جستجوی "خط گرم" → Score: [مقدار]
 - جستجوی "دیسپاچینگ" → Score: [مقدار]
+
+---
 
 ## ارجاعات
 ### لینک‌های مرتبط
 - [[META-INT-009]] — Qdrant Collection Creation
 - [[1.1-rag-open-notebook-qdrant]]
 
+---
+
 ## Changelog
 
-- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
-- v1.0.0 (۰۷۸۴-۰۴-۲۹): ایجاد اولیه
+- **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
+- **v1.0.0 (۰۷۸۴-۰۴-۲۹):** ایجاد اولیه

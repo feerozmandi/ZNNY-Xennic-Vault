@@ -15,10 +15,30 @@ dependencies: []
 
 # راه‌اندازی کامل Hermes
 
+> [!abstract] هدف
+> راه‌اندازی کامل Hermes Agent با ۲ MCP Server فعال برای اتصال به Obsidian Vault و n8n Workflow Automation.
+
+## فهرست
+
+| # | بخش |
+|---|---|
+| ۱ | هدف |
+| ۲ | معماری |
+| ۳ | پیکربندی |
+| ۴ | تست |
+| ۵ | نتایج |
+| ۶ | چالش‌های حل‌شده |
+| ۷ | ارجاعات |
+| ۸ | Changelog |
+
+---
+
 ## هدف
 
 راه‌اندازی کامل Hermes Agent با ۲ MCP Server فعال برای اتصال به Obsidian Vault و n8n Workflow Automation.
 
+
+---
 
 ## معماری
 
@@ -33,6 +53,8 @@ Hermes Agent (desktop app)
     └── Obsidian Founder → Qdrant
 ```
 
+
+---
 
 ## پیکربندی
 
@@ -60,6 +82,8 @@ Hermes Agent (desktop app)
 - **Webhook Search:** `http://localhost:5678/webhook/search?query={q}&limit=5`
 
 
+---
+
 ## تست
 
 ```bash
@@ -74,6 +98,8 @@ curl "http://localhost:5678/webhook/search?query=خط گرم&limit=5"
 ```
 
 
+---
+
 ## نتایج
 
 - ✅ Hermes Desktop App با موفقیت نصب و پیکربندی شد
@@ -83,11 +109,15 @@ curl "http://localhost:5678/webhook/search?query=خط گرم&limit=5"
 - ✅ Webhook semantic search قابل استفاده
 
 
+---
+
 ## چالش‌های حل‌شده
 
 1. **Encoding فارسی در MCP tool_call:** کاراکترهای فارسی (عربی-فارسی) در JSON tool_call مشکل serialize ایجاد می‌کردند. راه‌حل: استفاده از Webhook GET endpoint به جای MCP tool_call برای جستجوی معنایی فارسی.
 2. **MCP access روی workflow:** workflowهای n8n پیش‌فرض `mcpAccess: false` دارند — باید از طریق UI فعال شوند.
 3. **عدم دسترسی به browser محلی:** Chromium نصب نبود؛ استفاده از direct file write و HTTP API به جای browser automation.
+
+---
 
 ## ارجاعات
 ### لینک‌های مرتبط
@@ -97,7 +127,9 @@ curl "http://localhost:5678/webhook/search?query=خط گرم&limit=5"
 - [[META-INT-034 — ادغام Hermes با RAG مشترک|META-INT-034]]
 - [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant|META-INT-020]]
 
+---
+
 ## Changelog
 
-- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
+- **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
 - v5.0 (۱۴۰۵-۰۷-۲۴): راه‌اندازی کامل Hermes با ۲ MCP Server (obsidian + n8n-official)

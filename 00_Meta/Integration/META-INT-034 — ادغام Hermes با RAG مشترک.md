@@ -14,9 +14,26 @@ dependencies: []
 
 # ادغام Hermes با RAG مشترک
 
+> [!abstract] هدف
+> اتصال Hermes به RAG مشترک (Obsidian + Open Notebook) از طریق Webhook GET.
+
+## فهرست
+
+| # | بخش | # | بخش |
+|---|---|---|---|
+| ۱ | هدف | ۶ | چالش‌های حل‌شده |
+| ۲ | معماری نهایی | ۷ | استفاده در Hermes |
+| ۳ | Endpoint | ۸ | 🎯 گام ۴: جلوگیری از موازی‌کاری |
+| ۴ | نتایج تست | ۹ | ارجاعات |
+| ۵ | مزایای Webhook GET | ۱۰ | Changelog |
+
+---
+
 ## هدف
 اتصال Hermes به RAG مشترک (Obsidian + Open Notebook) از طریق Webhook GET.
 
+
+---
 
 ## معماری نهایی
 
@@ -47,6 +64,8 @@ dependencies: []
 └──────────────────────────────────────────┘
 
 
+---
+
 ## Endpoint
 
 | مورد | مقدار |
@@ -56,6 +75,8 @@ dependencies: []
 | **Parameters** | `query` (اجباری), `limit` (اختیاری) |
 
 
+---
+
 ## نتایج تست
 
 | Query | Score برتر | منبع |
@@ -63,6 +84,8 @@ dependencies: []
 | خط گرم | **۰.۸۷** | Open Notebook + FND-003 |
 | دیسپاچینگ | ۰.۸۵ | FND-002, FND-004 |
 
+
+---
 
 ## مزایای Webhook GET
 
@@ -75,12 +98,16 @@ dependencies: []
 | **پایدار** | همیشه کار می‌کند |
 
 
+---
+
 ## چالش‌های حل‌شده
 
 1. **MCP tool_call با فارسی** → خطای encoding → راه‌حل: Webhook GET
 2. **POST body با فارسی** → مشکل serialize → راه‌حل: URL-encoded
 3. **Available in MCP** → نیاز به UI → راه‌حل: Webhook GET
 
+
+---
 
 ## استفاده در Hermes
 
@@ -95,6 +122,8 @@ dependencies: []
 curl.exe -s "http://localhost:5678/webhook/search?query=%D8%AE%D8%B7%20%DA%AF%D8%B1%D9%85&limit=5"
 ```
 
+
+---
 
 ## 🎯 گام ۴: جلوگیری از موازی‌کاری
 
@@ -144,6 +173,8 @@ tags: [founder, experience, live-line]
 
 **در Obsidian:** اگر نودی به یک سند Open Notebook اشاره دارد:
 
+---
+
 ## ارجاعات
 ### لینک‌های مرتبط
 
@@ -164,7 +195,9 @@ tags: [founder, experience, live-line]
 
 منبع مرتبط: FND-003 (Obsidian)
 
+---
+
 ## Changelog
 
-- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
-- v1.0.0 (۰۷۸۴-۰۵-۰۳): ایجاد اولیه
+- **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
+- **v1.0.0 (۰۷۸۴-۰۵-۰۳):** ایجاد اولیه

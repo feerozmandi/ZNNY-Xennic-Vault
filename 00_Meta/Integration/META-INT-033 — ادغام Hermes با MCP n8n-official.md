@@ -14,9 +14,29 @@ dependencies: []
 
 # ادغام Hermes با MCP n8n-official
 
+> [!abstract] هدف
+> اتصال Hermes به n8n از طریق MCP Server رسمی n8n-official.
+
+## فهرست
+
+| # | بخش |
+|---|---|
+| ۱ | هدف |
+| ۲ | پیکربندی |
+| ۳ | OAuth Flow |
+| ۴ | Toolهای در دسترس (۱۴ عدد) |
+| ۵ | استفاده |
+| ۶ | نکات مهم |
+| ۷ | ارجاعات |
+| ۸ | Changelog |
+
+---
+
 ## هدف
 اتصال Hermes به n8n از طریق MCP Server رسمی n8n-official.
 
+
+---
 
 ## پیکربندی
 
@@ -29,6 +49,8 @@ dependencies: []
 | **OAuth Callback** | `http://127.0.0.1:27890/callback` |
 
 
+---
+
 ## OAuth Flow
 
 1. `hermes mcp login n8n-official`
@@ -36,6 +58,8 @@ dependencies: []
 3. در n8n → **Authorize**
 4. توکن دریافت می‌شود
 
+
+---
 
 ## Toolهای در دسترس (۱۴ عدد)
 
@@ -47,6 +71,8 @@ dependencies: []
 - List tags
 - List/Read/Write data tables
 
+
+---
 
 ## استفاده
 
@@ -62,6 +88,8 @@ hermes mcp test n8n-official
 ```
 
 
+---
+
 ## نکات مهم
 
 - **Workflow باید Available in MCP باشد** تا Hermes آن را ببیند
@@ -70,6 +98,8 @@ hermes mcp test n8n-official
     
 - **MCP Server n8n** روی همان پورت ۵۶۷۸ (نه ۵۶۷۹)
 
+---
+
 ## ارجاعات
 ### لینک‌های مرتبط
 
@@ -77,7 +107,9 @@ hermes mcp test n8n-official
     
 - [[3.3-hermes-mcp-integration]] — ادغام MCP
 
+---
+
 ## Changelog
 
-- v1.0.1 (۱۴۰۵-۰۷-۲۷): به‌روزرسانی شناسه، لینک‌ها و مالک
-- v1.0.0 (۰۷۸۴-۰۵-۰۱): ایجاد اولیه
+- **v1.0.1 (۱۴۰۵-۰۷-۲۷):** به‌روزرسانی شناسه، لینک‌ها و مالک
+- **v1.0.0 (۰۷۸۴-۰۵-۰۱):** ایجاد اولیه
