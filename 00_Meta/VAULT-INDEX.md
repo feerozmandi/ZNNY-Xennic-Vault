@@ -6,7 +6,7 @@ domain: CONV
 status: approved
 owner: احمد فیروزمندی بندپی
 created: 2026-10-22
-version: 1.0.0
+version: 1.1.0
 dependencies: [META-CONV-001]
 tags: [meta, index, navigation]
 ---
@@ -17,7 +17,7 @@ tags: [meta, index, navigation]
 > دسترسی سریع به تمام نودهای موجود در Vault بدون نیاز به باز و بسته کردن دستی تمام پوشه‌ها — این فایل به‌طور خودکار توسط `00_Meta/Scripts/generate_vault_index.py` تولید می‌شود.
 
 > [!tip] نحوه به‌روزرسانی
-> پس از هر ساخت، حذف یا جابه‌جایی نود، از ریشه ریپازیتوری دستور `python3 00_Meta/Scripts/generate_vault_index.py` را اجرا کنید (طبق قاعده ۱۸ در META-CONV-001). محتوای بین نشانه‌های زیر به‌طور خودکار بازنویسی می‌شود؛ متن خارج از آن‌ها دست‌نخورده می‌ماند.
+> این فهرست روی هر Pull Request به `dev`/`main` به‌صورت خودکار توسط GitHub Action (`.github/workflows/update-vault-index.yml`) بازسازی و در صورت نیاز کامیت می‌شود — نیازی به اجرای دستی نیست. در صورت تمایل به بررسی محلی پیش از باز کردن PR، می‌توانید از ریشه ریپازیتوری دستور `python3 00_Meta/Scripts/generate_vault_index.py` را هم دستی اجرا کنید (طبق قاعده ۱۸ در META-CONV-001). محتوای بین نشانه‌های زیر به‌طور خودکار بازنویسی می‌شود؛ متن خارج از آن‌ها دست‌نخورده می‌ماند.
 
 ## ارجاعات
 - [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]] — قاعده ۱۸ (فهرست و نقشه Vault)
@@ -147,4 +147,5 @@ tags: [meta, index, navigation]
 ---
 
 ## Changelog
+- **v1.1.0 (۱۴۰۵-۰۷-۳۰):** اتصال خودکارسازی به GitHub Action (`update-vault-index.yml`)؛ دیگر نیازی به اجرای دستی اسکریپت پیش از PR نیست.
 - **v1.0.0 (۱۴۰۵-۰۷-۳۰):** ایجاد اولیه فهرست درختی Vault و اسکریپت تولید خودکار آن (قاعده ۱۸ در META-CONV-001).

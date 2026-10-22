@@ -1,0 +1,48 @@
+name: Update Vault Index
+
+# طبق قاعده ۱۸ سند META-CONV-001، این workflow به‌جای اجرای دستی
+# generate_vault_index.py، فهرست 00_Meta/VAULT-INDEX.md را روی هر PR
+# به‌صورت خودکار بازسازی می‌کند و در صورت نیاز، یک کامیت به همان شاخه PR
+# اضافه می‌کند. هیچ کامیتی مستقیم روی dev/main انجام نمی‌شود — همه‌چیز
+# از طریق همان PR در حال بررسی انجام می‌شود.
+
+on:
+  pull_request:
+    branches: [dev, main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  update-index:
+    runs-on: ubuntu-latest
+    # فقط برای PRهای داخل همین ریپازیتوری (نه از Fork) اجرا شود، چون
+    # GITHUB_TOKEN برای PRهای Fork دسترسی نوشتن ندارد.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Regenerate VAULT-INDEX.md
+        run: python3 00_Meta/Scripts/generate_vault_index.py
+
+      - name: Commit updated index if changed
+        run: |
+          if git diff --quiet -- 00_Meta/VAULT-INDEX.md; then
+            echo "VAULT-INDEX.md از قبل به‌روز است."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add 00_Meta/VAULT-INDEX.md
+            git commit -m "chore(meta): auto-update VAULT-INDEX.md [skip ci]"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
