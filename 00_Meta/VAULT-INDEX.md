@@ -97,8 +97,8 @@ tags: [meta, index, navigation]
 
 ### 💻 پلتفرم (Platform)
 
-- [**L2-PLT-001** — Xennic v1](<../03_Launch/L2-PLT/L2-PLT-001 — Xennic v1.md>) — سند مرجع توسعه پلتفرم Xennic v1.
 - [**L2-PLT-001** — Xennic v1](<../03_Launch/L2-PLT/L2-PLT-001 — Xennic v1 (پلتفرم).md>)
+- [**L2-PLT-001** — Xennic v1](<../03_Launch/L2-PLT/L2-PLT-001 — Xennic v1.md>) — سند مرجع توسعه پلتفرم Xennic v1.
 
 ### 🔒 امنیت (Security)
 
