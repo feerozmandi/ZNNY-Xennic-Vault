@@ -98,7 +98,6 @@ tags: [meta, index, navigation]
 ### 💻 پلتفرم (Platform)
 
 - [**L2-PLT-001** — Xennic v1](<../03_Launch/L2-PLT/L2-PLT-001 — Xennic v1.md>) — سند مرجع توسعه پلتفرم Xennic v1.
-- [**L2-PLT-001** — Xennic v1](<../03_Launch/L2-PLT/L2-PLT-001 — Xennic v1 (پلتفرم).md>)
 
 ### 🔒 امنیت (Security)
 
@@ -150,7 +149,7 @@ tags: [meta, index, navigation]
 - [00_Meta/Sources](<./Sources/README.md>) — اسناد خام منبع که هنوز به‌طور کامل به نود تبدیل نشده‌اند.
 - [00_Meta/Archive](<./Archive/README.md>) — اسناد منسوخ‌شده‌ای که محتوایشان به نودهای رسمی منتقل شده است.
 
-**تعداد کل نودهای رسمی: 48**
+**تعداد کل نودهای رسمی: 47**
 **آخرین به‌روزرسانی خودکار: ۱۴۰۵-۰۸-۰۱**
 
 <!-- AUTO-GENERATED:END -->
