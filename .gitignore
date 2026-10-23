@@ -23,6 +23,13 @@ private/
 credentials/
 
 # ═══════════════════════════════════════════
+# Operational / Infra scratch files (NOT vault documentation)
+# See META-INT-110 §7: infra IaC/backups belong in a separate repo
+# (xennic-infra-backups), not in this reviewed documentation vault.
+# ═══════════════════════════════════════════
+_vps-bootstrap/
+
+# ═══════════════════════════════════════════
 # OS Files
 # ═══════════════════════════════════════════
 .DS_Store
