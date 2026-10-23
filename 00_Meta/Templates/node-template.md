@@ -2,7 +2,7 @@
 id: <% tp.file.title.split(" — ")[0] %>
 title: <% tp.file.title.split(" — ")[1] || tp.file.title %>
 layer: <% tp.system.suggester(["Founder", "PreLaunch", "Launch", "Future", "Meta"], ["Founder", "PreLaunch", "Launch", "Future", "Meta"]) %>
-domain: <% tp.system.suggester(["FND", "LEG", "BRD", "FIN", "STR", "MKT", "TEC", "PLT", "AI", "OPS", "HR", "SEC", "QA", "RND", "INT", "CONV"], ["FND", "LEG", "BRD", "FIN", "STR", "MKT", "TEC", "PLT", "AI", "OPS", "HR", "SEC", "QA", "RND", "INT", "CONV"]) %>
+domain: <% tp.system.suggester(["FND", "LEG", "BRD", "FIN", "STR", "MKT", "TEC", "PLT", "AI", "OPS", "HR", "SEC", "QA", "RND", "INT", "CONV", "GOV", "KNW"], ["FND", "LEG", "BRD", "FIN", "STR", "MKT", "TEC", "PLT", "AI", "OPS", "HR", "SEC", "QA", "RND", "INT", "CONV", "GOV", "KNW"]) %>
 status: draft
 owner: احمد فیروزمندی بندپی
 created: <% tp.date.now("YYYY-MM-DD") %>
