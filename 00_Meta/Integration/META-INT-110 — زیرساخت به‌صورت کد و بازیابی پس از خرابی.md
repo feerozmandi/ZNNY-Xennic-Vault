@@ -7,7 +7,7 @@ tags: [integration, infrastructure, iac, disaster-recovery, docker, governance, 
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.2.0
+version: 0.2.1
 dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-100, META-INT-130]
 ---
 
@@ -47,7 +47,7 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 
 | سرویس | نسخه | محل اجرا | نحوه نصب |
 |---|---|---|---|
-| n8n | v2.42.6 | کانتینر Docker (`xennic-n8n` + `xennic-n8n-db` Postgres) روی یک کامپیوتر Windows | Docker (تأییدشده — طبق [[META-INT-090 — رجیستری Workflowهای n8n|META-INT-090]]) |
+| n8n | v2.42.6 | کانتینر Docker (`xennic-n8n` + `xennic-n8n-db` Postgres) روی یک کامپیوتر Windows | Docker (تأییدشده — طبق [[META-INT-090 — رجیستری Workflowهای n8n\|META-INT-090]]) |
 | Qdrant | v1.18.3 | همان کامپیوتر، `localhost:6333` | Docker |
 | TEI (Text Embeddings Inference) | v1.9.4 | همان کامپیوتر، `localhost:8001` | Docker |
 | Open Notebook | v1.15.0 | کانتینر Docker (`open-notebook-open_notebook-1` + `open-notebook-surrealdb-1`) | Docker |
@@ -207,7 +207,7 @@ git push origin main
 | ۴ | Import مجدد Workflowهای n8n از فایل‌های Export شده | وجود export JSON در Git |
 | ۵ | بازسازی Credentialها از محل رسمی (نه از حافظه) طبق META-INT-100 | اجرای کامل META-INT-100 |
 | ۶ | رمزگشایی `surrealdb-dump.surql.age` با کلید خصوصی `age` (فقط نزد مالک) و Import به SurrealDB جدید | کلید خصوصی `age` در دسترس باشد |
-| ۷ | اجرای مجدد `RAG-01`/`RAG-02` برای بازسازی ایندکس Qdrant از صفر | وجود [[META-INT-090 — رجیستری Workflowهای n8n|META-INT-090]] به‌روز |
+| ۷ | اجرای مجدد `RAG-01`/`RAG-02` برای بازسازی ایندکس Qdrant از صفر | وجود [[META-INT-090 — رجیستری Workflowهای n8n\|META-INT-090]] به‌روز |
 | ۸ | تست جستجوی معنایی (مطابق تست‌های META-INT-034) برای تأیید صحت بازیابی | — |
 
 > [!warning] وضعیت فعلی این برنامه
@@ -272,5 +272,6 @@ git push origin main
 
 ## ۱۳. Changelog
 
+- **v0.2.1 (۱۴۰۵-۰۸-۰۱):** رفع اشکال رندر جدول‌ها — Escape کردن `|` داخل لینک‌های Wiki در جدول‌های بخش‌های ۲ و ۸ که باعث شکستن ستون‌بندی جدول در رندررهای استاندارد Markdown (از جمله GitHub) می‌شد؛ بدون تغییر محتوایی.
 - **v0.2.0 (۱۴۰۵-۰۷-۳۰):** افزودن دستورالعمل اجرایی مشخص (بخش ۷) برای Backup خودکار n8n (Workflow/Credentials/Community Packages)، Hermes (`config.yaml`) و Open Notebook (SurrealDB رمزنگاری‌شده با `age`) به یک مخزن Git مجزا (`xennic-infra-backups`)؛ کشف و ثبت شکاف جدید «فهرست بسته‌های Community نصب‌شده هیچ‌جا ثبت نشده»؛ افزودن بخش توضیح الگوی مرجع Obsidian؛ تفکیک نقشه راه اجرایی ریزدانه (فاز C) از نقشه راه کلان META-INT-130؛ تغییر وضعیت به `review`.
 - **v0.1.0 (۱۴۰۵-۰۷-۳۰):** ایجاد اولیه در پی ممیزی کامل پوشه `00_Meta/Integration` — مستندسازی شکاف «عدم وجود Infrastructure as Code و برنامه بازیابی پس از خرابی» و ریسک تک‌نقطه‌ای بودن زیرساخت روی یک کامپیوتر شخصی.
