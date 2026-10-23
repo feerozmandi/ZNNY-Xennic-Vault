@@ -7,7 +7,7 @@ tags: [integration, security, secrets, credentials, governance]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.2.0
+version: 0.2.1
 dependencies: [META-INT-080, META-INT-050, META-INT-033, META-INT-090, L2-SEC-001]
 ---
 
@@ -100,7 +100,7 @@ dependencies: [META-INT-080, META-INT-050, META-INT-033, META-INT-090, L2-SEC-00
 | ۱ | هیچ Secret در Git نوشته نمی‌شود | نه در کد، نه در مستندات Obsidian، نه در فایل‌های پیکربندی Commit‌شده |
 | ۲ | هر Secret دقیقاً یک محل ذخیره رسمی دارد | طبق اصل Single Source of Truth در META-INT-080 |
 | ۳ | دسترسی حداقلی (Least Privilege) | هر Workflow/Agent فقط به Credentialهایی که واقعاً لازم دارد دسترسی داشته باشد |
-| ۴ | Secret مخصوص Corporate Notebook هرگز به API خارجی ارسال نمی‌شود | طبق [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes|META-INT-070]] (ردیف Corporate) |
+| ۴ | Secret مخصوص Corporate Notebook هرگز به API خارجی ارسال نمی‌شود | طبق [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes\|META-INT-070]] (ردیف Corporate) |
 
 ---
 
@@ -179,5 +179,6 @@ dependencies: [META-INT-080, META-INT-050, META-INT-033, META-INT-090, L2-SEC-00
 
 ## ۱۱. Changelog
 
+- **v0.2.1 (۱۴۰۵-۰۸-۰۱):** رفع اشکال رندر جدول — Escape کردن `|` داخل یک لینک Wiki در جدول بخش ۴ که باعث شکستن ستون‌بندی جدول در رندررهای استاندارد Markdown (از جمله GitHub) می‌شد؛ بدون تغییر محتوایی.
 - **v0.2.0 (۱۴۰۵-۰۷-۳۰):** تکمیل جدول Credentialها با داده واقعی استخراج‌شده از `docker exec xennic-n8n n8n export:credentials --all` (۹ مورد، بدون افشای مقدار رمزگذاری‌شده)؛ تصحیح فرض نادرست «Open Notebook بدون Auth است» (واقعاً `Header Auth account` دارد)؛ شناسایی تکرار دو Credential Qdrant؛ شناسایی Credential ناشناخته `APITemplate.io account`؛ ثبت یادآوری حیاتی درباره Rotation کلید Local REST API و گواهی‌های RSA/CA Obsidian که قبلاً به‌صورت متن ساده مشاهده شدند؛ تغییر وضعیت به `review`.
 - **v0.1.0 (۱۴۰۵-۰۷-۳۰):** ایجاد اولیه در پی ممیزی کامل پوشه `00_Meta/Integration` — مستندسازی شکاف «عدم وجود سیاست مدیریت Secrets برای زیرساخت اتوماسیون».
