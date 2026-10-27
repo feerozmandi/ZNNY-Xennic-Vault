@@ -82,3 +82,8 @@ TABLE length(rows) AS "تعداد"
 FROM "02_PreLaunch" OR "03_Launch"
 GROUP BY domain
 ```
+
+---
+
+## Changelog
+- **v0.1.0 (2026-10-08):** ایجاد اولیه — داشبورد مرکزی با نماهای Dataview برای آمار کلی، نودهای در حال توسعه/تأیید‌شده، فهرست نودهای هر لایه (Founder/PreLaunch/Launch)، آخرین تغییرات و تفکیک بر اساس Domain.
