@@ -7,8 +7,8 @@ tags: [integration, n8n, registry, governance, automation]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.2.0
-dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-060, META-INT-100]
+version: 0.3.0
+dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-060, META-INT-100, META-INT-110, META-INT-140]
 ---
 
 # رجیستری Workflowهای n8n
@@ -43,6 +43,9 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 > [!success] به‌روزرسانی ۱۴۰۵-۰۷-۳۰ — داده واقعی استخراج شد
 > با اجرای `docker exec xennic-n8n n8n export:workflow --all` (چون n8n در این زیرساخت به‌صورت کانتینر Docker اجرا می‌شود، نه نصب native — بنابراین دستورات CLI مستقیم مثل `n8n list:workflow` روی هاست کار نمی‌کنند)، فهرست کامل و واقعی ۸ Workflow موجود استخراج شد. جدول بخش ۳ اکنون بر اساس این داده واقعی است، نه حدس.
 
+> [!success] به‌روزرسانی ۱۴۰۵-۰۸-۰۶ — هر ۳ Workflow اصلی RAG/API تایید end-to-end شدند؛ ممیزی کامل Credential/Workflow بسته شد
+> پس از مهاجرت به VPS (طبق [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]])، هر سه Workflow اصلی زنجیرهٔ RAG — `[RAG-01]`، `[RAG-02]`، `[API-01]` — به‌طور کامل اصلاح و با تست واقعی end-to-end تایید شدند (جزئیات فنی کامل هر رفع باگ در نسخه‌های v0.4.0 تا v0.6.0 همان نود). باگ Syntax قدیمی گزارش‌شده در این رجیستری برای `[RAG-01]` در کد واقعی Export‌شده **تکرار نشد** — آن گزارش قدیمی/منسوخ بود، نه یک مشکل واقعی. علاوه بر این، یک ممیزی کامل Credential و Workflowهای بلااستفادهٔ n8n انجام شد (بخش ۷ و ۸)، و فایل JSON نهایی هر سه Workflow در مخزن خصوصی جداگانهٔ `xennic-infra-backups` (نه در این Vault، طبق [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی|META-INT-110]] بخش ۷) ثبت و Push شد.
+
 ---
 
 ## ۳. جدول رجیستری
@@ -52,21 +55,26 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 
 | نام نمایشی | ID فنی | Active | Trigger | هدف | ایجاد / آخرین تغییر | وضعیت توصیه‌شده |
 |---|---|---|---|---|---|---|
-| `[RAG-01] Obsidian Founder → Qdrant` | `DlHi16COhc9f0IkQ` | ❌ false | Manual | ایندکس نودهای `01_Founder/*.md` در Qdrant (طبق [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant\|META-INT-020]]) | ایجاد ۲۰۲۶-۱۰-۱۰ / تغییر ۲۰۲۶-۱۰-۱۷ | فعال (دستی) — availableInMCP: true — ⚠️ **باگ احتمالی**: گره Code با نام «Parse & Chunk» حاوی خط `for (const block offileBlocks)` است (به‌نظر فاقد فاصله/کلمه کلیدی `of` صحیح — در صورت اجرای واقعی خطای Syntax جاوااسکریپت می‌دهد)؛ نیاز به بررسی و اصلاح مستقیم در n8n توسط مالک (این نود فقط مستندسازی می‌کند و Workflow را ویرایش نمی‌کند) |
-| `[RAG-02] Open Notebook → Qdrant` | `4KWc6FUbJrK9aOSU` | ❌ false | Manual | ایندکس Sourceهای Open Notebook در Qdrant | ایجاد ۲۰۲۶-۱۰-۱۳ / تغییر ۲۰۲۶-۱۰-۱۵ | فعال (دستی) — availableInMCP: نامشخص؛ پوشش واقعی ناقص (بخش ۷) |
-| `[API-01] Semantic Search` (نسخه **زنده**) | `iB4FcmXQxCsI5by9` | ✅ **true** | Webhook GET `/search` | جستجوی معنایی زنده — همانی که Hermes و `/webhook/search` استفاده می‌کنند | ایجاد و تغییر ۲۰۲۶-۱۰-۱۷ | **فعال — Production** — availableInMCP: true |
-| `[API-01] Semantic Search` (نسخه قدیمی) | `JTzPnp11wUFYPaMd` | ❌ false, isArchived: **true** | Webhook GET | نسخه قبلی همین جستجو؛ خود n8n آن را بایگانی کرده | ایجاد ۲۰۲۶-۱۰-۱۵ | منسوخ — از قبل درست بایگانی شده، اقدامی لازم نیست |
-| `[KNW-02] Smart Source Downloader (Fixed)` | `KbZkNJsqsQCxP7SX` | ❌ false | Manual | دانلود خودکار منابع فهرست‌شده در [[L1-KNW-001 — فهرست جامع منابع مهندسی برق\|L1-KNW-001]]، تفکیک رایگان/غیررایگان، آپلود به Open Notebook، اطلاع‌رسانی نتیجه | ایجاد و تغییر ۲۰۲۶-۱۰-۱۸ | فعال (دستی) — **🆕 قبلاً در هیچ نود META-INT مستند نشده بود** |
-| `My workflow` | `4Rab1lMRwaGlfUTe` | ❌ false | Manual | بدون نام/هدف مشخص؛ کپی ناقص از منطق RAG-02 (فقط دریافت فهرست Sourceها) | ایجاد و تغییر ۲۰۲۶-۱۰-۱۳ | **کاندید حذف** — باقی‌مانده آزمایشی بدون نام‌گذاری استاندارد |
-| `[TEST] Open Notebook Connection` | `gmAPeHeg5c68XBON` | ❌ false | Manual | تست اولیه اتصال به API Open Notebook | ایجاد و تغییر ۲۰۲۶-۱۰-۱۰ | **کاندید حذف** — هدفش با ساخت RAG-02 محقق شد |
-| `[TEST] Open Notebook API` | `u2NQHmHbnK6VOXWO` | ❌ false | Manual | تست endpointهای `/api/notebooks`, `/api/credentials`, `/api/sources` | ایجاد ۲۰۲۶-۱۰-۱۳ | **کاندید حذف** — همان دلیل بالا |
+| `[RAG-01] Obsidian Founder → Qdrant` | `DlHi16COhc9f0IkQ` | ❌ false | Manual | ایندکس نودهای `01_Founder/*.md` در Qdrant (طبق [[META-INT-020 — RAG مشترک Obsidian + Open Notebook → Qdrant\|META-INT-020]]) | ایجاد ۲۰۲۶-۱۰-۱۰ / تغییر ۲۰۲۶-۱۰-۲۷ | ✅ **تایید‌شده end-to-end (۱۴۰۵-۰۸-۰۵)** — ۸۹ Point با موفقیت در Qdrant درج شد؛ باگ Syntax قدیمی گزارش‌شده در این جدول **تکرار نشد** (گزارش منسوخ بود). جزئیات کامل در [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)\|META-INT-140]] v0.4.0. JSON نهایی در مخزن `xennic-infra-backups` (`n8n/workflows/`) Backup شد |
+| `[RAG-02] Open Notebook → Qdrant` | `4KWc6FUbJrK9aOSU` | ❌ false | Manual | ایندکس Sourceهای Open Notebook در Qdrant | ایجاد ۲۰۲۶-۱۰-۱۳ / تغییر ۲۰۲۶-۱۰-۲۷ | ✅ **تایید‌شده end-to-end (۱۴۰۵-۰۸-۰۶)** — ۹۹ Point جدید درج شد (مجموع Collection از ۸۹ به ۱۸۸ رسید)؛ هفت مشکل واقعی رفع شد. جزئیات کامل در [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)\|META-INT-140]] v0.5.0. JSON نهایی در `xennic-infra-backups` Backup شد. ⚠️ پوشش کامل هر ۷ Notebook تخصصی (طبق [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes\|META-INT-070]]) هنوز تایید نشده (بخش ۷) |
+| `[API-01] Semantic Search` (نسخه **زنده**) | `iB4FcmXQxCsI5by9` | ✅ **true** | Webhook GET `/search` | جستجوی معنایی زنده — همانی که Hermes و `/webhook/search` استفاده می‌کنند | ایجاد ۲۰۲۶-۱۰-۱۷ / تغییر ۲۰۲۶-۱۰-۲۷ | **فعال — Production** — ✅ **تایید‌شده end-to-end (۱۴۰۵-۰۸-۰۶)** — تست واقعی با کوئری «خط گرم» ۳ نتیجهٔ مرتبط (امتیاز شباهت ۰.۸۸–۰.۸۵) برگرداند. جزئیات کامل در [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)\|META-INT-140]] v0.6.0. JSON نهایی در `xennic-infra-backups` Backup شد |
+| `[API-01] Semantic Search` (نسخه قدیمی) | `JTzPnp11wUFYPaMd` | ❌ false | Webhook GET | نسخه قبلی همین جستجو، بدون Credential، غیرفعال | ایجاد ۲۰۲۶-۱۰-۱۵ | منسوخ — **به تصمیم صریح مالک (۱۴۰۵-۰۸-۰۶) عمداً حذف نشد**؛ طی ممیزی Credential/Workflow این دوره بررسی و نگه‌داشتنش تایید شد (بخش ۷، ردیف ۵) |
+| `[KNW-02] Smart Source Downloader (Fixed)` | `KbZkNJsqsQCxP7SX` | ❌ false | Manual | دانلود خودکار منابع فهرست‌شده در [[L1-KNW-001 — فهرست جامع منابع مهندسی برق\|L1-KNW-001]]، تفکیک رایگان/غیررایگان، آپلود به Open Notebook، اطلاع‌رسانی نتیجه | ایجاد و تغییر ۲۰۲۶-۱۰-۱۸ | فعال (دستی) — بدون تغییر این دوره؛ Credentialهای آن (`Header Auth account`, `BaleMessenger account`) طی ممیزی این دوره بررسی و نگه‌داشته شدند چون هنوز توسط همین Workflow استفاده می‌شوند |
 
 > [!warning] اطلاع‌رسانی خطا از طریق Bale Messenger است، نه Telegram
 > در Workflow `[KNW-02]`، اعلان موفقیت/خطا از طریق **Bale Messenger** (پیام‌رسان ایرانی) پیاده‌سازی شده (گره‌های `n8n-nodes-bale-messenger-alpha.baleMessenger`)، نه Telegram که در پیشنهاد اولیه META-INT-020 (اتوماسیون ۷) ذکر شده بود. [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]] بر این اساس اصلاح شد.
 
-### Workflowهای کاندید حذف/بایگانی
+### Workflowهای حذف‌شده (۱۴۰۵-۰۸-۰۶)
 
-سه Workflow (`My workflow`، `[TEST] Open Notebook Connection`، `[TEST] Open Notebook API`) باقی‌مانده آزمایشی اولیه هستند که هدفشان با ساخت نسخه نهایی RAG-02 محقق شده. طبق [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]] (قاعده ۹، جلوگیری از شلوغی/موازی‌کاری)، پیشنهاد می‌شود پس از تأیید مالک، این سه حذف یا در n8n به‌صورت Archived علامت‌گذاری شوند. **این نود فقط ثبت می‌کند، حذف نمی‌کند** — تصمیم نهایی با مالک انسانی است.
+سه Workflow آزمایشی باقی‌ماندهٔ اولیه که هدفشان با ساخت نسخهٔ نهایی RAG-02 محقق شده بود، طبق [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]] (قاعده ۹، جلوگیری از شلوغی/موازی‌کاری) و با تایید صریح مالک، از n8n **به‌طور کامل حذف شدند** (ابتدا Archive، سپس Delete قطعی از لیست Archived):
+
+| نام | ID سابق | وضعیت |
+|---|---|---|
+| `My workflow` | `4Rab1lMRwaGlfUTe` | ✅ حذف شد |
+| `[TEST] Open Notebook Connection` | `gmAPeHeg5c68XBON` | ✅ حذف شد |
+| `[TEST] Open Notebook API` | `u2NQHmHbnK6VOXWO` | ✅ حذف شد |
+
+نسخهٔ قدیمی/غیرفعال `[API-01] Semantic Search` (`JTzPnp11wUFYPaMd`، جدول بالا) هم کاندید همین حذف بود، اما مالک صریحاً تصمیم گرفت آن را نگه دارد — بنابراین در جدول رجیستری بالا با وضعیت «منسوخ، عمداً نگه‌داشته‌شده» باقی می‌ماند، نه حذف‌شده.
 
 ---
 
@@ -104,11 +112,12 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 |---|---|---|
 | ۱ | ID فنی Workflowها نامشخص بود | ✅ **برطرف شد** — همه ۸ ID واقعی در بخش ۳ ثبت شد |
 | ۲ | مشخص نبود Workflow «Backup به GitHub» ساخته شده یا نه | ✅ **برطرف شد** — تأیید شد چنین Workflowای در n8n وجود ندارد؛ Backup واقعی فقط از طریق افزونه `obsidian-git` انجام می‌شود (طبق [[META-INT-050 — راه‌اندازی کامل Hermes\|META-INT-050]]) |
-| ۳ | هیچ Workflowای در Git نسخه‌بندی (export) نشده بود | ⚠️ **همچنان باز** — فایل `workflows.json` فقط در ترمینال محلی دیده شد، هنوز در مخزن Commit نشده (رجوع کنید به [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی\|META-INT-110]]) |
-| ۴ | `RAG-02` فقط یک ID دارد اما پوشش واقعی آن نامشخص بود | ⚠️ **تشدید شد** — طبق Qdrant (`notebook_id` فقط روی ۱ از ۷۸ point ایندکس شده)، `RAG-02` عملاً فقط برای ۱ سند اجرا شده، نه برای محتوای ۷ Notebook تخصصی توصیف‌شده در [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes\|META-INT-070]] |
-| ۵ | ۳ Workflow آزمایشی بلااستفاده در n8n باقی مانده‌اند | 🆕 **یافته جدید** — `My workflow`، `[TEST] Open Notebook Connection`، `[TEST] Open Notebook API` (جدول بالا) |
-| ۶ | یک Workflow واقعی (`[KNW-02]`) هیچ‌جا مستند نبود | 🆕 **یافته جدید، اکنون ثبت شد** در بخش ۳ |
+| ۳ | هیچ Workflowای در Git نسخه‌بندی (export) نشده بود | ✅ **برطرف شد (۱۴۰۵-۰۸-۰۶)** — JSON نهایی هر سه Workflow تاییدشده (`RAG-01`, `RAG-02`, `API-01`) در مخزن خصوصی جداگانهٔ `xennic-infra-backups` (`n8n/workflows/`) Commit و Push شد — نه در این Vault، طبق [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی\|META-INT-110]] بخش ۷ (تفکیک «مستندات مرورشده» از «Backup خام زیرساخت») |
+| ۴ | `RAG-02` فقط یک ID دارد اما پوشش واقعی آن نامشخص بود | ⚠️ **بهبود یافت، هنوز کاملاً برطرف نشده** — در تست end-to-end نهایی ۹۹ Point جدید درج شد (مجموع ۱۸۸)، یعنی پوشش از حالت «فقط ۱ point» عبور کرده؛ اما هنوز تایید رسمی نشده که هر ۷ Notebook تخصصی توصیف‌شده در [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes\|META-INT-070]] پوشش داده شده‌اند یا فقط بخشی از آن‌ها |
+| ۵ | ۳ Workflow آزمایشی بلااستفاده در n8n باقی مانده‌اند | ✅ **برطرف شد (۱۴۰۵-۰۸-۰۶)** — `My workflow`، `[TEST] Open Notebook Connection`، `[TEST] Open Notebook API` هرسه از n8n حذف شدند (جدول بخش ۳). نسخهٔ قدیمی `[API-01]` (`JTzPnp11wUFYPaMd`) هم بررسی شد اما به تصمیم صریح مالک نگه داشته شد، نه حذف |
+| ۶ | یک Workflow واقعی (`[KNW-02]`) هیچ‌جا مستند نبود | ✅ **برطرف شد، اکنون ثبت شده** در بخش ۳ |
 | ۷ | تمام Workflowها زیر پروژه شخصی یک کاربر n8n هستند | ⚠️ **تأیید شد** — ریسک تک‌نفره بودن واقعی است، نه فرضی |
+| ۸ | Credentialهای Qdrant در n8n تکراری/بلااستفاده بودند | 🆕 **یافته جدید، برطرف شد (۱۴۰۵-۰۸-۰۶)** — ممیزی کامل همهٔ ۶ Credential انجام شد: `Qdrant account` (نوع بومی `qdrantApi`) در هیچ Workflow‌ای استفاده نمی‌شد → حذف شد. ۵ Credential باقی‌مانده تایید و نگه‌داشته شدند: `Qdrant Header Auth` (فعال، در هر ۳ Workflow اصلی)، `Open Notebook Header Auth` (فعال، در `RAG-02`)، `Header Auth account` و `BaleMessenger account` (هردو هنوز در `[KNW-02]` استفاده می‌شوند)، و `GapGPT API Key` (فعلاً در هیچ Workflow فعالی استفاده نمی‌شود، اما به تصمیم صریح مالک برای استفادهٔ آینده نگه داشته شد) |
 
 ---
 
@@ -116,12 +125,15 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 
 - [x] ورود به n8n (از طریق `docker exec`) و استخراج ID، Trigger، وضعیت واقعی همه Workflowها
 - [x] بررسی این‌که آیا Workflow «Backup به GitHub» واقعاً ساخته شده است — تأیید شد که نه
-- [ ] **فوری:** اصلاح باگ Syntax (`for (const block offileBlocks)`) در گره Code «Parse & Chunk» از Workflow `[RAG-01]` مستقیماً در n8n (خارج از دامنه این Vault)
-- [ ] Export JSON هر Workflow فعال و Commit در مخزن (پوشه `infra/n8n-workflows/`، پیش‌نیاز META-INT-110)
-- [ ] تصمیم‌گیری درباره حذف/بایگانی ۳ Workflow آزمایشی بلااستفاده (نیازمند تأیید مالک انسانی)
-- [ ] بررسی چرا `RAG-02` فقط ۱ point در Qdrant ایندکس کرده و اجرای کامل آن برای هر ۷ Notebook
+- [x] ~~اصلاح باگ Syntax در گره Code «Parse & Chunk»~~ — بررسی مجدد کد واقعی Export‌شده نشان داد این باگ وجود نداشت (گزارش قدیمی/منسوخ بود)؛ `[RAG-01]` با تست end-to-end واقعی تایید شد (۱۴۰۵-۰۸-۰۵)
+- [x] Export JSON هر سه Workflow تاییدشده و Commit در مخزن خصوصی `xennic-infra-backups` (`n8n/workflows/`، طبق META-INT-110 بخش ۷؛ نه در این Vault) — ۱۴۰۵-۰۸-۰۶
+- [x] ممیزی کامل Credentialهای n8n و حذف مورد بلااستفادهٔ `Qdrant account` — ۱۴۰۵-۰۸-۰۶ (بخش ۷، ردیف ۸)
+- [x] تصمیم‌گیری درباره حذف/بایگانی ۳ Workflow آزمایشی بلااستفاده — هرسه با تایید مالک حذف شدند؛ نسخهٔ قدیمی `[API-01]` به تصمیم مالک نگه داشته شد — ۱۴۰۵-۰۸-۰۶
+- [ ] بررسی این‌که آیا `RAG-02` اکنون هر ۷ Notebook تخصصی را پوشش می‌دهد یا فقط بخشی از آن‌ها (بهبود جزئی ثبت شد، تایید کامل هنوز باقی است)
 - [ ] تعیین مالک مشخص برای هر Workflow (در حال حاضر همه روی یک نفر متمرکزند — ریسک تک‌نفره بودن)
 - [ ] افزودن این رجیستری به‌عنوان منبع ارجاع در System Prompt یا ابزار MCP مربوط به Hermes
+- [ ] تبدیل `[RAG-01]`/`[RAG-02]` از Manual Trigger به Schedule/Cron (طبق فاز B در META-INT-140)
+- [ ] طراحی Workflow خودکار `[OPS-01]` برای Backup شبانهٔ n8n به `xennic-infra-backups` از طریق Git node (طبق META-INT-110 بخش ۷)
 
 ---
 
@@ -137,10 +149,12 @@ dependencies: [META-INT-080, META-INT-020, META-INT-033, META-INT-034, META-INT-
 - [[META-INT-100 — مدیریت Secrets و Credentials|META-INT-100]]
 - [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی|META-INT-110]]
 - [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]]
+- [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]] — جزئیات فنی کامل هر رفع باگ end-to-end در `[RAG-01]` (v0.4.0)، `[RAG-02]` (v0.5.0) و `[API-01]` (v0.6.0)
 
 ---
 
 ## ۱۰. Changelog
 
+- **v0.3.0 (۱۴۰۵-۰۸-۰۶):** به‌روزرسانی کامل پس از پایان ممیزی زیرساخت n8n روی VPS. هر سه Workflow اصلی RAG/API (`[RAG-01]`, `[RAG-02]`, `[API-01]`) با تست واقعی end-to-end تایید شدند (جزئیات کامل در [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]])؛ باگ Syntax قدیمی گزارش‌شده برای `[RAG-01]` در کد واقعی تکرار نشد و از این نود حذف شد (گزارش منسوخ بود). JSON نهایی هر سه Workflow در مخزن خصوصی جداگانهٔ `xennic-infra-backups` Backup شد (نه در این Vault). ممیزی کامل Credentialهای n8n انجام شد: Credential بلااستفادهٔ `Qdrant account` (نوع بومی `qdrantApi`) حذف شد؛ ۵ Credential باقی‌مانده (`Qdrant Header Auth`, `Open Notebook Header Auth`, `Header Auth account`, `BaleMessenger account`, `GapGPT API Key`) بررسی و نگه داشته شدند. هر ۳ Workflow آزمایشی بلااستفاده (`My workflow`, دو `[TEST]*`) از n8n حذف شدند؛ نسخهٔ قدیمی/غیرفعال `[API-01]` (`JTzPnp11wUFYPaMd`) به تصمیم صریح مالک نگه داشته شد. شکاف پوشش `RAG-02` از «فقط ۱ point» به «۹۹ point جدید / ۱۸۸ مجموع» بهبود یافت، اما تایید کامل پوشش هر ۷ Notebook هنوز باز است.
 - **v0.2.0 (۱۴۰۵-۰۷-۳۰):** تکمیل کامل جدول رجیستری با داده واقعی استخراج‌شده از `docker exec xennic-n8n n8n export:workflow --all` — همه ۸ ID واقعی، وضعیت Active، و تاریخ ثبت شد؛ کشف و ثبت Workflow قبلاً مستندنشده `[KNW-02] Smart Source Downloader`؛ شناسایی ۳ Workflow آزمایشی کاندید حذف؛ تصحیح کانال اطلاع‌رسانی خطا از Telegram به Bale Messenger (واقعیت پیاده‌سازی‌شده)؛ تأیید عدم وجود Workflow «Backup به GitHub»؛ شناسایی شکاف پوشش ناقص `RAG-02` (فقط ۱ point ایندکس‌شده در Qdrant)؛ ثبت باگ Syntax احتمالی در گره Code از `[RAG-01]`؛ تغییر وضعیت به `review`.
 - **v0.1.0 (۱۴۰۵-۰۷-۳۰):** ایجاد اولیه در پی ممیزی کامل پوشه `00_Meta/Integration` — مستندسازی شکاف «عدم وجود رجیستری رسمی Workflowها» که در META-INT-080 پیش‌بینی شده بود اما پیاده نشده بود.
