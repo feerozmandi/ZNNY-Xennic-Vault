@@ -7,8 +7,8 @@ tags: [integration, infrastructure, iac, disaster-recovery, docker, governance, 
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.2.2
-dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-100, META-INT-130]
+version: 0.3.0
+dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-100, META-INT-130, META-INT-140]
 ---
 
 # زیرساخت به‌صورت کد و بازیابی پس از خرابی
@@ -36,12 +36,20 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 
 این نود خروجی مستقیم فاز ۰ («شناخت اتصال واقعی چهار ابزار، نسخه‌ها، دسترسی‌ها ... و نقاط شکست») در [[META-INT-080 — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic|META-INT-080]] (بند ۱۱) است و پیاده‌سازی عملی فاز C نقشه راه فنی در [[META-INT-130 — معماری هدف و نقشه راه مدرن‌سازی زیرساخت اتوماسیون و RAG|META-INT-130]] محسوب می‌شود.
 
+> [!success] به‌روزرسانی ۱۴۰۵-۰۸-۰۶ — بخش ۷ کاملاً بازنویسی شد برای معماری واقعی VPS
+> نسخهٔ قبلی بخش ۷ (v0.2.x) بر پایهٔ محیط Windows + Docker Desktop + گره `Execute Command` + ابزار خارجی `age` نوشته شده بود. پس از مهاجرت کامل به VPS لینوکسی (طبق [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]]) و تصمیم معماری ثابت «غیرفعال نگه‌داشتن گره `Execute Command`»، آن روش دیگر **قابل اجرا نیست**. بخش ۷ اکنون طراحی کامل `[OPS-01] Nightly Infra Export` را بر پایهٔ **n8n Public API + گره Git بومی (همان الگوی از پیش ساخته‌شده و تست‌شدهٔ مخزن `xennic-infra-backups`)** ارائه می‌دهد — بدون نیاز به هیچ ابزار CLI خارجی یا باز کردن گره‌های پرخطر.
+
 > [!success] به‌روزرسانی ۱۴۰۵-۰۷-۳۰ — از «برنامه‌ریزی» به «دستورالعمل اجرایی»
 > نسخه قبلی این نود فقط شکاف‌ها را فهرست می‌کرد. این نسخه یک **روش مشخص، قابل‌اجرا و متناسب با محیط واقعی مالک** (Windows + Docker Desktop + تک‌اپراتور) ارائه می‌دهد (بخش ۷)، چون این زیرساخت قرار است پایه توسعه آینده و پیوستن افراد جدید به تیم باشد — نه فقط یک آزمایش شخصی (طبق تصمیم مالک، ثبت‌شده در بخش ۹ META-INT-130).
+> 
+> ⚠️ **یادداشت تاریخی:** جملهٔ «Windows + Docker Desktop» در بالا دیگر صادق نیست؛ زیرساخت از آن زمان به یک VPS لینوکسی منتقل شده (META-INT-140). این Callout فقط برای حفظ تاریخچهٔ تصمیم نگه داشته شده است.
 
 ---
 
 ## ۲. وضعیت فعلی (As-Is)
+
+> [!warning] جدول زیر مربوط به دوران قبل از مهاجرت است
+> جدول این بخش عکس‌وضعیت دورهٔ «یک کامپیوتر شخصی Windows» است و **عمداً دست‌نخورده نگه داشته شده** تا سیر تحول معماری قابل ردیابی بماند (اصل Auditability، META-INT-080 بند ۲.۳). وضعیت واقعی و به‌روز زیرساخت (VPS لینوکسی، نام‌های Container فعلی مثل `xennic-infra-n8n-1`/`xennic-infra-surrealdb-1`/`xennic-infra-open_notebook-1`، و مخزن `xennic-infra-backups` از پیش بوت‌استرپ‌شده) در [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]] مستند است. بخش ۷ همین نود (OPS-01) بر پایهٔ معماری **فعلی** VPS طراحی شده، نه جدول زیر.
 
 بر اساس [[META-INT-050 — راه‌اندازی کامل Hermes|META-INT-050]] و [[META-INT-070 — نقشه Open Notebook برای n8n و Hermes|META-INT-070]]، زیرساخت فعلی چنین است:
 
@@ -73,7 +81,7 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 |---|---|---|---|---|
 | Workflowهای n8n (export JSON) | n8n | ❌ نسخه‌بندی نمی‌شوند | ✅ هر Workflow به‌صورت JSON در `n8n/workflows/` | 🔴 ضروری |
 | فهرست Credentialهای n8n (نام/نوع، بدون مقدار) | n8n | ❌ نسخه‌بندی نمی‌شوند | ✅ `n8n/credentials-manifest.json` (همان خروجی `export:credentials` — مقدار همیشه رمزگذاری‌شده می‌ماند) | 🔴 ضروری |
-| **فهرست بسته‌های Community نصب‌شده** (مثلاً `n8n-nodes-bale-messenger-alpha`) | n8n | 🆕 **تاکنون هیچ‌جا ثبت نشده بود** | ✅ `n8n/community-packages.txt` + ترجیحاً `Dockerfile` سفارشی که این بسته‌ها را از ابتدا نصب کند | 🔴 ضروری (بدون این، بازسازی کانتینر یعنی شکستن `[KNW-02]` به‌خاطر نبود گره Bale Messenger) |
+| **فهرست بسته‌های Community نصب‌شده** (مثلاً `n8n-nodes-bale-messenger-alpha`) | n8n | ✅ از نسخهٔ ۰.۳.۰ این نود، طراحی `[OPS-01]` این را پوشش می‌دهد (بخش ۷.۳) | ✅ `n8n/community-packages.json` (خروجی `GET /api/v1/community-packages`) | 🔴 ضروری (بدون این، بازسازی کانتینر یعنی شکستن `[KNW-02]` به‌خاطر نبود گره Bale Messenger) |
 | `docker-compose.yml` برای n8n + Qdrant + TEI + Open Notebook (نسخه‌های دقیق Image) | همه | ❌ وجود ندارد | ✅ `infra/docker-compose.yml` واحد | 🔴 ضروری |
 | اسکیمای Qdrant Collection (نام، ابعاد، Distance، Indexها) | Qdrant | ✅ در META-INT-020 به‌صورت متن مستند است، ❌ اسکریپت اجرایی ندارد | ✅ اسکریپت ایجاد Collection در `00_Meta/Scripts/` یا `infra/scripts/` | 🟡 مهم |
 | نقشه Notebook IDs (`notebook_map.json`، به‌جز بخش Corporate) | Open Notebook | ✅ در META-INT-070 به‌صورت متن مستند است؛ فایل اصلی فقط محلی است | ✅ خود فایل JSON (غیرمحرمانه) در مخزن | 🟡 مهم |
@@ -108,91 +116,185 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 ## ۷. روش پیاده‌سازی پیشنهادی (دستورالعمل اجرایی)
 
 > [!important] تصمیم معماری اصلی: یک مخزن Git جداگانه برای Backupهای عملیاتی
-> پیشنهاد می‌شود این Backupها در یک **مخزن Git کاملاً جدا** (مثلاً `xennic-infra-backups`، خصوصی) نگهداری شوند، **نه در همین مخزن `ZNNY-Xennic-Vault`**. دلیل:
+> این Backupها در یک **مخزن Git کاملاً جدا** (`xennic-infra-backups`، خصوصی — از پیش بوت‌استرپ‌شده و متصل با Deploy Key اختصاصی) نگهداری می‌شوند، **نه در همین مخزن `ZNNY-Xennic-Vault`**. دلیل:
 > - این مخزن (Vault) برای **محتوای مرور و تأییدشده** است که هر تغییرش از طریق PR بررسی می‌شود (طبق [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]])؛ Backup خام JSON/SurrealQL هرشب نیازی به بازبینی انسانی ندارد و فقط شلوغی تاریخچه Git و PRها را زیاد می‌کند.
-> - امکان سیاست دسترسی/نگهداری جدا (مثلاً نگهداری فقط ۳۰ نسخه آخر) بدون اثرگذاری روی مخزن اصلی مستندات.
-> - با قانون «هیچ Automation نباید مستقیماً روی `dev`/`main` همین Vault Commit کند» (یک قاعده ثابت این پروژه) کاملاً سازگار است — چون اصلاً مخزن دیگری است، نه این‌که Automation مجوز Commit مستقیم به `dev` همین Vault را بگیرد.
+> - امکان سیاست دسترسی/نگهداری جدا بدون اثرگذاری روی مخزن اصلی مستندات.
+> - با قانون «هیچ Automation نباید مستقیماً روی `dev`/`main` همین Vault Commit کند» کاملاً سازگار است.
 
-### ۷.۱ ساختار پیشنهادی مخزن Backup
+> [!important] تصمیم معماری دوم: n8n Public API به‌جای Execute Command/CLI
+> روی این instance از n8n، گره `Execute Command` **عمداً و به‌صورت دائمی غیرفعال نگه داشته شده** (تصمیم امنیتی ثابت پروژه). پس روش قدیمی `n8n export:workflow`/`n8n export:credentials`/`surreal export` (که همگی دستورات CLI هستند) از اساس قابل اجرا نیست. به‌جای آن، `[OPS-01]` از **n8n Public API** (گره‌های `HTTP Request` با Credential از نوع «n8n API») برای خواندن داده‌ها، و از گره بومی **Git** (همان که برای Push اولیهٔ `xennic-infra-backups` ساخته و تست شده) برای Commit/Push استفاده می‌کند. هیچ ابزار CLI خارجی (نه `n8n`, نه `surreal`, نه `age`) در هیچ مرحله‌ای فراخوانی نمی‌شود.
+
+### ۷.۱ ساختار مخزن Backup
 
 ```text
 xennic-infra-backups/
 ├── n8n/
-│   ├── workflows/                   # یک فایل JSON به‌ازای هر Workflow
-│   ├── credentials-manifest.json    # فقط نام/نوع، مقدار همیشه رمزگذاری‌شده
-│   └── community-packages.txt
-├── hermes/
-│   ├── config.yaml
-│   └── mcp-list-snapshot.txt
-├── open-notebook/
-│   └── surrealdb-dump.surql.age     # رمزنگاری‌شده با age — بخش ۷.۳
+│   ├── workflows.json               # خروجی کامل GET /api/v1/workflows
+│   ├── credentials-metadata.json    # فقط id/name/type — خروجی GET /api/v1/credentials (بدون مقدار)
+│   └── community-packages.json      # خروجی GET /api/v1/community-packages
 ├── infra/
-│   ├── docker-compose.yml
-│   └── .env.example
+│   ├── docker-compose.yml           # کپی مستقیم از هاست
+│   └── .env.example                 # نام متغیرها بدون مقدار واقعی
+├── open-notebook/
+│   └── surrealdb-open_notebook.sql.enc   # Dump رمزنگاری‌شدهٔ AES-256-GCM — بخش ۷.۴
 └── README.md                        # تاریخ آخرین Backup موفق + دستورالعمل بازیابی
 ```
 
-### ۷.۲ گام Export (داخل n8n — بدون نصب ابزار جدید)
+(اگر نام پوشه‌های واقعی مخزن از قبل‌ساخته‌شده کمی متفاوت است، همین الگو را روی ساختار موجود منطبق کنید؛ اصل مهم جداسازی per-tool است، نه نام دقیق پوشه.)
 
-یک Workflow جدید در خود n8n بسازید (پیشنهاد نام‌گذاری: `[OPS-01] Nightly Infra Export`)، با **Schedule Trigger** (مثلاً ساعت ۰۳:۰۰ هر شب، زمانی که هیچ‌کس از سیستم استفاده نمی‌کند):
+### ۷.۲ پیش‌نیازهای یک‌بارهٔ دستی (قبل از ساخت Workflow)
 
-1. گره **Execute Command** (دقیقاً همان الگویی که در `[RAG-01]` برای خواندن فایل‌های Obsidian استفاده شده):
-   ```bash
-   n8n export:workflow --all --separate --output=/backup/n8n/workflows/
-   n8n export:credentials --all --output=/backup/n8n/credentials-manifest.json
-   ```
-2. گره دوم برای ثبت فهرست بسته‌های Community نصب‌شده:
-   ```bash
-   ls /home/node/.n8n/nodes/node_modules | grep n8n-nodes- > /backup/n8n/community-packages.txt
-   ```
-3. مسیر `/backup` باید در `docker-compose.yml` به یک پوشه روی هاست (Windows) Mount شده باشد، مثلاً: `F:\ahmad\xennic-infra-backups\n8n:/backup/n8n`.
-4. این Workflow را به **Global Error Workflow** پیشنهادی در [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]] وصل کنید تا اگر Export شکست خورد، همان لحظه در Bale Messenger اطلاع داده شود — نه این‌که هفته‌ها بعد کشف شود.
+این مرحله فقط یک‌بار و دستی انجام می‌شود (نه بخشی از Workflow):
 
-> چرا این گام داخل n8n باشد، نه یک اسکریپت جداگانه؟ چون `n8n export:...` یک دستور بومی و از پیش نصب‌شده همان Image رسمی n8n است (بدون نیاز به نصب ابزار اضافه در کانتینر)، و چون این‌طوری شکست آن هم مثل بقیه Workflowها زیر همان چتر نظارتی و هشدار یکپارچه META-INT-120 قرار می‌گیرد.
+**الف) فعال‌سازی Public API و ساخت API Key**
+در n8n UI: Settings → n8n API → Create an API Key. حداقل Scopeهای لازم: `workflow:list`, `workflow:read`, `credential:list`, `communityPackage:list`. سپس یک Credential جدید از نوع **«n8n API»** بسازید (Base URL: آدرس داخلی خود instance — معمولاً `http://localhost:5678`؛ API Key: مقدار تولیدشده).
 
-### ۷.۳ گام Export رمزنگاری‌شده Open Notebook (SurrealDB)
+**ب) Credential جداگانه برای SurrealDB (Basic Auth)**
+یک Credential از نوع **«HTTP Basic Auth»** بسازید (مثلاً با نام `SurrealDB Root`) با `Username=root` و `Password=` مقدار واقعی `SURREAL_PASSWORD` فعلی سرویس. این کار باعث می‌شود پسورد هرگز داخل پارامترهای قابل‌مشاهدهٔ گره ذخیره نشود.
 
-چون Dump کامل SurrealDB می‌تواند شامل محتوای Notebook `Corporate` باشد، این گام **باید** از ابتدا رمزنگاری‌شده روی دیسک بنشیند:
+**پ) سه تغییر در `.env` روی هاست (`/home/xennic/xennic-infra/.env`)**
+```bash
+# افزودن این سه خط به .env (یک 32-بایتی تصادفی برای کلید رمزنگاری بسازید):
+echo "NODE_FUNCTION_ALLOW_BUILTIN=crypto" >> .env
+echo "N8N_RESTRICT_FILE_ACCESS_TO=/vault;/data/xennic-infra-backups;/data/compose-ro" >> .env
+echo "INFRA_BACKUP_ENC_KEY=$(openssl rand -hex 32)" >> .env
+```
+- `NODE_FUNCTION_ALLOW_BUILTIN=crypto` ماژول built-in `crypto` را فقط برای Code Node مجاز می‌کند (نه `fs`، نه ماژول دیگری) — چون n8n این instance در حالت Task Runner داخلی (`N8N_RUNNERS_MODE=internal`) اجرا می‌شود، این متغیر مستقیماً روی Container اصلی n8n اثر می‌کند (بدون نیاز به فایل جدای `/etc/n8n-task-runners.json`).
+- `N8N_RESTRICT_FILE_ACCESS_TO` را از `/vault` تک‌مقداره به سه مسیر (جداشده با `;`) گسترش می‌دهیم: `/vault` (فقط‌خواندنی، بدون تغییر)، `/data/xennic-infra-backups` (مسیر از پیش موجود و قابل‌نوشتن مخزن Backup)، و `/data/compose-ro` (مسیر جدید فقط‌خواندنی که در گام بعد Mount می‌شود).
+- `INFRA_BACKUP_ENC_KEY` یک کلید تصادفی ۳۲ بایتی (۶۴ کاراکتر Hex) است که فقط برای رمزنگاری Dump سورئال استفاده می‌شود؛ چون `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` از قبل روی این instance تنظیم شده، Code Node می‌تواند آن را با `$env.INFRA_BACKUP_ENC_KEY` بخواند — بدون نیاز به `fs` یا یک Credential جداگانه.
 
-1. یک‌بار برای همیشه یک جفت کلید `age` تولید کنید (ابزار سبک و متن‌باز رمزنگاری فایل):
-   ```bash
-   age-keygen -o xennic-backup-key.txt   # کلید خصوصی را فقط روی یک محل امن (نه در هیچ Git) نگه دارید
-   ```
-2. در همان Workflow `[OPS-01]` یا یک Workflow جدا، یک گره Execute Command دیگر:
-   ```bash
-   docker exec open-notebook-surrealdb-1 surreal export --conn http://localhost:8000 --user root --pass root --ns xennic --db notebook - \
-     | age -r <کلید-عمومی-age> > /backup/open-notebook/surrealdb-dump.surql.age
-   ```
-   نکتهٔ کلیدی: خروجی `surreal export` هرگز به‌صورت متن ساده روی دیسک نمی‌نشیند — مستقیماً از طریق Pipe وارد `age` می‌شود و فقط نسخه رمزنگاری‌شده ذخیره می‌گردد.
-3. کلید خصوصی `age` را فقط مالک نگه می‌دارد (مثلاً در یک مدیریت رمز محلی یا یک USB آفلاین) — این کلید هرگز نباید در هیچ مخزن Git (نه Vault، نه `xennic-infra-backups`) قرار گیرد.
+> پس از اعمال، نسخهٔ قبلی `.env` طبق انضباط همیشگی پروژه باید Backup شود (`cp .env .env.bak.$(date +%Y%m%d-%H%M%S)`) — دقیقاً مثل تغییرات قبلی `.env` در این پروژه.
 
-### ۷.۴ گام Commit/Push (بیرون از n8n — روی خود ویندوز)
+**ت) دو Bind Mount جدید در `docker-compose.yml` (سرویس `n8n`)**
+```yaml
+    volumes:
+      # ... خطوط موجود دست‌نخورده می‌مانند ...
+      - /home/xennic/xennic-infra/docker-compose.yml:/data/compose-ro/docker-compose.yml:ro
+      - /home/xennic/xennic-infra/.env:/data/compose-ro/env-source:ro
+```
+> [!warning] ریسک امنیتی آگاهانه‌پذیرفته‌شده
+> این یعنی `.env` واقعی (شامل پسورد SurrealDB، کلید رمزگذاری n8n، و غیره) برای اولین بار به‌صورت فقط-خواندنی در دسترس Container n8n قرار می‌گیرد — چیزی که تا امروز اصلاً ممکن نبود. تأیید شد که UID کاربر هاست (`xennic`, uid 1000) و UID پردازهٔ داخل Container (`node`, uid 1000) یکسان است، پس این Mount بدون تغییر Permission کار می‌کند. این ریسک **آگاهانه پذیرفته شده** (تصمیم صریح مالک) چون تنها راه خودکارسازی کامل تولید `.env.example` بدون ابزار خارجی است. محتوای خام این فایل هرگز در هیچ مرحله‌ای به دیسک `xennic-infra-backups` نوشته نمی‌شود — فقط نسخهٔ Sanitize‌شده (بخش ۷.۳، گام ۵).
 
-از آنجا که مالک فعلی روی ویندوز و PowerShell کار می‌کند (همان محیطی که همه دستورات تشخیصی قبلی در آن اجرا شد)، ساده‌ترین و کم‌ریسک‌ترین روش یک اسکریپت کوچک PowerShell است که توسط **Task Scheduler ویندوز** چند دقیقه بعد از زمان Export در n8n اجرا می‌شود (مثلاً ساعت ۰۳:۱۵):
-
-```powershell
-# backup-commit.ps1
-Set-Location "F:\ahmad\xennic-infra-backups"
-Copy-Item "C:\Users\Narges\AppData\Local\hermes\config.yaml" "hermes\config.yaml" -Force
-git add -A
-git commit -m "chore: nightly infra snapshot $(Get-Date -Format 'yyyy-MM-dd')"
-git push origin main
+**ث) اعمال تغییرات**
+```bash
+cd /home/xennic/xennic-infra
+docker compose up -d n8n   # نه restart ساده — برای اعمال واقعی متغیرهای محیطی و Mountهای جدید
+# تأیید:
+docker exec xennic-infra-n8n-1 printenv | grep -E 'NODE_FUNCTION_ALLOW_BUILTIN|N8N_RESTRICT_FILE_ACCESS_TO|INFRA_BACKUP_ENC_KEY'
+docker exec xennic-infra-n8n-1 ls -la /data/compose-ro
 ```
 
-> [!tip] چرا این مرحله خارج از Docker/n8n باشد؟
-> نصب `git` و نگهداری یک GitHub Token داخل کانتینر n8n، سطح حمله (Attack Surface) آن کانتینر را بیشتر می‌کند. نگه‌داشتن این مرحله روی خود ویندوز، GitHub Token را کاملاً جدا از n8n و Docker نگه می‌دارد — دقیقاً همان اصل «دسترسی حداقلی» در [[META-INT-100 — مدیریت Secrets و Credentials|META-INT-100]] (بخش ۴).
+### ۷.۳ طراحی گره‌به‌گره Workflow `[OPS-01] Nightly Infra Export`
 
-> [!note] جایگزین برای آینده (مهاجرت به سرور Linux)
-> طبق تصمیم مالک مستندشده در [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]]، این زیرساخت به‌زودی به یک VPS لینوکسی منتقل می‌شود؛ در آن حالت Task Scheduler ویندوز وجود نخواهد داشت و همین گام با یک Cron Job سادهٔ لینوکسی یا یک Container کوچک و سبک اختصاصی «Git-Sync» (که فقط یک پوشه را به‌صورت دوره‌ای Commit/Push می‌کند) جایگزین می‌شود — بدون تغییر در بخش‌های ۷.۲ و ۷.۳.
+> منبع واقعیِ این Workflow خودِ n8n است (ساخته‌شده از طریق UI)؛ هیچ فایل JSON این Workflow در Vault نگهداری نمی‌شود — چون خروجی همین Workflow (نسخهٔ JSON واقعی‌اش) هرشب به‌صورت خودکار در `xennic-infra-backups/n8n/workflows.json` ذخیره می‌شود (یعنی خودش هم جزو دارایی‌هایی است که Backup می‌کند).
 
-### ۷.۵ جدول خلاصه مسئولیت هر جزء
+| # | گره | نوع | پیکربندی کلیدی |
+|---|---|---|---|
+| ۱ | Schedule Trigger | Schedule Trigger | Cron: `0 0 * * *`، Timezone: `Asia/Tehran` (اجرا هر شب ساعت ۰۰:۰۰ — طبق تصمیم مالک) |
+| ۲ | List Workflows | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/workflows?limit=250`؛ Auth: Predefined Credential Type → «n8n API» |
+| ۳ | List Credentials Metadata | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/credentials`؛ همان Credential «n8n API»؛ فقط id/name/type برمی‌گردد، هرگز مقدار Secret |
+| ۴ | List Community Packages | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/community-packages`؛ همان Credential «n8n API» |
+| ۵ | Format n8n Exports | Code | سه ورودی بالا را به سه رشتهٔ JSON (`JSON.stringify(..., null, 2)`) با نام فایل مشخص تبدیل می‌کند؛ از `crypto`/`fs` استفاده نمی‌کند، فقط رشته‌سازی ساده |
+| ۶–۸ | Write n8n/*.json ×۳ | Read/Write Files from Disk (Write) | مسیرها: `/data/xennic-infra-backups/n8n/workflows.json`، `.../credentials-metadata.json`، `.../community-packages.json` |
+| ۹ | Read docker-compose.yml | Read/Write Files from Disk (Read) | مسیر: `/data/compose-ro/docker-compose.yml` |
+| ۱۰ | Write docker-compose.yml | Read/Write Files from Disk (Write) | مسیر: `/data/xennic-infra-backups/infra/docker-compose.yml` |
+| ۱۱ | Read .env (خام) | Read/Write Files from Disk (Read) | مسیر: `/data/compose-ro/env-source` |
+| ۱۲ | Sanitize .env → .env.example | Code | هر خط با الگوی `KEY=VALUE` را به `KEY=` تبدیل می‌کند (مقدار حذف، کامنت/خط خالی دست‌نخورده)؛ کد نمونه پایین |
+| ۱۳ | Write .env.example | Read/Write Files from Disk (Write) | مسیر: `/data/xennic-infra-backups/infra/.env.example` |
+| ۱۴ | Export SurrealDB | HTTP Request (POST) | URL: `http://xennic-infra-surrealdb-1:8000/export`؛ Body: `{}` (JSON)؛ Headers: `Surreal-NS: open_notebook`, `Surreal-DB: open_notebook`, `Content-Type: application/json`؛ Auth: Predefined Credential Type → «SurrealDB Root» (Basic Auth)؛ Response Format: `text` |
+| ۱۵ | Encrypt SurrealDB Dump | Code | AES-256-GCM با `require('crypto')` و `$env.INFRA_BACKUP_ENC_KEY`؛ کد نمونه پایین |
+| ۱۶ | Write Encrypted Dump | Read/Write Files from Disk (Write) | مسیر: `/data/xennic-infra-backups/open-notebook/surrealdb-open_notebook.sql.enc` |
+| ۱۷ | Git Pull | Git | عملیات Pull روی مخزن `/data/xennic-infra-backups` (هماهنگ با Remote قبل از Commit) |
+| ۱۸ | Git Add + Commit | Git | پیام Commit نمونه: `chore: nightly infra snapshot {{$now.setZone('Asia/Tehran').toFormat('yyyy-LL-dd')}}` |
+| ۱۹ | Git Push | Git | Push به همان Remote/Branch از پیش تنظیم‌شده (SSH Deploy Key موجود) |
+
+**کد گره ۵ (Format n8n Exports) — نمونه:**
+```javascript
+const workflows = $('List Workflows').first().json.data ?? $('List Workflows').first().json;
+const credentials = $('List Credentials Metadata').first().json.data ?? $('List Credentials Metadata').first().json;
+const packages = $('List Community Packages').first().json.data ?? $('List Community Packages').first().json;
+
+return [
+  { json: {}, binary: {}, fileName: 'workflows.json', content: JSON.stringify(workflows, null, 2) },
+  { json: {}, binary: {}, fileName: 'credentials-metadata.json', content: JSON.stringify(credentials, null, 2) },
+  { json: {}, binary: {}, fileName: 'community-packages.json', content: JSON.stringify(packages, null, 2) },
+];
+```
+(شکل دقیق پاسخ Public API — مستقیم آرایه یا بسته‌شده در `data` — باید بعد از اولین اجرا با داده واقعی instance تأیید/تنظیم شود.)
+
+**کد گره ۱۲ (Sanitize .env → .env.example) — نمونه:**
+```javascript
+const raw = $input.first().json.data ?? $input.first().binary?.data?.data ?? '';
+const text = Buffer.isBuffer(raw) ? raw.toString('utf8') : String(raw);
+
+const sanitized = text.split('\n').map(line => {
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#')) return line; // کامنت/خط خالی دست‌نخورده
+  const idx = line.indexOf('=');
+  if (idx === -1) return line;
+  return line.slice(0, idx + 1); // فقط KEY= باقی می‌ماند
+}).join('\n');
+
+return [{ json: { content: sanitized } }];
+```
+
+**کد گره ۱۵ (Encrypt SurrealDB Dump، AES-256-GCM) — نمونه:**
+```javascript
+const crypto = require('crypto');
+
+const plaintext = $input.first().json.data ?? $input.first().json;
+const plaintextStr = typeof plaintext === 'string' ? plaintext : JSON.stringify(plaintext);
+
+const key = Buffer.from($env.INFRA_BACKUP_ENC_KEY, 'hex'); // باید دقیقاً ۳۲ بایت باشد
+const iv = crypto.randomBytes(12); // GCM استاندارد: IV ۱۲ بایتی
+
+const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+const encrypted = Buffer.concat([cipher.update(plaintextStr, 'utf8'), cipher.final()]);
+const authTag = cipher.getAuthTag();
+
+// قالب فایل خروجی: iv (12 بایت) || authTag (16 بایت) || ciphertext — همه Base64
+const payload = Buffer.concat([iv, authTag, encrypted]).toString('base64');
+
+return [{ json: { content: payload } }];
+```
+
+### ۷.۴ چرا AES-256-GCM در Code Node به‌جای `age`؟
+
+ابزار `age` یک باینری CLI خارجی است که فراخوانی‌اش نیازمند گره `Execute Command` است — که غیرفعال است. به‌جای آن، چون `require('crypto')` (ماژول built-in خود Node.js) با افزودن `NODE_FUNCTION_ALLOW_BUILTIN=crypto` در Code Node در دسترس است (بخش ۷.۲-پ)، می‌توان رمزنگاری متقارن قوی (AES-256-GCM، همان الگوریتمی که `age` هم داخلش از آن استفاده می‌کند) را کاملاً درون همان Workflow و بدون هیچ وابستگی خارجی انجام داد. کلید رمزگشایی (`INFRA_BACKUP_ENC_KEY`) باید علاوه بر `.env` سرور، در یک محل امن دوم (مثلاً مدیریت رمز مالک) نگه داشته شود — دقیقاً با همان منطق قبلیِ کلید خصوصی `age`: **هرگز در هیچ مخزن Git قرار نگیرد.**
+
+**دستورالعمل رمزگشایی (برای DR، بخش ۸):**
+```bash
+node -e "
+const fs = require('fs');
+const crypto = require('crypto');
+const key = Buffer.from(process.env.INFRA_BACKUP_ENC_KEY, 'hex');
+const raw = Buffer.from(fs.readFileSync('surrealdb-open_notebook.sql.enc', 'utf8'), 'base64');
+const iv = raw.subarray(0, 12);
+const authTag = raw.subarray(12, 28);
+const ciphertext = raw.subarray(28);
+const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+decipher.setAuthTag(authTag);
+const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+fs.writeFileSync('surrealdb-open_notebook.surql', plaintext);
+console.log('OK, decrypted to surrealdb-open_notebook.surql');
+"
+```
+این دستور را روی هر ماشینی با Node.js نصب‌شده (نه لزوماً داخل Container n8n) و با مقدار واقعی `INFRA_BACKUP_ENC_KEY` در `process.env` اجرا کنید.
+
+### ۷.۵ هشدار خطا
+
+مطابق [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]]، Workflow `[OPS-01]` باید به Global Error Workflow موجود وصل شود تا هر شکست (مثلاً خطای احراز هویت API، شکست نوشتن فایل به‌خاطر محدودیت مسیر، یا شکست Git Push به‌خاطر Conflict) همان لحظه در Bale Messenger اطلاع داده شود.
+
+### ۷.۶ جدول خلاصه مسئولیت هر جزء
 
 | جزء | کجا اجرا می‌شود | چرا آنجا |
 |---|---|---|
-| Export workflow/credentials/community-packages | داخل n8n (Execute Command) | دستور بومی n8n است؛ زیر نظارت Global Error Workflow قرار می‌گیرد |
-| Export رمزنگاری‌شده SurrealDB | داخل n8n یا یک Workflow جدا، با Pipe مستقیم به `age` | هرگز نباید نسخه متن‌باز Corporate روی دیسک بنشیند |
-| Copy فایل `config.yaml` هرمس | اسکریپت PowerShell روی ویندوز | فایل روی خود ویندوز است، نیازی به عبور از Docker ندارد |
-| Commit/Push به Git | اسکریپت PowerShell + Task Scheduler ویندوز | GitHub Token را از Docker/n8n جدا نگه می‌دارد |
+| خواندن Workflow/Credential-metadata/Community-packages | n8n Public API (`HTTP Request`) | Execute Command غیرفعال است؛ Public API راه رسمی و امن جایگزین |
+| نوشتن فایل‌های JSON/متنی در مخزن Backup | گره `Read/Write Files from Disk` (پس از افزودن مسیر به `N8N_RESTRICT_FILE_ACCESS_TO`) | تنها گره مجاز برای I/O فایل روی این instance |
+| کپی `docker-compose.yml` و تولید `.env.example` | همان گره فایل + یک Bind Mount فقط-خواندنی جدید | بدون نیاز به Execute Command یا دسترسی مستقیم shell |
+| Export خام SurrealDB | `HTTP Request` به Endpoint بومی `POST /export` خود SurrealDB v2 | جایگزین کامل `surreal export` CLI، بدون نیاز به Execute Command |
+| رمزنگاری Dump سورئال | Code Node با `require('crypto')` (AES-256-GCM) | جایگزین ابزار خارجی `age`؛ کلید در `.env`/مدیریت رمز مالک |
+| Commit/Push به Git | گره بومی **Git** در همان Workflow n8n | همان الگوی از پیش ساخته و تست‌شدهٔ `xennic-infra-backups`؛ بدون نیاز به PowerShell/Task Scheduler چون سرور لینوکسی است |
 | هشدار شکست هرکدام | Global Error Workflow در n8n → Bale Messenger | یک کانال واحد هشدار، طبق META-INT-120 |
 
 ---
@@ -202,11 +304,11 @@ git push origin main
 | مرحله | اقدام | پیش‌نیاز |
 |---|---|---|
 | ۱ | Clone کردن `xennic-infra-backups` و بازسازی `docker-compose.yml` برای n8n + Qdrant + TEI + Open Notebook | وجود `infra/docker-compose.yml` در Git |
-| ۲ | نصب بسته‌های Community فهرست‌شده در `n8n/community-packages.txt` پیش از اولین اجرای n8n | وجود این فایل در Git (بخش ۴) |
+| ۲ | نصب بسته‌های Community فهرست‌شده در `n8n/community-packages.json` پیش از اولین اجرای n8n | وجود این فایل در Git (بخش ۷.۱) |
 | ۳ | اجرای اسکریپت ساخت Collection در Qdrant با همان نام/ابعاد/Index | وجود اسکریپت نسخه‌بندی‌شده |
 | ۴ | Import مجدد Workflowهای n8n از فایل‌های Export شده | وجود export JSON در Git |
 | ۵ | بازسازی Credentialها از محل رسمی (نه از حافظه) طبق META-INT-100 | اجرای کامل META-INT-100 |
-| ۶ | رمزگشایی `surrealdb-dump.surql.age` با کلید خصوصی `age` (فقط نزد مالک) و Import به SurrealDB جدید | کلید خصوصی `age` در دسترس باشد |
+| ۶ | رمزگشایی `surrealdb-open_notebook.sql.enc` با `INFRA_BACKUP_ENC_KEY` (دستور Node.js بخش ۷.۴؛ فقط نزد مالک) و Import نتیجه (`.surql`) به SurrealDB جدید | مقدار `INFRA_BACKUP_ENC_KEY` در دسترس باشد (از محل امن دوم، نه از `.env` سرور از‌دست‌رفته) |
 | ۷ | اجرای مجدد `RAG-01`/`RAG-02` برای بازسازی ایندکس Qdrant از صفر | وجود [[META-INT-090 — رجیستری Workflowهای n8n\|META-INT-090]] به‌روز |
 | ۸ | تست جستجوی معنایی (مطابق تست‌های META-INT-034) برای تأیید صحت بازیابی | — |
 
@@ -223,11 +325,11 @@ git push origin main
 |---|---|---|
 | C.۱ | ساخت مخزن خصوصی `xennic-infra-backups` با ساختار بخش ۷.۱ | مخزن آماده دریافت Backup |
 | C.۲ | نوشتن `infra/docker-compose.yml` با نسخه‌های دقیق فعلی (جدول بخش ۲) | امکان بازسازی زیرساخت با یک دستور |
-| C.۳ | ساخت Workflow `[OPS-01] Nightly Infra Export` در n8n (بخش ۷.۲) | Export خودکار شبانه Workflow/Credentials/Community packages |
-| C.۴ | تولید یک‌باره جفت‌کلید `age` و اتصال مرحله Export رمزنگاری‌شده SurrealDB (بخش ۷.۳) | Backup امن Open Notebook بدون افشای Corporate |
-| C.۵ | نوشتن و زمان‌بندی `backup-commit.ps1` در Task Scheduler ویندوز (بخش ۷.۴) | Commit/Push خودکار شبانه، بدون دخالت دستی |
+| C.۳ | اعمال پیش‌نیازهای یک‌بارهٔ دستی: فعال‌سازی n8n Public API + API Key، Credential «SurrealDB Root»، افزودن `NODE_FUNCTION_ALLOW_BUILTIN`/`N8N_RESTRICT_FILE_ACCESS_TO`/`INFRA_BACKUP_ENC_KEY` به `.env`، دو Bind Mount جدید، `docker compose up -d n8n` (بخش ۷.۲) | زیرساخت آماده برای ساخت Workflow، بدون نیاز به Execute Command |
+| C.۴ | ساخت Workflow `[OPS-01] Nightly Infra Export` با ۱۹ گره طبق جدول بخش ۷.۳ (Public API → Format → Write Files → Git) | Export خودکار شبانهٔ Workflow/Credentials/Community-packages/docker-compose.yml/.env.example |
+| C.۵ | افزودن گره‌های Export + رمزنگاری AES-256-GCM برای SurrealDB (بخش ۷.۳–۷.۴) به همان Workflow | Backup امن Open Notebook بدون افشای Corporate، بدون ابزار خارجی `age` |
 | C.۶ | اتصال Workflow `[OPS-01]` به Global Error Workflow (پیش‌نیاز از فاز B در META-INT-130) | هشدار فوری در صورت شکست هر مرحله Backup |
-| C.۷ | یک بار اجرای کامل بازیابی روی یک محیط تست (VM جداگانه) برای اعتبارسنجی برنامه DR (بخش ۸) | اثبات واقعی قابلیت بازیابی، نه فقط ادعا |
+| C.۷ | یک بار اجرای کامل بازیابی روی یک محیط تست (VM جداگانه) برای اعتبارسنجی برنامه DR (بخش ۸)، شامل تست واقعی دستور رمزگشایی بخش ۷.۴ | اثبات واقعی قابلیت بازیابی، نه فقط ادعا |
 
 ---
 
@@ -246,14 +348,14 @@ git push origin main
 
 ## ۱۱. اقدامات
 
-- [ ] ساخت مخزن `xennic-infra-backups` (خصوصی) با ساختار بخش ۷.۱
-- [ ] نوشتن `infra/docker-compose.yml` برای n8n، Qdrant، TEI و Open Notebook با نسخه‌های دقیق فعلی
-- [ ] ساخت Workflow `[OPS-01] Nightly Infra Export` در n8n (بخش ۷.۲)
-- [ ] تولید جفت‌کلید `age` و پیاده‌سازی Export رمزنگاری‌شده SurrealDB (بخش ۷.۳)
-- [ ] نوشتن `backup-commit.ps1` و زمان‌بندی آن در Task Scheduler ویندوز (بخش ۷.۴)
+- [x] ساخت مخزن `xennic-infra-backups` (خصوصی) با ساختار بخش ۷.۱ — بوت‌استرپ شده با Git node بومی + SSH Deploy Key
+- [x] تصمیم‌گیری درباره انتقال به سرور — انجام شد، VPS لینوکسی در حال استفاده (META-INT-140)
+- [ ] اعمال پیش‌نیازهای یک‌بارهٔ دستی `[OPS-01]` روی VPS (بخش ۷.۲: Public API Key، دو Credential جدید، سه متغیر `.env`، دو Bind Mount، `docker compose up -d n8n`)
+- [ ] ساخت Workflow `[OPS-01] Nightly Infra Export` با ۱۹ گره طبق بخش ۷.۳ (n8n Public API + Code + Read/Write Files + Git، بدون Execute Command)
+- [ ] پیاده‌سازی رمزنگاری AES-256-GCM برای Export SurrealDB در همان Workflow (بخش ۷.۴) و تست واقعی چرخهٔ رمزنگاری/رمزگشایی
+- [ ] اتصال `[OPS-01]` به Global Error Workflow برای هشدار Bale Messenger در صورت شکست (بخش ۷.۵)
 - [ ] نوشتن اسکریپت ساخت Qdrant Collection (نام، ابعاد، Distance، Indexها طبق META-INT-020)
-- [ ] اجرای یک بازیابی آزمایشی کامل روی محیط جدا و ثبت نتیجه در این نود
-- [ ] تصمیم‌گیری درباره انتقال به سرور (داخلی یا ابری) به‌جای کامپیوتر شخصی — هم‌زمان با فاز E در META-INT-130
+- [ ] اجرای یک بازیابی آزمایشی کامل روی محیط جدا و ثبت نتیجه در این نود (بخش ۸)
 
 ---
 
@@ -272,6 +374,7 @@ git push origin main
 
 ## ۱۳. Changelog
 
+- **v0.3.0 (۱۴۰۵-۰۸-۰۶):** بازنویسی کامل بخش ۷ («روش پیاده‌سازی پیشنهادی») برای معماری واقعی VPS: طراحی کامل Workflow `[OPS-01] Nightly Infra Export` با ۱۹ گره مبتنی بر **n8n Public API** (نه CLI/Execute Command که غیرفعال است)، **Read/Write Files from Disk** (پس از گسترش `N8N_RESTRICT_FILE_ACCESS_TO`)، و **رمزنگاری AES-256-GCM درون Code Node** (نه ابزار خارجی `age`) برای Dump سورئال؛ پوشش کامل دامنهٔ اصلی درخواست‌شده (Workflowها، Credential-metadata، Community-packages، `docker-compose.yml`/`.env.example`، Dump رمزنگاری‌شدهٔ SurrealDB) در یک Workflow واحد؛ مستندسازی پیش‌نیازهای یک‌بارهٔ دستی (API Key، دو Credential جدید، سه متغیر محیطی جدید، دو Bind Mount جدید)؛ جایگزینی گام Commit/Push مبتنی بر PowerShell/Task Scheduler ویندوز با گره بومی Git (همان الگوی از پیش ساخته‌شدهٔ `xennic-infra-backups`)؛ افزودن یادداشت‌های تاریخی روی بخش‌های ۱ و ۲ برای حفظ ردیابی تصمیم بدون حذف محتوای گذشته؛ افزودن وابستگی به META-INT-140؛ به‌روزرسانی بخش‌های ۸، ۹ و ۱۱ متناسب با طراحی جدید.
 - **v0.2.2 (۱۴۰۵-۰۸-۰۱):** به‌روزرسانی یادداشت بخش ۷.۴ («جایگزین برای آینده») برای ارجاع به تصمیم قطعی مالک در نود جدید [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]] (مهاجرت دیگر فقط یک گزینهٔ احتمالی نیست، بلکه تصمیم‌شده است).
 - **v0.2.1 (۱۴۰۵-۰۸-۰۱):** رفع اشکال رندر جدول‌ها — Escape کردن `|` داخل لینک‌های Wiki در جدول‌های بخش‌های ۲ و ۸ که باعث شکستن ستون‌بندی جدول در رندررهای استاندارد Markdown (از جمله GitHub) می‌شد؛ بدون تغییر محتوایی.
 - **v0.2.0 (۱۴۰۵-۰۷-۳۰):** افزودن دستورالعمل اجرایی مشخص (بخش ۷) برای Backup خودکار n8n (Workflow/Credentials/Community Packages)، Hermes (`config.yaml`) و Open Notebook (SurrealDB رمزنگاری‌شده با `age`) به یک مخزن Git مجزا (`xennic-infra-backups`)؛ کشف و ثبت شکاف جدید «فهرست بسته‌های Community نصب‌شده هیچ‌جا ثبت نشده»؛ افزودن بخش توضیح الگوی مرجع Obsidian؛ تفکیک نقشه راه اجرایی ریزدانه (فاز C) از نقشه راه کلان META-INT-130؛ تغییر وضعیت به `review`.
