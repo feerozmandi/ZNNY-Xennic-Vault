@@ -82,7 +82,7 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 
 | دارایی | ابزار | وضعیت فعلی | وضعیت هدف | ضروری؟ |
 |---|---|---|---|---|
-| Workflowهای n8n (export JSON) | n8n | ❌ نسخه‌بندی نمی‌شوند | ✅ هر Workflow به‌صورت JSON در `n8n/workflows/` | 🔴 ضروری |
+| Workflowهای n8n (export JSON) | n8n | ✅ از نسخهٔ `[OPS-01]` (۱۴۰۵-۰۸-۰۷) این نود پوشش داده می‌شود | ✅ یک فایل واحد `n8n/workflows.json` حاوی تعریف کامل همهٔ Workflowها (خروجی `GET /api/v1/workflows`) — پوشهٔ قدیمی `n8n/workflows/` (یک فایل جدا به ازای هر Workflow) **در ۱۴۰۵-۰۸-۰۷ حذف شد**، چون کاملاً توسط این فایل واحد جایگزین/Supersede شده بود | 🔴 ضروری |
 | فهرست Credentialهای n8n (نام/نوع، بدون مقدار) | n8n | ❌ نسخه‌بندی نمی‌شوند | ✅ `n8n/credentials-manifest.json` (همان خروجی `export:credentials` — مقدار همیشه رمزگذاری‌شده می‌ماند) | 🔴 ضروری |
 | **فهرست بسته‌های Community نصب‌شده** (مثلاً `n8n-nodes-bale-messenger-alpha`) | n8n | ✅ از نسخهٔ ۰.۳.۰ این نود، طراحی `[OPS-01]` این را پوشش می‌دهد (بخش ۷.۳) | ✅ `n8n/community-packages.json` (خروجی `GET /api/v1/community-packages`) | 🔴 ضروری (بدون این، بازسازی کانتینر یعنی شکستن `[KNW-02]` به‌خاطر نبود گره Bale Messenger) |
 | `docker-compose.yml` برای n8n + Qdrant + TEI + Open Notebook (نسخه‌های دقیق Image) | همه | ❌ وجود ندارد | ✅ `infra/docker-compose.yml` واحد | 🔴 ضروری |
@@ -129,15 +129,17 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 
 ### ۷.۱ ساختار مخزن Backup
 
-> [!success] تأیید شده با ساختار واقعی مخزن (۱۴۰۵-۰۸-۰۷)
+> [!success] تأیید شده با ساختار واقعی مخزن (۱۴۰۵-۰۸-۰۷، به‌روزشده ۱۴۰۵-۰۸-۰۷)
 > ساختار زیر، خروجی واقعیِ `find` روی مخزن `xennic-infra-backups` بعد از اولین اجرای کامل و موفق `[OPS-01]` است (نه طراحی فرضی). دو تفاوت کلیدی با طراحی اولیهٔ v0.3.0: (۱) نام پوشهٔ SurrealDB واقعاً `open_notebook` (با Underline) است، نه `open-notebook`؛ (۲) پوشه‌های `n8n/` و `open_notebook/` از قبل (از زمان Bootstrap اولیهٔ مخزن) وجود داشتند و هرکدام یک `README.md` مخصوص به خود دارند؛ پوشهٔ `infra/` وجود نداشت و باید **دستی** (`mkdir -p`) ساخته می‌شد، چون گرهٔ `Read/Write Files from Disk` در حالت Write، پوشهٔ مقصد را خودکار نمی‌سازد (بخش ۷.۷، یافتهٔ ۵).
+
+> [!info] پاکسازی پوشهٔ میراثی `n8n/workflows/` (۱۴۰۵-۰۸-۰۷)
+> برخلاف توصیف اولیهٔ این بخش، این پوشه عملاً **خالی نبود** — حاوی نسخهٔ قدیمی و دستیِ هر Workflow به‌صورت یک فایل JSON جداگانه بود (از دوران قبل از `[OPS-01]`). از آنجا که این محتوا دقیقاً همان دادهٔ کامل‌تری است که اکنون هرشب و خودکار در `n8n/workflows.json` نوشته می‌شود، برای جلوگیری از سردرگمی و اشتباه در آینده (دو منبع داده برای یک چیز) این پوشه به‌طور کامل حذف شد. از این تاریخ به بعد، **تنها منبع معتبر Backup Workflowها `n8n/workflows.json` است.**
 
 ```text
 xennic-infra-backups/
 ├── n8n/
 │   ├── README.md                    # از زمان Bootstrap اولیه
-│   ├── workflows/                   # پوشهٔ خالی قدیمی/میراثی — توسط [OPS-01] استفاده نمی‌شود
-│   ├── workflows.json               # خروجی کامل GET /api/v1/workflows
+│   ├── workflows.json               # خروجی کامل GET /api/v1/workflows — تنها منبع معتبر
 │   ├── credentials-metadata.json    # فقط id/name/type — خروجی GET /api/v1/credentials (بدون مقدار)
 │   └── community-packages.json      # { managedByN8n: [...], manuallyInstalled: [...] } — بخش ۷.۷، یافتهٔ ۲
 ├── infra/                           # باید دستی ساخته شود (mkdir -p) قبل از اولین اجرا
