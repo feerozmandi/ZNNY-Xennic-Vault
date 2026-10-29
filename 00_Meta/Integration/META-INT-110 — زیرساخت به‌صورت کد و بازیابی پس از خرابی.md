@@ -7,7 +7,7 @@ tags: [integration, infrastructure, iac, disaster-recovery, docker, governance, 
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.3.0
+version: 0.4.2
 dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-100, META-INT-130, META-INT-140]
 ---
 
@@ -35,6 +35,12 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 مستندسازی وضعیت فعلی زیرساخت اتوماسیون (n8n، Qdrant، TEI Embedding، Open Notebook، Hermes) و تعریف **دستورالعمل اجرایی مشخص** برای نسخه‌بندی خودکار همه تنظیمات ضروری این ابزارها در Git — دقیقاً با همان الگویی که `obsidian-git` برای خود Vault پیاده کرده، اما برای بقیه ابزارها.
 
 این نود خروجی مستقیم فاز ۰ («شناخت اتصال واقعی چهار ابزار، نسخه‌ها، دسترسی‌ها ... و نقاط شکست») در [[META-INT-080 — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic|META-INT-080]] (بند ۱۱) است و پیاده‌سازی عملی فاز C نقشه راه فنی در [[META-INT-130 — معماری هدف و نقشه راه مدرن‌سازی زیرساخت اتوماسیون و RAG|META-INT-130]] محسوب می‌شود.
+
+> [!success] به‌روزرسانی ۱۴۰۵-۰۸-۰۷ (ب) — رگرسیون کامل بعد از چرخش ۸ Credential با موفقیت تأیید شد (v0.4.2)
+> بعد از چرخش کامل هر ۸ Secret/Credential پروژه (شرح کامل در [[META-INT-100]])، یک رگرسیون End-to-End واقعی روی `[OPS-01]`، `[KNW-02]` و `[RAG-02]` اجرا شد. در این مسیر دو باگ واقعی دیگر کشف و رفع شد (یافته‌های ۱۳ و ۱۴ در بخش ۷.۷ جدید): (۱) آدرس Remote مخزن محلی داخل Container با نام مستعاری که فقط سمتِ هاست تعریف شده بود قاطی شده بود و Git Pull را می‌شکست؛ (۲) دو کردنشیال «Header Auth» مجزا برای Open Notebook بعد از چرخش پسورد، پیشوند الزامی `Bearer ` را نداشتند و با هم هم‌گام نبودند. بعد از رفع هر دو، هر سه Workflow بدون خطا اجرا شدند — رگرسیون کامل روی هر ۸ Credential چرخانده‌شده تأیید شد.
+>
+> [!success] به‌روزرسانی ۱۴۰۵-۰۸-۰۷ — `[OPS-01]` واقعاً ساخته، تست و فعال شد (v0.4.0)
+> بخش ۷ که در v0.3.0 فقط یک **طراحی** بود، این دوره واقعاً گره‌به‌گره روی n8n نصب‌شده روی VPS ساخته و با داده واقعی تست شد (نه شبیه‌سازی). در مسیر ساخت، معماری واقعی در چند نقطهٔ مهم از طراحی اولیه منحرف شد (جزئیات کامل در بخش ۷.۷ جدید) — مهم‌ترین مورد، کشف یک قفل امنیتی عمدی در خودِ کد منبع گرهٔ Git n8n که استفاده از کلید SSH اختصاصی را از طریق `core.sshCommand`/`GIT_SSH_COMMAND` کاملاً مسدود می‌کند و راه‌حل واقعی (فایل `~/.ssh/config`) را می‌طلبد. تست End-to-End کامل (شامل یک Commit/Push واقعی به `xennic-infra-backups` و یک رمزگشایی DR واقعی) با موفقیت انجام شد؛ Workflow اکنون **Active** است و هرشب ساعت ۰۰:۰۰ تهران اجرا می‌شود. علاوه‌بر این، دو Workflow مکمل هم ساخته شد: اطلاع‌رسانی موفقیت/خطا از طریق Bale Messenger، و یک Workflow ناظر مستقل `[OPS-02] Nightly Backup Heartbeat Check` که حتی اگر مکانیزم هشدار خطای خودِ `[OPS-01]` هم ساکت بماند، ظرف نیم‌ساعت تشخیص می‌دهد.
 
 > [!success] به‌روزرسانی ۱۴۰۵-۰۸-۰۶ — بخش ۷ کاملاً بازنویسی شد برای معماری واقعی VPS
 > نسخهٔ قبلی بخش ۷ (v0.2.x) بر پایهٔ محیط Windows + Docker Desktop + گره `Execute Command` + ابزار خارجی `age` نوشته شده بود. پس از مهاجرت کامل به VPS لینوکسی (طبق [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]]) و تصمیم معماری ثابت «غیرفعال نگه‌داشتن گره `Execute Command`»، آن روش دیگر **قابل اجرا نیست**. بخش ۷ اکنون طراحی کامل `[OPS-01] Nightly Infra Export` را بر پایهٔ **n8n Public API + گره Git بومی (همان الگوی از پیش ساخته‌شده و تست‌شدهٔ مخزن `xennic-infra-backups`)** ارائه می‌دهد — بدون نیاز به هیچ ابزار CLI خارجی یا باز کردن گره‌های پرخطر.
@@ -79,7 +85,7 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 
 | دارایی | ابزار | وضعیت فعلی | وضعیت هدف | ضروری؟ |
 |---|---|---|---|---|
-| Workflowهای n8n (export JSON) | n8n | ❌ نسخه‌بندی نمی‌شوند | ✅ هر Workflow به‌صورت JSON در `n8n/workflows/` | 🔴 ضروری |
+| Workflowهای n8n (export JSON) | n8n | ✅ از نسخهٔ `[OPS-01]` (۱۴۰۵-۰۸-۰۷) این نود پوشش داده می‌شود | ✅ یک فایل واحد `n8n/workflows.json` حاوی تعریف کامل همهٔ Workflowها (خروجی `GET /api/v1/workflows`) — پوشهٔ قدیمی `n8n/workflows/` (یک فایل جدا به ازای هر Workflow) **در ۱۴۰۵-۰۸-۰۷ حذف شد**، چون کاملاً توسط این فایل واحد جایگزین/Supersede شده بود | 🔴 ضروری |
 | فهرست Credentialهای n8n (نام/نوع، بدون مقدار) | n8n | ❌ نسخه‌بندی نمی‌شوند | ✅ `n8n/credentials-manifest.json` (همان خروجی `export:credentials` — مقدار همیشه رمزگذاری‌شده می‌ماند) | 🔴 ضروری |
 | **فهرست بسته‌های Community نصب‌شده** (مثلاً `n8n-nodes-bale-messenger-alpha`) | n8n | ✅ از نسخهٔ ۰.۳.۰ این نود، طراحی `[OPS-01]` این را پوشش می‌دهد (بخش ۷.۳) | ✅ `n8n/community-packages.json` (خروجی `GET /api/v1/community-packages`) | 🔴 ضروری (بدون این، بازسازی کانتینر یعنی شکستن `[KNW-02]` به‌خاطر نبود گره Bale Messenger) |
 | `docker-compose.yml` برای n8n + Qdrant + TEI + Open Notebook (نسخه‌های دقیق Image) | همه | ❌ وجود ندارد | ✅ `infra/docker-compose.yml` واحد | 🔴 ضروری |
@@ -126,21 +132,27 @@ dependencies: [META-INT-080, META-INT-050, META-INT-070, META-INT-090, META-INT-
 
 ### ۷.۱ ساختار مخزن Backup
 
+> [!success] تأیید شده با ساختار واقعی مخزن (۱۴۰۵-۰۸-۰۷، به‌روزشده ۱۴۰۵-۰۸-۰۷)
+> ساختار زیر، خروجی واقعیِ `find` روی مخزن `xennic-infra-backups` بعد از اولین اجرای کامل و موفق `[OPS-01]` است (نه طراحی فرضی). دو تفاوت کلیدی با طراحی اولیهٔ v0.3.0: (۱) نام پوشهٔ SurrealDB واقعاً `open_notebook` (با Underline) است، نه `open-notebook`؛ (۲) پوشه‌های `n8n/` و `open_notebook/` از قبل (از زمان Bootstrap اولیهٔ مخزن) وجود داشتند و هرکدام یک `README.md` مخصوص به خود دارند؛ پوشهٔ `infra/` وجود نداشت و باید **دستی** (`mkdir -p`) ساخته می‌شد، چون گرهٔ `Read/Write Files from Disk` در حالت Write، پوشهٔ مقصد را خودکار نمی‌سازد (بخش ۷.۷، یافتهٔ ۵).
+
+> [!info] پاکسازی پوشهٔ میراثی `n8n/workflows/` (۱۴۰۵-۰۸-۰۷)
+> برخلاف توصیف اولیهٔ این بخش، این پوشه عملاً **خالی نبود** — حاوی نسخهٔ قدیمی و دستیِ هر Workflow به‌صورت یک فایل JSON جداگانه بود (از دوران قبل از `[OPS-01]`). از آنجا که این محتوا دقیقاً همان دادهٔ کامل‌تری است که اکنون هرشب و خودکار در `n8n/workflows.json` نوشته می‌شود، برای جلوگیری از سردرگمی و اشتباه در آینده (دو منبع داده برای یک چیز) این پوشه به‌طور کامل حذف شد. از این تاریخ به بعد، **تنها منبع معتبر Backup Workflowها `n8n/workflows.json` است.**
+
 ```text
 xennic-infra-backups/
 ├── n8n/
-│   ├── workflows.json               # خروجی کامل GET /api/v1/workflows
+│   ├── README.md                    # از زمان Bootstrap اولیه
+│   ├── workflows.json               # خروجی کامل GET /api/v1/workflows — تنها منبع معتبر
 │   ├── credentials-metadata.json    # فقط id/name/type — خروجی GET /api/v1/credentials (بدون مقدار)
-│   └── community-packages.json      # خروجی GET /api/v1/community-packages
-├── infra/
+│   └── community-packages.json      # { managedByN8n: [...], manuallyInstalled: [...] } — بخش ۷.۷، یافتهٔ ۲
+├── infra/                           # باید دستی ساخته شود (mkdir -p) قبل از اولین اجرا
 │   ├── docker-compose.yml           # کپی مستقیم از هاست
 │   └── .env.example                 # نام متغیرها بدون مقدار واقعی
-├── open-notebook/
+├── open_notebook/                   # نام واقعی با Underline، نه open-notebook
+│   ├── README.md                    # از زمان Bootstrap اولیه
 │   └── surrealdb-open_notebook.sql.enc   # Dump رمزنگاری‌شدهٔ AES-256-GCM — بخش ۷.۴
 └── README.md                        # تاریخ آخرین Backup موفق + دستورالعمل بازیابی
 ```
-
-(اگر نام پوشه‌های واقعی مخزن از قبل‌ساخته‌شده کمی متفاوت است، همین الگو را روی ساختار موجود منطبق کنید؛ اصل مهم جداسازی per-tool است، نه نام دقیق پوشه.)
 
 ### ۷.۲ پیش‌نیازهای یک‌بارهٔ دستی (قبل از ساخت Workflow)
 
@@ -165,80 +177,165 @@ echo "INFRA_BACKUP_ENC_KEY=$(openssl rand -hex 32)" >> .env
 
 > پس از اعمال، نسخهٔ قبلی `.env` طبق انضباط همیشگی پروژه باید Backup شود (`cp .env .env.bak.$(date +%Y%m%d-%H%M%S)`) — دقیقاً مثل تغییرات قبلی `.env` در این پروژه.
 
-**ت) دو Bind Mount جدید در `docker-compose.yml` (سرویس `n8n`)**
+**ت) سه Bind Mount جدید در `docker-compose.yml` (سرویس `n8n`)**
 ```yaml
     volumes:
       # ... خطوط موجود دست‌نخورده می‌مانند ...
       - /home/xennic/xennic-infra/docker-compose.yml:/data/compose-ro/docker-compose.yml:ro
       - /home/xennic/xennic-infra/.env:/data/compose-ro/env-source:ro
+      - ./n8n_data/nodes/node_modules:/data/compose-ro/n8n-nodes:ro
 ```
 > [!warning] ریسک امنیتی آگاهانه‌پذیرفته‌شده
 > این یعنی `.env` واقعی (شامل پسورد SurrealDB، کلید رمزگذاری n8n، و غیره) برای اولین بار به‌صورت فقط-خواندنی در دسترس Container n8n قرار می‌گیرد — چیزی که تا امروز اصلاً ممکن نبود. تأیید شد که UID کاربر هاست (`xennic`, uid 1000) و UID پردازهٔ داخل Container (`node`, uid 1000) یکسان است، پس این Mount بدون تغییر Permission کار می‌کند. این ریسک **آگاهانه پذیرفته شده** (تصمیم صریح مالک) چون تنها راه خودکارسازی کامل تولید `.env.example` بدون ابزار خارجی است. محتوای خام این فایل هرگز در هیچ مرحله‌ای به دیسک `xennic-infra-backups` نوشته نمی‌شود — فقط نسخهٔ Sanitize‌شده (بخش ۷.۳، گام ۵).
 
-**ث) اعمال تغییرات**
+> [!info] Bind Mount سوم اضافه‌شده حین پیاده‌سازی — شکاف «فهرست بسته‌های Community» را واقعاً حل می‌کند
+> طراحی اولیهٔ v0.3.0 فقط دو Bind Mount پیش‌بینی کرده بود و فرض می‌کرد `GET /api/v1/community-packages` کافی است. تست واقعی نشان داد این Endpoint فقط بسته‌های نصب‌شده از طریق خودِ رابط n8n را برمی‌گرداند و `n8n-nodes-bale-messenger-alpha` (نصب‌شده دستی/آفلاین، همان گرهٔ Bale Messenger که `[KNW-02]` به آن وابسته است) را اصلاً نشان نمی‌دهد (Endpoint بدون خطا مقدار `[]` برمی‌گرداند). راه‌حل: Mount فقط‌خواندنیِ سوم به پوشهٔ واقعی `node_modules` خودِ n8n، و خواندن `package.json` هر بستهٔ `n8n-nodes-*` مستقیماً از دیسک (بخش ۷.۳، گره‌های `Read Community Package Files`/`Normalize Community Packages`).
+
+**ث) بازسازی Mount کلید SSH Deploy Key به یک پوشهٔ کامل (نه یک فایل تکی)**
+Mount قبلی (از زمان Bootstrap اولیهٔ `xennic-infra-backups`، مستند در META-INT-140) فقط خودِ فایل کلید را Mount می‌کرد:
+```yaml
+      - ~/xennic-infra-backups-deploy:/home/node/.ssh/xennic-infra-backups-deploy:ro
+```
+این باید با Mount یک پوشهٔ کامل جایگزین شود (دلیل دقیق در بخش ۷.۷، یافتهٔ ۸ — قفل امنیتی گرهٔ Git n8n):
+```yaml
+      - ~/xennic-infra-ssh:/home/node/.ssh:ro
+```
+با این محتوای از پیش آماده‌شده روی هاست در `~/xennic-infra-ssh/` (مالکیت `1000:1000`، مجوز `600`):
+- `xennic-infra-backups-deploy` — همان کلید خصوصی قبلی (فقط منتقل‌شده)
+- `config`:
+  ```sshconfig
+  Host github.com
+      IdentityFile /home/node/.ssh/xennic-infra-backups-deploy
+      IdentitiesOnly yes
+      StrictHostKeyChecking no
+      UserKnownHostsFile /dev/null
+  ```
+
+**ج) اعمال تغییرات**
 ```bash
 cd /home/xennic/xennic-infra
 docker compose up -d n8n   # نه restart ساده — برای اعمال واقعی متغیرهای محیطی و Mountهای جدید
 # تأیید:
 docker exec xennic-infra-n8n-1 printenv | grep -E 'NODE_FUNCTION_ALLOW_BUILTIN|N8N_RESTRICT_FILE_ACCESS_TO|INFRA_BACKUP_ENC_KEY'
 docker exec xennic-infra-n8n-1 ls -la /data/compose-ro
+docker exec xennic-infra-n8n-1 ls -la /home/node/.ssh/
+docker exec xennic-infra-n8n-1 ssh -T git@github.com   # باید پیام "successfully authenticated" بدهد
 ```
 
-### ۷.۳ طراحی گره‌به‌گره Workflow `[OPS-01] Nightly Infra Export`
+### ۷.۳ طراحی گره‌به‌گره Workflow `[OPS-01] Nightly Infra Export` (نسخهٔ واقعی ساخته‌شده و تست‌شده)
 
 > منبع واقعیِ این Workflow خودِ n8n است (ساخته‌شده از طریق UI)؛ هیچ فایل JSON این Workflow در Vault نگهداری نمی‌شود — چون خروجی همین Workflow (نسخهٔ JSON واقعی‌اش) هرشب به‌صورت خودکار در `xennic-infra-backups/n8n/workflows.json` ذخیره می‌شود (یعنی خودش هم جزو دارایی‌هایی است که Backup می‌کند).
+
+> [!success] این جدول، معماری **واقعاً ساخته‌شده** است (نه طراحی اولیه)
+> نسبت به طراحی اولیهٔ v0.3.0 (۱۹ گرهٔ خطی)، نسخهٔ واقعی ۲۵ گره دارد و به‌صورت ۴ شاخهٔ موازی از `Schedule Trigger` سازماندهی شده که قبل از Git در یک گرهٔ `Merge` به‌هم می‌رسند. دلایل افزایش تعداد گره‌ها (نیاز به `Convert to File` قبل از هر نوشتن متنی، گرهٔ دفاعی `Normalize Community Packages`، گرهٔ کمکی `Read Community Package Files`) در بخش ۷.۷ توضیح داده شده است.
+
+**شاخهٔ A — Export اطلاعات n8n (Workflows/Credentials/Community-Packages):**
 
 | # | گره | نوع | پیکربندی کلیدی |
 |---|---|---|---|
 | ۱ | Schedule Trigger | Schedule Trigger | Cron: `0 0 * * *`، Timezone: `Asia/Tehran` (اجرا هر شب ساعت ۰۰:۰۰ — طبق تصمیم مالک) |
-| ۲ | List Workflows | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/workflows?limit=250`؛ Auth: Predefined Credential Type → «n8n API» |
+| ۲ | List Workflows | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/workflows?limit=250`؛ Auth: Predefined Credential Type → «n8n API» (Credential: `n8n API - OPS-01`) |
 | ۳ | List Credentials Metadata | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/credentials`؛ همان Credential «n8n API»؛ فقط id/name/type برمی‌گردد، هرگز مقدار Secret |
-| ۴ | List Community Packages | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/community-packages`؛ همان Credential «n8n API» |
-| ۵ | Format n8n Exports | Code | سه ورودی بالا را به سه رشتهٔ JSON (`JSON.stringify(..., null, 2)`) با نام فایل مشخص تبدیل می‌کند؛ از `crypto`/`fs` استفاده نمی‌کند، فقط رشته‌سازی ساده |
-| ۶–۸ | Write n8n/*.json ×۳ | Read/Write Files from Disk (Write) | مسیرها: `/data/xennic-infra-backups/n8n/workflows.json`، `.../credentials-metadata.json`، `.../community-packages.json` |
-| ۹ | Read docker-compose.yml | Read/Write Files from Disk (Read) | مسیر: `/data/compose-ro/docker-compose.yml` |
-| ۱۰ | Write docker-compose.yml | Read/Write Files from Disk (Write) | مسیر: `/data/xennic-infra-backups/infra/docker-compose.yml` |
-| ۱۱ | Read .env (خام) | Read/Write Files from Disk (Read) | مسیر: `/data/compose-ro/env-source` |
-| ۱۲ | Sanitize .env → .env.example | Code | هر خط با الگوی `KEY=VALUE` را به `KEY=` تبدیل می‌کند (مقدار حذف، کامنت/خط خالی دست‌نخورده)؛ کد نمونه پایین |
-| ۱۳ | Write .env.example | Read/Write Files from Disk (Write) | مسیر: `/data/xennic-infra-backups/infra/.env.example` |
-| ۱۴ | Export SurrealDB | HTTP Request (POST) | URL: `http://xennic-infra-surrealdb-1:8000/export`؛ Body: `{}` (JSON)؛ Headers: `Surreal-NS: open_notebook`, `Surreal-DB: open_notebook`, `Content-Type: application/json`؛ Auth: Predefined Credential Type → «SurrealDB Root» (Basic Auth)؛ Response Format: `text` |
-| ۱۵ | Encrypt SurrealDB Dump | Code | AES-256-GCM با `require('crypto')` و `$env.INFRA_BACKUP_ENC_KEY`؛ کد نمونه پایین |
-| ۱۶ | Write Encrypted Dump | Read/Write Files from Disk (Write) | مسیر: `/data/xennic-infra-backups/open-notebook/surrealdb-open_notebook.sql.enc` |
-| ۱۷ | Git Pull | Git | عملیات Pull روی مخزن `/data/xennic-infra-backups` (هماهنگ با Remote قبل از Commit) |
-| ۱۸ | Git Add + Commit | Git | پیام Commit نمونه: `chore: nightly infra snapshot {{$now.setZone('Asia/Tehran').toFormat('yyyy-LL-dd')}}` |
-| ۱۹ | Git Push | Git | Push به همان Remote/Branch از پیش تنظیم‌شده (SSH Deploy Key موجود) |
+| ۴ | List Community Packages | HTTP Request (GET) | URL: `http://localhost:5678/api/v1/community-packages`؛ همان Credential «n8n API»؛ **«Always Output Data» باید روشن باشد** (بخش ۷.۷، یافتهٔ ۳) |
+| ۵ | Normalize Community Packages | Code | گرهٔ دفاعی: همیشه دقیقاً ۱ آیتم تولید می‌کند، چه API آرایهٔ خالی برگرداند چه `alwaysOutputData` یک Fallback تهی تولید کند؛ کد کامل در ادامه |
+| ۶ | Read Community Package Files | Read/Write Files from Disk (Read) | File Selector: `/data/compose-ro/n8n-nodes/n8n-nodes-*/package.json` — کشف بسته‌های نصب‌شدهٔ دستی که در API دیده نمی‌شوند |
+| ۷ | Format n8n Exports | Code | سه ورودی بالا (Workflows/Credentials/Community-Packages ترکیبی) را به سه آیتم `{ json: { fileName, content } }` تبدیل می‌کند؛ کد کامل در ادامه |
+| ۸ | Convert to File (n8n Exports) | Convert to File | Operation: Convert to Text File؛ Text Input Field: `content` |
+| ۹ | Write n8n Export Files | Read/Write Files from Disk (Write) | File Name (Expression): `/data/xennic-infra-backups/n8n/{{ $('Format n8n Exports').item.json.fileName }}` — Item-Linking تضمین می‌کند هر آیتم به نام فایل خودش نوشته شود |
 
-**کد گره ۵ (Format n8n Exports) — نمونه:**
+**شاخهٔ B — کپی `docker-compose.yml`:**
+
+| # | گره | نوع | پیکربندی کلیدی |
+|---|---|---|---|
+| ۱۰ | Read docker-compose.yml | Read/Write Files from Disk (Read) | File Selector: `/data/compose-ro/docker-compose.yml` |
+| ۱۱ | Write docker-compose.yml | Read/Write Files from Disk (Write) | File Name: `/data/xennic-infra-backups/infra/docker-compose.yml` (مقدار ثابت، Input Binary Field: `data`) |
+
+**شاخهٔ C — Sanitize و نوشتن `.env.example`:**
+
+| # | گره | نوع | پیکربندی کلیدی |
+|---|---|---|---|
+| ۱۲ | Read .env (raw) | Read/Write Files from Disk (Read) | File Selector: `/data/compose-ro/env-source` |
+| ۱۳ | Sanitize .env to .env.example | Code | هر خط با الگوی `KEY=VALUE` را به `KEY=` تبدیل می‌کند (مقدار حذف، کامنت/خط خالی دست‌نخورده)؛ کد کامل در ادامه |
+| ۱۴ | Convert to File | Convert to File | Operation: Convert to Text File؛ Text Input Field: `content` |
+| ۱۵ | Write .env.example | Read/Write Files from Disk (Write) | File Name: `/data/xennic-infra-backups/infra/.env.example` (مقدار ثابت) |
+
+**شاخهٔ D — Export و رمزنگاری SurrealDB:**
+
+| # | گره | نوع | پیکربندی کلیدی |
+|---|---|---|---|
+| ۱۶ | Export SurrealDB | HTTP Request (POST) | URL: `http://xennic-infra-surrealdb-1:8000/export`؛ Body: `{}` (JSON)؛ Headers: `Surreal-NS: open_notebook`, `Surreal-DB: open_notebook`, `Content-Type: application/json`؛ Authentication: **Generic Credential Type → Basic Auth** (نه Predefined — بخش ۷.۷، یافتهٔ ۹) → Credential «SurrealDB Root»؛ Response Format: `text` |
+| ۱۷ | Encrypt SurrealDB Dump | Code | AES-256-GCM با `require('crypto')` و `$env.INFRA_BACKUP_ENC_KEY`؛ کد کامل در ادامه |
+| ۱۸ | Convert Encrypted Dump to File | Convert to File | Operation: Convert to Text File؛ Text Input Field: `content` |
+| ۱۹ | Write Encrypted Dump | Read/Write Files from Disk (Write) | File Name: `/data/xennic-infra-backups/open_notebook/surrealdb-open_notebook.sql.enc` (توجه: `open_notebook` با Underline، نه `open-notebook`) |
+
+**اتصال نهایی — Merge و Git:**
+
+| # | گره | نوع | پیکربندی کلیدی |
+|---|---|---|---|
+| ۲۰ | Merge Before Commit | Merge | Number of Inputs: ۴ (از هر چهار گرهٔ نهاییِ شاخه‌های A–D)؛ Mode: Combine |
+| ۲۱ | Git Pull | Git | Repository Path: `/data/xennic-infra-backups` |
+| ۲۲ | Git Add | Git | Repository Path: `/data/xennic-infra-backups`؛ Paths to Add: `.` |
+| ۲۳ | Git Commit | Git | Message: `chore: nightly infra snapshot {{ $now.setZone('Asia/Tehran').toFormat('yyyy-LL-dd') }}`؛ **Continue On Fail: روشن** (اگر شبی هیچ تغییری نباشد، «nothing to commit» نباید کل Workflow را Fail نشان دهد) |
+| ۲۴ | Git Push | Git | Authentication: **None** (کلید SSH از طریق فایل `~/.ssh/config`‌ خودِ Container مدیریت می‌شود، نه Credential این گره — بخش ۷.۷، یافتهٔ ۸) |
+| ۲۵ | Notify Bale (Backup Success) | `n8n-nodes-bale-messenger-alpha.baleMessenger` | Chat ID: `{{ $env.BALE_CHAT_ID }}`؛ پیام موفقیت؛ Credential: `BaleMessenger account` (بخش ۷.۵) |
+
+**کد گرهٔ Normalize Community Packages:**
 ```javascript
-const workflows = $('List Workflows').first().json.data ?? $('List Workflows').first().json;
-const credentials = $('List Credentials Metadata').first().json.data ?? $('List Credentials Metadata').first().json;
-const packages = $('List Community Packages').first().json.data ?? $('List Community Packages').first().json;
+const items = $input.all();
+const raw = items.length > 0 ? items[0].json : [];
+const packages = Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+return [{ json: { packages } }];
+```
+
+**کد گرهٔ Format n8n Exports — نسخهٔ واقعی تأییدشده** (توجه: همهٔ فیلدهای خروجی باید داخل `json` تو در تو باشند، نه در سطح بالا — بخش ۷.۷، یافتهٔ ۴):
+```javascript
+const workflows = $('List Workflows').first().json.data;
+const credentials = $('List Credentials Metadata').first().json.data;
+const apiPackages = $('Normalize Community Packages').first().json.packages;
+
+const manualPackages = [];
+const items = $input.all();
+for (let i = 0; i < items.length; i++) {
+  const item = items[i];
+  if (item.binary && item.binary.data) {
+    const buffer = await this.helpers.getBinaryDataBuffer(i, 'data');
+    try {
+      const pkg = JSON.parse(buffer.toString('utf8'));
+      manualPackages.push({ name: pkg.name, version: pkg.version, description: pkg.description ?? null, source: 'manual-install' });
+    } catch (e) {
+      manualPackages.push({ error: `parse failed: ${e.message}` });
+    }
+  }
+}
+
+const communityPackages = { managedByN8n: Array.isArray(apiPackages) ? apiPackages : [], manuallyInstalled: manualPackages };
 
 return [
-  { json: {}, binary: {}, fileName: 'workflows.json', content: JSON.stringify(workflows, null, 2) },
-  { json: {}, binary: {}, fileName: 'credentials-metadata.json', content: JSON.stringify(credentials, null, 2) },
-  { json: {}, binary: {}, fileName: 'community-packages.json', content: JSON.stringify(packages, null, 2) },
+  { json: { fileName: 'workflows.json', content: JSON.stringify(workflows, null, 2) } },
+  { json: { fileName: 'credentials-metadata.json', content: JSON.stringify(credentials, null, 2) } },
+  { json: { fileName: 'community-packages.json', content: JSON.stringify(communityPackages, null, 2) } },
 ];
 ```
-(شکل دقیق پاسخ Public API — مستقیم آرایه یا بسته‌شده در `data` — باید بعد از اولین اجرا با داده واقعی instance تأیید/تنظیم شود.)
+(شکل واقعی پاسخ Public API تأیید شد: `GET /api/v1/workflows` و `GET /api/v1/credentials` هر دو در `{"data": [...]}` بسته‌شده‌اند، اما `GET /api/v1/community-packages` یک آرایهٔ خام `[...]` برمی‌گرداند — ناهماهنگی فرمت بین این سه Endpoint.)
 
-**کد گره ۱۲ (Sanitize .env → .env.example) — نمونه:**
+**کد گرهٔ Sanitize .env to .env.example — نسخهٔ واقعی تأییدشده:**
 ```javascript
-const raw = $input.first().json.data ?? $input.first().binary?.data?.data ?? '';
-const text = Buffer.isBuffer(raw) ? raw.toString('utf8') : String(raw);
+const buffer = await this.helpers.getBinaryDataBuffer(0, 'data');
+const text = buffer.toString('utf8');
 
 const sanitized = text.split('\n').map(line => {
   const trimmed = line.trim();
-  if (!trimmed || trimmed.startsWith('#')) return line; // کامنت/خط خالی دست‌نخورده
-  const idx = line.indexOf('=');
-  if (idx === -1) return line;
-  return line.slice(0, idx + 1); // فقط KEY= باقی می‌ماند
+  if (!trimmed || trimmed.startsWith('#')) return line;
+  const eqIdx = line.indexOf('=');
+  if (eqIdx === -1) return line;
+  const key = line.slice(0, eqIdx);
+  return `${key}=`;
 }).join('\n');
 
-return [{ json: { content: sanitized } }];
+return [{ json: { fileName: '.env.example', content: sanitized } }];
 ```
 
-**کد گره ۱۵ (Encrypt SurrealDB Dump، AES-256-GCM) — نمونه:**
+**کد گرهٔ Encrypt SurrealDB Dump (AES-256-GCM) — نسخهٔ واقعی تأییدشده:**
 ```javascript
 const crypto = require('crypto');
 
@@ -255,7 +352,7 @@ const authTag = cipher.getAuthTag();
 // قالب فایل خروجی: iv (12 بایت) || authTag (16 بایت) || ciphertext — همه Base64
 const payload = Buffer.concat([iv, authTag, encrypted]).toString('base64');
 
-return [{ json: { content: payload } }];
+return [{ json: { fileName: 'surrealdb-open_notebook.sql.enc', content: payload } }];
 ```
 
 ### ۷.۴ چرا AES-256-GCM در Code Node به‌جای `age`؟
@@ -281,23 +378,117 @@ console.log('OK, decrypted to surrealdb-open_notebook.surql');
 ```
 این دستور را روی هر ماشینی با Node.js نصب‌شده (نه لزوماً داخل Container n8n) و با مقدار واقعی `INFRA_BACKUP_ENC_KEY` در `process.env` اجرا کنید.
 
-### ۷.۵ هشدار خطا
+> [!success] تست DR واقعی انجام شد (۱۴۰۵-۰۸-۰۷)
+> دستور بالا (با اجرا از داخل `xennic-infra-n8n-1` به‌جای یک ماشین جدا، برای سادگی تست) روی Dump واقعی تولیدشدهٔ همان‌شب اجرا شد: ۳۵۱٬۳۹۱ بایت متن خام SurrealQL با موفقیت رمزگشایی شد و محتوایش (`DEFINE FUNCTION ...`) تأیید شد. چرخهٔ کامل رمزنگاری/رمزگشایی (کلید، IV، AuthTag، GCM) صحیح است.
 
-مطابق [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]]، Workflow `[OPS-01]` باید به Global Error Workflow موجود وصل شود تا هر شکست (مثلاً خطای احراز هویت API، شکست نوشتن فایل به‌خاطر محدودیت مسیر، یا شکست Git Push به‌خاطر Conflict) همان لحظه در Bale Messenger اطلاع داده شود.
+### ۷.۵ هشدار خطا — پیاده‌سازی واقعی (Bale Messenger دوطرفه + ناظر مستقل Heartbeat)
+
+مطابق [[META-INT-120 — نظارت، هشدار و مدیریت خطا|META-INT-120]]، کانال واقعی هشدار پروژه Bale Messenger است (الگوی موجود در `[KNW-02]`)، نه Telegram. برای `[OPS-01]` سه لایهٔ مستقل ساخته شد:
+
+**لایهٔ ۱ — اطلاع موفقیت:** گرهٔ `Notify Bale (Backup Success)` در انتهای خودِ `[OPS-01]` (بعد از `Git Push`، بخش ۷.۳).
+
+**لایهٔ ۲ — اطلاع خطا از طریق Global Error Workflow:** یک Workflow جداگانه به نام `[OPS-00] Global Error Alert (Bale)` ساخته شد:
+
+| # | گره | نوع | پیکربندی کلیدی |
+|---|---|---|---|
+| ۱ | Error Trigger | Error Trigger | بدون پارامتر؛ فقط باید اولین گرهٔ Workflow باشد |
+| ۲ | Format Error Alert | Code | استخراج امن نام Workflow/گرهٔ خطا/شناسهٔ اجرا/پیام خطا از ساختار متغیر خروجی Error Trigger؛ کد کامل زیر |
+| ۳ | Bale (Error Alert) | `n8n-nodes-bale-messenger-alpha.baleMessenger` | Chat ID: `{{ $env.BALE_CHAT_ID }}`؛ Text: `{{ $json.text }}`؛ Credential: `BaleMessenger account` |
+
+```javascript
+const data = $input.first().json;
+const workflowName = data.workflow?.name ?? 'نامشخص';
+const executionId = data.execution?.id ?? 'نامشخص';
+const errorMessage = data.execution?.error?.message ?? data.trigger?.error?.message ?? JSON.stringify(data).slice(0, 300);
+const nodeName = data.execution?.lastNodeExecuted ?? data.trigger?.error?.node?.name ?? 'نامشخص';
+
+const text = `⚠️ خطا در Workflow «${workflowName}»\nگره خطا: ${nodeName}\nشناسهٔ اجرا: ${executionId}\nپیام خطا: ${errorMessage}`;
+
+return [{ json: { text } }];
+```
+
+سپس در `[OPS-01]` → منوی `...` → **Settings** → فیلد **Error Workflow** روی `[OPS-00] Global Error Alert (Bale)` تنظیم شد. **هر دو Workflow باید Active باشند** وگرنه این اتصال به‌صورت خاموش (بدون هیچ خطای قابل‌مشاهده) نادیده گرفته می‌شود (بخش ۷.۷، یافتهٔ ۱۱).
+
+**لایهٔ ۳ — ناظر مستقل Heartbeat (Dead Man's Switch):** حین تست واقعی مشخص شد که لایهٔ ۲ به‌تنهایی کافی نیست — یک اجرای واقعاً ناموفق (در تب Executions قابل‌مشاهده) ممکن است به هر دلیلی (تنظیمات/هم‌زمانی Reactivation، بخش ۷.۷ یافتهٔ ۱۱) هیچ پیامی تولید نکند. برای پوشش این شکاف، یک Workflow کاملاً مستقل ساخته شد که از **بیرون** زیرساخت را چک می‌کند، نه از داخل `[OPS-01]`:
+
+**`[OPS-02] Nightly Backup Heartbeat Check`:**
+
+| # | گره | نوع | پیکربندی کلیدی |
+|---|---|---|---|
+| ۱ | Schedule Trigger | Schedule Trigger | Cron: `30 0 * * *`، Timezone: `Asia/Tehran` (نیم‌ساعت بعد از `[OPS-01]`) |
+| ۲ | Get Last Commit | Git (Log) | Repository Path: `/data/xennic-infra-backups` |
+| ۳ | Check Backup Freshness | Code | چک می‌کند آخرین Commit واقعاً مربوط به چند ساعت اخیر و پیام «nightly infra snapshot» است یا نه |
+| ۴ | IF Backup Missing | IF | شرط: `{{ $json.ok }}` برابر `false` |
+| ۵ | Bale (Heartbeat Alert) | `n8n-nodes-bale-messenger-alpha.baleMessenger` | فقط روی شاخهٔ «مشکل تأیید نشد» اجرا می‌شود؛ پیام شامل دلیل دقیق |
+
+```javascript
+const items = $input.all();
+if (items.length === 0) {
+  return [{ json: { ok: false, reason: 'هیچ Commitی در مخزن پیدا نشد' } }];
+}
+
+const lastCommit = items[0].json;
+const commitDateStr = lastCommit.date || lastCommit.author_date || lastCommit.when;
+const commitMessage = lastCommit.message || lastCommit.summary || '';
+
+if (!commitDateStr) {
+  return [{ json: { ok: false, reason: 'فیلد تاریخ در خروجی گره Git یافت نشد: ' + JSON.stringify(lastCommit) } }];
+}
+
+const commitDate = new Date(commitDateStr);
+const now = new Date();
+const hoursSinceCommit = (now.getTime() - commitDate.getTime()) / (1000 * 60 * 60);
+
+const isFresh = hoursSinceCommit <= 3;
+const isTonightsBackup = commitMessage.includes('nightly infra snapshot');
+
+return [{
+  json: {
+    ok: isFresh && isTonightsBackup,
+    reason: isFresh && isTonightsBackup ? 'تأیید شد' : `آخرین Commit: "${commitMessage}" در ${commitDateStr} (${hoursSinceCommit.toFixed(1)} ساعت پیش)`,
+  },
+}];
+```
+
+هر سه لایه (موفقیت/خطا/Heartbeat) با داده واقعی تست و تأیید شدند.
 
 ### ۷.۶ جدول خلاصه مسئولیت هر جزء
 
 | جزء | کجا اجرا می‌شود | چرا آنجا |
 |---|---|---|
 | خواندن Workflow/Credential-metadata/Community-packages | n8n Public API (`HTTP Request`) | Execute Command غیرفعال است؛ Public API راه رسمی و امن جایگزین |
-| نوشتن فایل‌های JSON/متنی در مخزن Backup | گره `Read/Write Files from Disk` (پس از افزودن مسیر به `N8N_RESTRICT_FILE_ACCESS_TO`) | تنها گره مجاز برای I/O فایل روی این instance |
-| کپی `docker-compose.yml` و تولید `.env.example` | همان گره فایل + یک Bind Mount فقط-خواندنی جدید | بدون نیاز به Execute Command یا دسترسی مستقیم shell |
-| Export خام SurrealDB | `HTTP Request` به Endpoint بومی `POST /export` خود SurrealDB v2 | جایگزین کامل `surreal export` CLI، بدون نیاز به Execute Command |
+| کشف بسته‌های Community نصب‌شدهٔ دستی | `Read/Write Files from Disk` (Read) روی Bind Mount سوم `node_modules` | API به‌تنهایی بسته‌های نصب‌شدهٔ دستی را نمی‌بیند (بخش ۷.۷، یافتهٔ ۲) |
+| نوشتن فایل‌های JSON/متنی در مخزن Backup | `Convert to File` (toText) → `Read/Write Files from Disk` (Write) | گرهٔ Write فقط داده باینری می‌پذیرد؛ محتوای متنی باید اول تبدیل شود (بخش ۷.۷، یافتهٔ ۶) |
+| کپی `docker-compose.yml` و تولید `.env.example` | همان گره‌های فایل + Bind Mountهای فقط-خواندنی | بدون نیاز به Execute Command یا دسترسی مستقیم shell |
+| Export خام SurrealDB | `HTTP Request` به Endpoint بومی `POST /export` خود SurrealDB v2، با Authentication از نوع Generic Credential Type → Basic Auth | جایگزین کامل `surreal export` CLI؛ نوع Auth درست باید Generic باشد نه Predefined (بخش ۷.۷، یافتهٔ ۹) |
 | رمزنگاری Dump سورئال | Code Node با `require('crypto')` (AES-256-GCM) | جایگزین ابزار خارجی `age`؛ کلید در `.env`/مدیریت رمز مالک |
-| Commit/Push به Git | گره بومی **Git** در همان Workflow n8n | همان الگوی از پیش ساخته و تست‌شدهٔ `xennic-infra-backups`؛ بدون نیاز به PowerShell/Task Scheduler چون سرور لینوکسی است |
-| هشدار شکست هرکدام | Global Error Workflow در n8n → Bale Messenger | یک کانال واحد هشدار، طبق META-INT-120 |
+| Commit/Push به Git | گره بومی **Git** در همان Workflow n8n، با احراز هویت SSH از طریق فایل `~/.ssh/config` Container (نه Credential گره) | گرهٔ Git n8n عمداً `core.sshCommand`/`GIT_SSH_COMMAND` را نادیده می‌گیرد (بخش ۷.۷، یافتهٔ ۸) |
+| هشدار موفقیت/شکست | گرهٔ Bale در انتهای `[OPS-01]` + Global Error Workflow (`[OPS-00]`) → Bale Messenger | طبق META-INT-120، با الگوی از پیش تست‌شدهٔ `[KNW-02]` |
+| ناظر مستقل عدم‌اجرای خاموش | Workflow جداگانهٔ `[OPS-02]` که از بیرون Git Log مخزن Backup را چک می‌کند | پوشش شکافی که Global Error Workflow به‌تنهایی نمی‌پوشاند (بخش ۷.۷، یافتهٔ ۱۱) |
+
+### ۷.۷ یافته‌های کلیدی حین پیاده‌سازی (درس‌آموخته‌ها)
+
+این بخش تفاوت‌های واقعی بین طراحی اولیهٔ v0.3.0 و پیاده‌سازی واقعی v0.4.0 را مستند می‌کند — برای این‌که این کشفیات (که هرکدام با آزمون‌وخطای واقعی روی VPS به‌دست آمدند) در ساخت Workflowهای آیندهٔ مشابه تکرار نشوند.
+
+| # | یافته | توضیح |
+|---|---|---|
+| ۱ | فرمت پاسخ Public API ناهماهنگ است | `GET /api/v1/workflows` و `GET /api/v1/credentials` در `{"data": [...]}` بسته‌شده‌اند؛ `GET /api/v1/community-packages` یک آرایهٔ خام `[...]` برمی‌گرداند. کد ترکیب‌کننده نباید فرض یکنواخت `.data` بگذارد. |
+| ۲ | بسته‌های Community نصب‌شدهٔ دستی/آفلاین برای Public API نامرئی‌اند | `n8n-nodes-bale-messenger-alpha` با وجود نصب و فعال‌بودن (همان گرهٔ Bale در `[KNW-02]`)، در `GET /api/v1/community-packages` اصلاً دیده نمی‌شود. راه‌حل: Bind Mount سوم فقط‌خواندنی به `node_modules` + خواندن مستقیم `package.json` هر `n8n-nodes-*`. |
+| ۳ | `alwaysOutputData` به‌تنهایی برای مدیریت آرایهٔ خالی کافی نیست | یک گرهٔ HTTP Request با `alwaysOutputData: true` که پاسخ `[]` معتبر برمی‌گرداند، می‌تواند در یک اجرای کامل Workflow با ۰ آیتم خروجی بدهد و زنجیرهٔ بعدی را **بدون هیچ خطا** (وضعیت «موفق») به‌صورت خاموش متوقف کند. علاوه‌بر این، این تنظیم روی گره می‌تواند به‌صورت خاموش به `false` برگردد. الگوی مطمئن‌تر: یک گرهٔ Code دفاعی بلافاصله بعد از چنین HTTP Requestای که همیشه دقیقاً ۱ آیتم تولید کند (`Normalize Community Packages`). |
+| ۴ | خروجی گرهٔ Code باید همهٔ فیلدها را داخل `json` تو در تو کند | قراردادن فیلد سفارشی (مثلاً `fileName`) در سطح بالای آیتم به‌جای داخل `json` باعث خطای «Invalid output format» می‌شود؛ n8n فقط `{ json, binary }` را در سطح بالا می‌پذیرد. |
+| ۵ | گرهٔ Write در «Read/Write Files from Disk» پوشهٔ مقصد را خودکار نمی‌سازد | یک باگ مستند در n8n (Issue #41766): اگر پوشهٔ والدِ مسیر مقصد از قبل وجود نداشته باشد، نوشتن با خطای `ENOENT` شکست می‌خورد. پوشه‌ها (مثل `infra/`) باید از قبل، دستی روی هاست ساخته شوند. |
+| ۶ | نوشتن محتوای متنی/JSON نیازمند `Convert to File` قبل از `Write` است | گرهٔ Write فقط دادهٔ باینری می‌پذیرد (پیام خطا: «expects ... binary file»)؛ باید اول یک گرهٔ `Convert to File` (Operation: Convert to Text File) بین Code node تولیدکنندهٔ متن و گرهٔ Write قرار گیرد. |
+| ۷ | فعال‌سازی Expression باید با آیکون `fx` باشد، نه تایپ‌کردن دستی `=` | اگر کاربر خودش ابتدای یک فیلد ثابت علامت `=` تایپ کند (به‌جای کلیک روی آیکون Expression)، n8n آن را رشتهٔ تحت‌اللفظی می‌خواند و مسیر نامعتبر می‌سازد (دیده‌شده در خطای `realpath '=/data/...'`). |
+| ۸ | **گرهٔ Git در n8n عمداً `core.sshCommand` را قفل می‌کند — مهم‌ترین یافتهٔ این دوره** | بررسی کد منبع `Git.node.ts` نشان داد: برای هر عملیات Git، n8n با فلگ `-c core.sshCommand=ssh` این مقدار را به رشتهٔ سادهٔ `ssh` Pin می‌کند — این مقدار از هر چیزی که در `.git/config` (`git config core.sshCommand ...`) یا متغیر محیطی `GIT_SSH_COMMAND` تنظیم شود مهم‌تر است (یک سخت‌گیری امنیتی عمدی، نه باگ). **نتیجه: گرهٔ Git بومی n8n هرگز نمی‌تواند از طریق تنظیمات Git یک کلید SSH اختصاصی (غیر پیش‌فرض) استفاده کند.** تنها راه حل باقی‌مانده، تنظیم کلید از طریق فایل استاندارد خودِ کلاینت SSH (`~/.ssh/config` با بلوک `Host <دامنه>` و `IdentityFile`) است، چون n8n فقط دستور را به `ssh` سادهٔ بدون `-F`/`-i` محدود می‌کند و خودِ `ssh` همچنان این فایل را می‌خواند. این نیازمند Mount کردن کل پوشهٔ `~/.ssh` (نه فقط فایل کلید) بود تا کاربر `node` بتواند `config` را هم در کنار کلید ببیند. |
+| ۹ | Credential از نوع Basic Auth باید از طریق «Generic Credential Type» انتخاب شود | در گرهٔ HTTP Request، فیلد **Authentication → Predefined Credential Type** فقط انواع اختصاصی سرویس (مثل «n8n API») را نشان می‌دهد. برای Credentialهای عمومی (Basic Auth، Header Auth، OAuth...) باید **Authentication → Generic Credential Type** انتخاب شود و سپس در فیلد **Generic Auth Type** نوع موردنظر (مثلاً Basic Auth) مشخص گردد. |
+| ۱۰ | نام واقعی پوشه‌های مخزن ممکن است با طراحی اولیه فرق کند | طراحی اولیه فرض `open-notebook` (خط‌تیره) کرده بود؛ ساختار واقعیِ از‌پیش‌بوت‌استرپ‌شده `open_notebook` (Underline) بود. همیشه باید ساختار واقعی را با `find`/`ls` تأیید کرد، نه فقط به مستند طراحی تکیه کرد. |
+| ۱۱ | Error Workflow فقط برای اجراهای Production فعال می‌شود، نه اجرای دستی | کلیک روی «Test workflow»/«Execute workflow» از ویرایشگر، هرگز Error Workflow متصل را فعال نمی‌کند — این فقط برای اجراهای واقعی (Schedule/Webhook) کار می‌کند؛ این رفتار رسمی خودِ n8n است. همچنین تغییر Cron یک Trigger روی یک Workflow از‌پیش‌Active، آن را خودکار دوباره زمان‌بندی نمی‌کند (نیاز به یک چرخهٔ Deactivate→Activate). حتی با رعایت این نکات، یک بار یک اجرای واقعاً ناموفق (قابل‌مشاهده در تب Executions) هیچ پیام خطایی تولید نکرد که با تنظیم مجدد دستی Settings رفع شد — به همین دلیل لایهٔ سوم مستقل (`[OPS-02]` Heartbeat) به‌عنوان Defense-in-Depth اضافه شد، نه به‌عنوان جایگزین لایهٔ دوم. |
+| ۱۲ | کلید SSH اختصاصی مخزن فقط داخل Container در دسترس است، نه روی خودِ هاست | وقتی برای ویرایش راحت‌تر فایل‌های مخزن Backup از VSCode (افزونهٔ Remote-SSH، متصل مستقیم به هاست VPS با کاربر لینوکسی عادی، نه داخل Container) استفاده شد، دستور Push با خطای `Permission denied (publickey)` شکست خورد — چون کلید Deploy Key فقط در `~/xennic-infra-ssh/` (برای Mount شدن داخل Container در `/home/node/.ssh/`) آماده شده بود، نه در `~/.ssh/` کاربر هاست. راه‌حل بدون دست‌کاری تنظیمات SSH شخصی کاربر هاست: افزودن یک **Host Alias جداگانه** (مثلاً `github-infra-backups`) به فایل `~/.ssh/config` خودِ کاربر هاست که به همان فایل کلید در `~/xennic-infra-ssh/` اشاره کند، و تغییر Remote همان پوشهٔ Clone‌شده روی هاست به `git@github-infra-backups:...` به‌جای `git@github.com:...`. این یافته دقیقاً همان الگوی یافتهٔ ۸ است، اما این‌بار در سمتِ هاست به‌جای Container. |
+| ۱۳ | 🆕 آدرس Remote مخزن محلی Clone‌شده داخل Container باید دقیقاً با `Host`های تعریف‌شده در `~/.ssh/config` همان Container هم‌خوان باشد | بعد از یک چرخهٔ چرخش Credential (که شامل بازسازی چند بارهٔ Container n8n بود)، `[OPS-01]` با خطای «Could not read from remote repository» در گرهٔ Git (عملیات Pull) شکست خورد — درحالی‌که کلید SSH و `GIT_SSH_COMMAND` هر دو سالم بودند (با `git ls-remote` دستی روی `git@github.com:...` تأیید شد). علت واقعی: Remote محلی مخزن (`/data/xennic-infra-backups/.git/config`) از یک نام مستعار (`git@github-infra-backups:...`) استفاده می‌کرد که در فایل `~/.ssh/config` *خودِ Container* اصلاً تعریف نشده بود (آن فایل فقط یک بلوک `Host github.com` داشت؛ نام مستعار `github-infra-backups` مختص تنظیمات سمتِ هاست در یافتهٔ ۱۲ بود و هرگز نباید با تنظیمات داخل Container قاطی می‌شد). SSH وقتی نام مستعار را در `Host` پیدا نکند، آن را هاست‌نیم واقعی فرض کرده و تلاش DNS می‌کند که شکست می‌خورد. **راه‌حل و درس مهم تشخیصی:** همیشه ابتدا با آدرس مستقیم `git@github.com:...` (بدون هیچ Alias) تست کنید — اگر آن موفق بود ولی Pull/Push واقعیِ Workflow شکست خورد، مشکل قطعاً ناهم‌خوانی آدرس Remote با `~/.ssh/config` است، نه کلید یا شبکه. رفع نهایی: هم‌خوان‌سازی آدرس Remote مخزن داخل Container با `git remote set-url origin git@github.com:...` (چون `.ssh/config` داخل Container تک‌منظوره است و نیازی به Alias ندارد، برخلاف هاست که باید با SSH شخصی کاربر هم‌زیستی کند). |
+| ۱۴ | 🆕 کردنشیال‌های «Header Auth» عمومی، پیشوند `Bearer ` را خودکار اضافه نمی‌کنند و بین چند کردنشیال مشابه هم‌گام نمی‌شوند | بعد از چرخش `OPEN_NOTEBOOK_PASSWORD`، دو Workflow (`[KNW-02]`, `[RAG-02]`) که هردو به API محافظت‌شدهٔ Open Notebook وصل می‌شوند، با خطای **«Invalid authorization header format»** (نه پیام معمول «پسورد اشتباه») شکست خوردند — چون در فیلد **Value** کردنشیال فقط خودِ توکن جدید جای‌گزین شده بود، بدون پیشوند الزامی `Bearer ` که بک‌اند FastAPI آن را سخت‌گیرانه چک می‌کند. نکتهٔ دوم مهم‌تر: این دو Workflow از **دو کردنشیال کاملاً مجزا** («Header Auth account» و «Open Notebook Header Auth») استفاده می‌کنند که هر دو به یک بک‌اند وصل می‌شوند ولی در n8n به‌هم لینک/هم‌گام نیستند — به‌روزرسانی یکی، دیگری را خودکار به‌روز نمی‌کند. **درس برای چرخش‌های آینده:** (۱) مقدار فیلد Value همیشه باید رشتهٔ کامل `Bearer <توکن>` باشد، نه فقط توکن؛ (۲) قبل از تأیید یک چرخش به‌عنوان «کامل»، باید فهرست همهٔ Credentialهای n8n فیلتر شود تا هیچ کپی/نسخهٔ مشابهی از همان Secret جا نماند. |
 
 ---
+
 
 ## ۸. برنامه بازیابی پس از خرابی (DR)
 
@@ -312,8 +503,8 @@ console.log('OK, decrypted to surrealdb-open_notebook.surql');
 | ۷ | اجرای مجدد `RAG-01`/`RAG-02` برای بازسازی ایندکس Qdrant از صفر | وجود [[META-INT-090 — رجیستری Workflowهای n8n\|META-INT-090]] به‌روز |
 | ۸ | تست جستجوی معنایی (مطابق تست‌های META-INT-034) برای تأیید صحت بازیابی | — |
 
-> [!warning] وضعیت فعلی این برنامه
-> این برنامه **هنوز هرگز تست نشده است**. تا زمانی‌که یک بازیابی آزمایشی کامل انجام نشود، نمی‌توان ادعا کرد سیستم واقعاً قابل بازیابی است. پیشنهاد می‌شود پس از تکمیل فاز C (بخش ۹)، یک بار روی یک ماشین مجازی جداگانه (نه ماشین اصلی) تست شود.
+> [!warning] وضعیت فعلی این برنامه — جزئاً تست شده
+> مرحلهٔ ۶ (رمزگشایی `surrealdb-open_notebook.sql.enc`) با داده واقعی تست و تأیید شد (بخش ۷.۴). مراحل ۱ تا ۵ و ۷ تا ۸ (بازسازی کامل محیط از صفر روی یک ماشین مستقل) **هنوز هرگز به‌صورت End-to-End تست نشده‌اند**. تا زمانی‌که یک بازیابی آزمایشی کامل انجام نشود، نمی‌توان ادعا کرد کل سیستم (نه فقط رمزگشایی) واقعاً قابل بازیابی است. این مورد همچنان در بخش ۱۱ به‌عنوان اقدام باز ثبت است.
 
 ---
 
@@ -323,13 +514,13 @@ console.log('OK, decrypted to surrealdb-open_notebook.surql');
 
 | گام | اقدام | خروجی |
 |---|---|---|
-| C.۱ | ساخت مخزن خصوصی `xennic-infra-backups` با ساختار بخش ۷.۱ | مخزن آماده دریافت Backup |
-| C.۲ | نوشتن `infra/docker-compose.yml` با نسخه‌های دقیق فعلی (جدول بخش ۲) | امکان بازسازی زیرساخت با یک دستور |
-| C.۳ | اعمال پیش‌نیازهای یک‌بارهٔ دستی: فعال‌سازی n8n Public API + API Key، Credential «SurrealDB Root»، افزودن `NODE_FUNCTION_ALLOW_BUILTIN`/`N8N_RESTRICT_FILE_ACCESS_TO`/`INFRA_BACKUP_ENC_KEY` به `.env`، دو Bind Mount جدید، `docker compose up -d n8n` (بخش ۷.۲) | زیرساخت آماده برای ساخت Workflow، بدون نیاز به Execute Command |
-| C.۴ | ساخت Workflow `[OPS-01] Nightly Infra Export` با ۱۹ گره طبق جدول بخش ۷.۳ (Public API → Format → Write Files → Git) | Export خودکار شبانهٔ Workflow/Credentials/Community-packages/docker-compose.yml/.env.example |
-| C.۵ | افزودن گره‌های Export + رمزنگاری AES-256-GCM برای SurrealDB (بخش ۷.۳–۷.۴) به همان Workflow | Backup امن Open Notebook بدون افشای Corporate، بدون ابزار خارجی `age` |
-| C.۶ | اتصال Workflow `[OPS-01]` به Global Error Workflow (پیش‌نیاز از فاز B در META-INT-130) | هشدار فوری در صورت شکست هر مرحله Backup |
-| C.۷ | یک بار اجرای کامل بازیابی روی یک محیط تست (VM جداگانه) برای اعتبارسنجی برنامه DR (بخش ۸)، شامل تست واقعی دستور رمزگشایی بخش ۷.۴ | اثبات واقعی قابلیت بازیابی، نه فقط ادعا |
+| C.۱ | ✅ ساخت مخزن خصوصی `xennic-infra-backups` با ساختار بخش ۷.۱ | مخزن آماده دریافت Backup — انجام شد |
+| C.۲ | ✅ نوشتن `infra/docker-compose.yml` با نسخه‌های دقیق فعلی (جدول بخش ۲) | امکان بازسازی زیرساخت با یک دستور — انجام شد (هرشب خودکار به‌روز می‌شود) |
+| C.۳ | ✅ اعمال پیش‌نیازهای یک‌بارهٔ دستی: فعال‌سازی n8n Public API + API Key، Credential «SurrealDB Root»، افزودن `NODE_FUNCTION_ALLOW_BUILTIN`/`N8N_RESTRICT_FILE_ACCESS_TO`/`INFRA_BACKUP_ENC_KEY` به `.env`، سه Bind Mount، بازسازی Mount کلید SSH، `docker compose up -d n8n` (بخش ۷.۲) | زیرساخت آماده برای ساخت Workflow، بدون نیاز به Execute Command — انجام شد |
+| C.۴ | ✅ ساخت Workflow `[OPS-01] Nightly Infra Export` با ۲۵ گره طبق جدول بخش ۷.۳ (Public API → Format → Write Files → Git) | Export خودکار شبانهٔ Workflow/Credentials/Community-packages/docker-compose.yml/.env.example — ساخته، تست End-to-End شد و **Active** است |
+| C.۵ | ✅ افزودن گره‌های Export + رمزنگاری AES-256-GCM برای SurrealDB (بخش ۷.۳–۷.۴) به همان Workflow | Backup امن Open Notebook بدون افشای Corporate، بدون ابزار خارجی `age` — انجام و تست DR شد |
+| C.۶ | ✅ اتصال Workflow `[OPS-01]` به Global Error Workflow + افزودن ناظر مستقل `[OPS-02]` (بخش ۷.۵) | هشدار فوری در صورت شکست هر مرحله Backup، با لایهٔ دوم Defense-in-Depth — انجام شد |
+| C.۷ | ⏳ یک بار اجرای کامل بازیابی روی یک محیط تست (VM جداگانه) برای اعتبارسنجی برنامه DR (بخش ۸)، شامل تست واقعی دستور رمزگشایی بخش ۷.۴ | تست رمزگشایی (بخش ۷.۴) انجام شد؛ بازسازی کامل محیط از صفر هنوز باز است — اثبات واقعی قابلیت بازیابی کامل، نه فقط ادعا |
 
 ---
 
@@ -337,12 +528,14 @@ console.log('OK, decrypted to surrealdb-open_notebook.surql');
 
 | # | شکاف | تأثیر |
 |---|---|---|
-| ۱ | هیچ Docker Compose یا IaC در مخزن نیست | بازسازی کامل سیستم غیرممکن بدون حافظه انسانی |
-| ۲ | Workflowهای n8n در هیچ‌جا Export/Commit نشده‌اند | از دست رفتن کامل منطق اتوماسیون در صورت خرابی |
-| ۳ | **فهرست بسته‌های Community (مثلاً Bale Messenger) هیچ‌جا ثبت نشده** | 🆕 بازسازی کانتینر n8n بدون این فهرست یعنی شکست خاموش Workflowهای وابسته به آن گره‌ها (`[KNW-02]`) |
-| ۴ | برنامه DR تست نشده | ادعای «قابل بازیابی بودن» اثبات‌نشده است |
-| ۵ | وابستگی کامل به یک کامپیوتر شخصی (نه سرور) | Downtime طولانی در صورت هر مشکل سخت‌افزاری |
-| ۶ | وابستگی کامل به حافظه یک نفر برای بازسازی | مغایر با هدف جدید مالک: تبدیل‌شدن به یک تیم کامل با چند بخش تخصصی |
+| ۱ | ✅ **حل شد** — هیچ Docker Compose یا IaC در مخزن نبود | `infra/docker-compose.yml` هرشب خودکار به‌روز می‌شود (`[OPS-01]`) |
+| ۲ | ✅ **حل شد** — Workflowهای n8n در هیچ‌جا Export/Commit نمی‌شدند | `n8n/workflows.json` هرشب خودکار به‌روز می‌شود (`[OPS-01]`) |
+| ۳ | ✅ **حل شد** — فهرست بسته‌های Community (مثلاً Bale Messenger) هیچ‌جا ثبت نشده بود | `n8n/community-packages.json` هرشب خودکار به‌روز می‌شود، شامل بسته‌های نصب‌شدهٔ دستی (بخش ۷.۷، یافتهٔ ۲) |
+| ۴ | ⚠️ **جزئاً حل شد** — برنامه DR تست نشده بود | تست رمزگشایی SurrealDB انجام شد (بخش ۷.۴)؛ بازسازی کامل محیط از صفر هنوز تست نشده (C.۷ باز است) |
+| ۵ | وابستگی کامل به یک کامپیوتر شخصی (نه سرور) | ✅ حل شد با مهاجرت به VPS (META-INT-140) |
+| ۶ | وابستگی کامل به حافظه یک نفر برای بازسازی | مغایر با هدف جدید مالک: تبدیل‌شدن به یک تیم کامل با چند بخش تخصصی — با مستندسازی کامل بخش ۷ این وابستگی کاهش یافته اما هنوز کاملاً رفع نشده |
+| ۷ | 🆕 گرهٔ Git بومی n8n اجازهٔ استفاده از کلید SSH اختصاصی را از طریق تنظیمات Git نمی‌دهد | راه‌حل یافت و اعمال شد (Mount فایل `~/.ssh/config`، بخش ۷.۷ یافتهٔ ۸)؛ برای هر مخزن Git جدیدی که در آینده به این instance اضافه شود باید همین الگو تکرار شود |
+| ۸ | 🆕 اطمینان از اجرای واقعی Error Workflow در تمام سناریوها اثبات‌نشده است | یک بار یک اجرای ناموفق هیچ پیامی تولید نکرد (علت دقیق کاملاً شناسایی نشد)؛ لایهٔ سوم مستقل `[OPS-02]` اضافه شد اما ریشهٔ این رفتار نامنظم هنوز به‌طور کامل تشخیص داده نشده است |
 
 ---
 
@@ -350,12 +543,14 @@ console.log('OK, decrypted to surrealdb-open_notebook.surql');
 
 - [x] ساخت مخزن `xennic-infra-backups` (خصوصی) با ساختار بخش ۷.۱ — بوت‌استرپ شده با Git node بومی + SSH Deploy Key
 - [x] تصمیم‌گیری درباره انتقال به سرور — انجام شد، VPS لینوکسی در حال استفاده (META-INT-140)
-- [ ] اعمال پیش‌نیازهای یک‌بارهٔ دستی `[OPS-01]` روی VPS (بخش ۷.۲: Public API Key، دو Credential جدید، سه متغیر `.env`، دو Bind Mount، `docker compose up -d n8n`)
-- [ ] ساخت Workflow `[OPS-01] Nightly Infra Export` با ۱۹ گره طبق بخش ۷.۳ (n8n Public API + Code + Read/Write Files + Git، بدون Execute Command)
-- [ ] پیاده‌سازی رمزنگاری AES-256-GCM برای Export SurrealDB در همان Workflow (بخش ۷.۴) و تست واقعی چرخهٔ رمزنگاری/رمزگشایی
-- [ ] اتصال `[OPS-01]` به Global Error Workflow برای هشدار Bale Messenger در صورت شکست (بخش ۷.۵)
+- [x] اعمال پیش‌نیازهای یک‌بارهٔ دستی `[OPS-01]` روی VPS (بخش ۷.۲: Public API Key، دو Credential جدید، سه متغیر `.env`، سه Bind Mount، بازسازی Mount کلید SSH، `docker compose up -d n8n`)
+- [x] ساخت Workflow `[OPS-01] Nightly Infra Export` با ۲۵ گره طبق بخش ۷.۳ (n8n Public API + Code + Convert to File + Read/Write Files + Git، بدون Execute Command) — تست End-to-End موفق، **Active** و اجرای شبانه در حال انجام
+- [x] پیاده‌سازی رمزنگاری AES-256-GCM برای Export SurrealDB در همان Workflow (بخش ۷.۴) و تست واقعی چرخهٔ رمزنگاری/رمزگشایی — انجام شد (۳۵۱٬۳۹۱ بایت با موفقیت رمزگشایی شد)
+- [x] اتصال `[OPS-01]` به Global Error Workflow برای هشدار Bale Messenger در صورت شکست (بخش ۷.۵) + افزودن ناظر مستقل `[OPS-02] Nightly Backup Heartbeat Check`
 - [ ] نوشتن اسکریپت ساخت Qdrant Collection (نام، ابعاد، Distance، Indexها طبق META-INT-020)
-- [ ] اجرای یک بازیابی آزمایشی کامل روی محیط جدا و ثبت نتیجه در این نود (بخش ۸)
+- [ ] اجرای یک بازیابی آزمایشی کامل روی محیط جدا و ثبت نتیجه در این نود (بخش ۸، گام C.۷ — هنوز باز)
+- [ ] 🆕 چرخش (Rotate) اعتبارنامه‌های زیر که حین این دوره پیاده‌سازی عیناً در چت/لاگ‌های اشتراکی ظاهر شدند: پسورد Root سورئال، `INFRA_BACKUP_ENC_KEY`، پسورد Postgres، Open Notebook، کلید رمزگذاری n8n، Qdrant، توکن ربات بله — طبق META-INT-100
+- [ ] 🆕 تشخیص ریشه‌ای علت یک‌بار عدم‌ارسال پیام خطا با وجود اجرای ناموفق قابل‌مشاهده در Executions (بخش ۱۰، شکاف ۸)
 
 ---
 
@@ -374,6 +569,9 @@ console.log('OK, decrypted to surrealdb-open_notebook.surql');
 
 ## ۱۳. Changelog
 
+- **v0.4.2 (۱۴۰۵-۰۸-۰۷):** بعد از چرخش کامل ۸ Secret/Credential پروژه (جزئیات در [[META-INT-100]])، یک رگرسیون End-to-End واقعی روی `[OPS-01]`، `[KNW-02]` و `[RAG-02]` اجرا و دو باگ واقعیِ کشف‌شده در این مسیر مستند شد (یافته‌های ۱۳ و ۱۴ در بخش ۷.۷): (۱) آدرس Remote مخزن محلی داخل Container n8n از نام مستعار SSH سمتِ هاست (یافتهٔ ۱۲) استفاده می‌کرد که در `~/.ssh/config` خودِ Container تعریف نشده بود و Git Pull را با «Could not read from remote repository» می‌شکست؛ رفع با هم‌خوان‌سازی آدرس Remote به `git@github.com:...`. (۲) دو کردنشیال «Header Auth» مجزا («Header Auth account» در `[KNW-02]` و «Open Notebook Header Auth» در `[RAG-02]`) که هر دو به Open Notebook وصل می‌شوند، بعد از چرخش `OPEN_NOTEBOOK_PASSWORD` پیشوند الزامی `Bearer ` را نداشتند و با خطای «Invalid authorization header format» شکست می‌خوردند؛ هر دو کردنشیال به‌صورت مستقل اصلاح شدند. بعد از رفع هر دو مورد، هر سه Workflow بدون خطا اجرا شدند و رگرسیون کامل روی هر ۸ Credential چرخانده‌شده تأیید شد.
+- **v0.4.1 (۱۴۰۵-۰۸-۰۷):** دو مورد پاکسازی/یافتهٔ تکمیلی ثبت شد. (۱) پوشهٔ میراثی `n8n/workflows/` از مخزن واقعی `xennic-infra-backups` حذف شد (حاوی Exportهای دستی قدیمی سه Workflow اصلی بود، نه خالی همان‌طور که قبلاً توصیف شده بود) چون کاملاً توسط `n8n/workflows.json` خودکار جایگزین شده؛ `README.md` ریشهٔ آن مخزن و `n8n/README.md` هم با محتوای واقعی به‌روزرسانی شدند (بخش‌های ۴ و ۷.۱ این‌جا هم‌راستا شدند). (۲) یافتهٔ جدید شمارهٔ ۱۲ در بخش ۷.۷: هنگام تلاش برای ویرایش مستقیم مخزن Backup از VSCode (Remote-SSH به خودِ هاست، نه داخل Container)، Push با خطای `Permission denied (publickey)` مواجه شد چون کلید Deploy Key فقط برای Mount داخل Container آماده شده بود نه برای کاربر لینوکسی هاست؛ راه‌حل، افزودن یک Host Alias جداگانه در `~/.ssh/config` کاربر هاست (بدون دست‌کاری SSH شخصی موجود) بود — دقیقاً تکرار همان الگوی یافتهٔ ۸ اما در سمتِ هاست.
+- **v0.4.0 (۱۴۰۵-۰۸-۰۷):** `[OPS-01] Nightly Infra Export` از طراحی به **پیاده‌سازی واقعی، تست‌شده و Active** رسید (بخش ۷ کاملاً بازنویسی شد). معماری نهایی ۲۵ گره دارد (نه ۱۹ طراحی اولیه) در ۴ شاخهٔ موازی + Merge + زنجیرهٔ Git؛ تفاوت‌های کلیدی با طراحی اولیه در بخش ۷.۷ جدید («یافته‌های کلیدی حین پیاده‌سازی») با ۱۱ یافتهٔ مستند ثبت شد، مهم‌ترین‌شان کشف این‌که گرهٔ Git بومی n8n به‌صورت عمدی (نه باگ) هر `core.sshCommand`/`GIT_SSH_COMMAND` سفارشی را نادیده می‌گیرد و فقط از طریق فایل `~/.ssh/config` خودِ کلاینت SSH می‌توان کلید Deploy Key اختصاصی را معرفی کرد. سه Bind Mount (نه دو) لازم بود چون `GET /api/v1/community-packages` بسته‌های نصب‌شدهٔ دستی (`n8n-nodes-bale-messenger-alpha`) را نشان نمی‌دهد. تست End-to-End کامل (Export → Sanitize → رمزنگاری → Git Commit/Push واقعی) و یک تست DR واقعی (رمزگشایی ۳۵۱٬۳۹۱ بایت Dump سورئال) با موفقیت انجام شد. اطلاع‌رسانی دوطرفه (موفقیت/خطا) از طریق Bale Messenger با الگوی موجود `[KNW-02]` پیاده شد؛ یک Workflow جدید `[OPS-00] Global Error Alert (Bale)` به‌عنوان Global Error Workflow ساخته شد؛ یک Workflow مستقل سوم `[OPS-02] Nightly Backup Heartbeat Check` به‌عنوان Dead Man's Switch اضافه شد تا سناریوی کشف‌شدهٔ «اجرای ناموفق بدون هیچ پیام هشدار» را هم پوشش دهد. ساختار واقعی مخزن (بخش ۷.۱)، بخش‌های ۸ تا ۱۱ همگی با وضعیت واقعی جدید به‌روزرسانی شدند؛ یک اقدام جدید (چرخش اعتبارنامه‌های افشاشده حین این دوره) و دو شکاف جدید (قفل SSH گرهٔ Git، قابلیت‌اطمینان ناشناختهٔ Error Workflow) ثبت شد.
 - **v0.3.0 (۱۴۰۵-۰۸-۰۶):** بازنویسی کامل بخش ۷ («روش پیاده‌سازی پیشنهادی») برای معماری واقعی VPS: طراحی کامل Workflow `[OPS-01] Nightly Infra Export` با ۱۹ گره مبتنی بر **n8n Public API** (نه CLI/Execute Command که غیرفعال است)، **Read/Write Files from Disk** (پس از گسترش `N8N_RESTRICT_FILE_ACCESS_TO`)، و **رمزنگاری AES-256-GCM درون Code Node** (نه ابزار خارجی `age`) برای Dump سورئال؛ پوشش کامل دامنهٔ اصلی درخواست‌شده (Workflowها، Credential-metadata، Community-packages، `docker-compose.yml`/`.env.example`، Dump رمزنگاری‌شدهٔ SurrealDB) در یک Workflow واحد؛ مستندسازی پیش‌نیازهای یک‌بارهٔ دستی (API Key، دو Credential جدید، سه متغیر محیطی جدید، دو Bind Mount جدید)؛ جایگزینی گام Commit/Push مبتنی بر PowerShell/Task Scheduler ویندوز با گره بومی Git (همان الگوی از پیش ساخته‌شدهٔ `xennic-infra-backups`)؛ افزودن یادداشت‌های تاریخی روی بخش‌های ۱ و ۲ برای حفظ ردیابی تصمیم بدون حذف محتوای گذشته؛ افزودن وابستگی به META-INT-140؛ به‌روزرسانی بخش‌های ۸، ۹ و ۱۱ متناسب با طراحی جدید.
 - **v0.2.2 (۱۴۰۵-۰۸-۰۱):** به‌روزرسانی یادداشت بخش ۷.۴ («جایگزین برای آینده») برای ارجاع به تصمیم قطعی مالک در نود جدید [[META-INT-140 — نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)|META-INT-140]] (مهاجرت دیگر فقط یک گزینهٔ احتمالی نیست، بلکه تصمیم‌شده است).
 - **v0.2.1 (۱۴۰۵-۰۸-۰۱):** رفع اشکال رندر جدول‌ها — Escape کردن `|` داخل لینک‌های Wiki در جدول‌های بخش‌های ۲ و ۸ که باعث شکستن ستون‌بندی جدول در رندررهای استاندارد Markdown (از جمله GitHub) می‌شد؛ بدون تغییر محتوایی.
