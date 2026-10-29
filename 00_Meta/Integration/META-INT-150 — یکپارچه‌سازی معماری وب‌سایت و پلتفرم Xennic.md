@@ -6,8 +6,8 @@ domain: INT
 status: draft
 owner: احمد فیروزمندی بندپی
 created: 2026-10-29
-version: 0.1.0
-dependencies: [META-INT-080, META-CONV-001, L2-MKT-002, L2-MKT-005, L2-PLT-001]
+version: 0.2.0
+dependencies: [META-INT-080, META-CONV-001, META-INT-100, L2-MKT-002, L2-MKT-005, L2-PLT-001]
 tags: [integration, architecture, website, platform, modular-monolith, decision-record, governance]
 ---
 
@@ -24,9 +24,9 @@ tags: [integration, architecture, website, platform, modular-monolith, decision-
 | ۲ | زمینه: تعارض بین تصمیمات قبلی و خواسته یکپارچه‌سازی | ۹ | اثر این تصمیم بر نودهای موجود |
 | ۳ | تصمیم معماری نهایی: Modular Monolith | ۱۰ | نقشه راه و گام‌های بعدی |
 | ۴ | مدل داده: Schema-per-Domain و جدول مشترک Customers | ۱۱ | ریسک‌ها و تصمیمات باز |
-| ۵ | تفکیک Staff و Customers (دو Collection مجزا) | ۱۲ | ارجاعات |
-| ۶ | دامنه فاز ۱: بدون تغییر | ۱۳ | Changelog |
-| ۷ | زیرساخت فاز ۱: همان VPS فعلی | | |
+| ۵ | تفکیک Staff و Customers (دو Collection مجزا) | ۱۲ | مخزن کد منبع (Source Code Repository) |
+| ۶ | دامنه فاز ۱: بدون تغییر | ۱۳ | ارجاعات |
+| ۷ | زیرساخت فاز ۱: همان VPS فعلی | ۱۴ | Changelog |
 
 ---
 
@@ -184,11 +184,31 @@ tags: [integration, architecture, website, platform, modular-monolith, decision-
 
 ---
 
-## ۱۲. ارجاعات
+## ۱۲. مخزن کد منبع (Source Code Repository)
+
+> [!important] تصمیم: کد منبع در این Vault نگهداری نمی‌شود
+> طبق تصمیم صریح مالک، کد واقعی وب‌سایت/پلتفرم (پیاده‌سازی معماری همین نود) در یک **مخزن جداگانه GitHub**، مستقل از این Vault مستندات، نگهداری می‌شود. این تفکیک هم‌راستا با اصل «Single Source of Truth» [[META-INT-080 — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic|META-INT-080]] (بند ۲.۳) است: این Vault مرجع **تصمیمات و مستندات** است، نه مرجع کد.
+
+| مورد | مقدار |
+|---|---|
+| مخزن کد منبع | `https://github.com/feerozmandi/xennic-website` |
+| حساب GitHub | `feerozmandi` (مطابق قاعده ۱۳ `META-CONV-001`؛ **نه** `feerozmandiha`) |
+| وضعیت در زمان ثبت این نود | از پیش ساخته‌شده (۱۴۰۵-۰۸-۰۲)، خالی، آماده شروع توسعه |
+| نام‌گذاری | نام `xennic-website` نگهداری شد؛ با وجود آنکه طبق معماری Modular Monolith همین کدبیس در آینده ماژول‌های پلتفرم/فروشگاه/مشاوره را هم میزبانی می‌کند، تغییر نام مخزن ضروری تشخیص داده نشد |
+| نمایانی (Visibility) | Public — تصمیم آگاهانه مالک؛ هیچ راز یا داده حساسی نباید در این مخزن کامیت شود (مدیریت اسرار طبق [[META-INT-100 — مدیریت Secrets و Credentials\|META-INT-100]]) |
+| رابطه با این Vault | این نود (`META-INT-150`) و [[L2-MKT-002 — طرح اجرایی و معماری وب‌سایت حرفه‌ای Xennic|L2-MKT-002]]/[[L2-MKT-005 — معماری فنی و CMS نهایی وب‌سایت Xennic|L2-MKT-005]] مرجع معماری و تصمیمات هستند؛ مخزن کد فقط پیاده‌سازی فنی آن تصمیمات است و نباید تصمیم معماری مستقل از خودش بگیرد |
+
+> [!note] نشست‌های Arena
+> به دلیل محدودیت «هر نشست Arena فقط روی یک مخزن کار می‌کند»، توسعه فنی واقعی در یک **نشست جداگانه Arena** متصل به `feerozmandi/xennic-website` انجام می‌شود؛ همین نشست (متصل به `ZNNY-Xennic-Vault`) صرفاً برای مستندسازی و تصمیمات باقی می‌ماند.
+
+---
+
+## ۱۳. ارجاعات
 
 ### ارجاعات داخلی
 - [[META-INT-080 — معماری کلان سیستم‌عامل هوشمند سازمانی Xennic|META-INT-080]]
 - [[META-CONV-001 — قواعد توسعه پروژه|META-CONV-001]]
+- [[META-INT-100 — مدیریت Secrets و Credentials|META-INT-100]] — سیاست مدیریت اسرار، ناظر بر مخزن کد در بند ۱۲
 - [[META-INT-130 — معماری هدف و نقشه راه مدرن‌سازی زیرساخت اتوماسیون و RAG|META-INT-130]] — اصل Lean-first
 - [[L2-MKT-002 — طرح اجرایی و معماری وب‌سایت حرفه‌ای Xennic|L2-MKT-002]]
 - [[L2-MKT-003 — سیستم طراحی (Design System) وب‌سایت حرفه‌ای Xennic|L2-MKT-003]]
@@ -197,10 +217,12 @@ tags: [integration, architecture, website, platform, modular-monolith, decision-
 - [[L2-PLT-001 — Xennic v1|L2-PLT-001]]
 
 ### ارجاعات خارجی
+- `https://github.com/feerozmandi/xennic-website` — مخزن رسمی کد منبع وب‌سایت/پلتفرم Xennic (بند ۱۲)؛ پیاده‌سازی فنی تصمیمات همین نود
 - `https://github.com/feerozmandiha/xennic` — مخزن قدیمی و مستقل، بررسی و رد شد (بند ۸)؛ صرفاً بایگانی تاریخی/درس‌آموخته
 
 ---
 
-## ۱۳. Changelog
+## ۱۴. Changelog
 
+- **v0.2.0 (۱۴۰۵-۰۸-۰۷):** افزودن بند ۱۲ (مخزن کد منبع): تصمیم صریح مالک برای نگهداری کد واقعی وب‌سایت/پلتفرم در مخزن جداگانه GitHub (`feerozmandi/xennic-website`، از پیش ساخته‌شده و خالی)، مستقل از این Vault مستندات؛ ثبت نام مخزن، حساب صحیح (`feerozmandi`)، نمایانی عمومی (Public) و یادداشت لزوم نشست جداگانه Arena برای توسعه فنی. افزودن وابستگی و ارجاع به [[META-INT-100 — مدیریت Secrets و Credentials|META-INT-100]].
 - **v0.1.0 (۱۴۰۵-۰۸-۰۷):** ایجاد اولیه. ثبت تصمیم نهایی معماری یکپارچه Xennic پس از مصاحبه ساختاریافته ۷ محوره با مالک: معماری Modular Monolith (یک اپلیکیشن، یک پایگاه‌داده، Schema-per-Domain)؛ ساخت زودهنگام جدول مشترک `Customers` بدون رابط کاربری عمومی؛ تفکیک قطعی `Staff`/`Customers`؛ عدم تغییر دامنه و زمان‌بندی فاز ۱؛ عدم تغییر زیرساخت (همان VPS فعلی)؛ ممیزی و رد صریح مخزن قدیمی خارجی `feerozmandiha/xennic` به‌عنوان منبع استفاده مجدد؛ ثبت اثر این تصمیمات بر `L2-MKT-002`، `L2-MKT-005` و `L2-PLT-001`.
