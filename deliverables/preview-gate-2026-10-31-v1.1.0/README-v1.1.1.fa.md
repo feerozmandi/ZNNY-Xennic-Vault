@@ -1,4 +1,8 @@
-# تحویل بازبینی Xennic Preview Gate — نسخهٔ 1.1.1
+# تحویل تاریخی Xennic Preview Gate — نسخهٔ 1.1.1
+
+## `SUPERSEDED / DO NOT RUN`
+
+نسخهٔ 1.1.1 با [نسخهٔ 1.1.2](./README-v1.1.2.fa.md) superseded شده است؛ به‌دلیل نقص‌های migration-check و media test آن را اجرا نکنید. فایل‌های 1.1.1 و checksumهایشان برای سابقه حفظ شده‌اند. نسخهٔ 1.1.2 نیز فعلاً فقط برای بازبینی ایستا است و مجوز اجرا نیست.
 
 **وضعیت:** فقط برای بازبینی ایستا، نه مجوز اجرا.
 **مبنای وبسایت:** `feerozmandi/xennic-website@418de2b5b3a272e79a824ccde5411dc25f1002cc`

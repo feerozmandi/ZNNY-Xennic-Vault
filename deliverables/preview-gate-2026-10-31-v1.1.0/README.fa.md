@@ -1,27 +1,26 @@
-# فهرست تحویل Xennic Preview Gate
+# فهرست عمومی تحویل Xennic Preview Gate
 
-این مسیر، محل عمومی تحویل‌های بازبینی است؛ نسخه‌های این پوشه مجوز اجرا یا استقرار نیستند.
+این پوشه مسیر تحویل نسخه‌های بازبینی است؛ هیچ نسخه‌ای در آن مجوز اجرا یا استقرار نیست.
 
-## نسخهٔ جاری برای بازبینی: 1.1.1
+## نسخهٔ جاری برای بازبینی: 1.1.2
 
-همهٔ فایل‌ها دقیقاً در همین مسیر عمومی قرار دارند:
+همهٔ فایل‌های جدید در **همین پوشهٔ عمومی** قرار دارند:
 
-- [صفحهٔ تحویل 1.1.1، TXT کامل، ZIP و checksumها](./README-v1.1.1.fa.md)
-- [Changelog مستقل نسخهٔ 1.1.1](./CHANGELOG-v1.1.1.fa.md)
-- [TXT کامل ۴۰ فایل نسخهٔ 1.1.1](./xennic-preview-gate-delivery-v1.1.1.txt)
-- [ZIP نسخهٔ 1.1.1](./xennic-preview-gate-delivery-2026-10-31-v1.1.1.zip)
+- [صفحهٔ تحویل 1.1.2، TXT کامل، ZIP و checksumها](./README-v1.1.2.fa.md)
+- [Changelog مستقل 1.1.2](./CHANGELOG-v1.1.2.fa.md)
+- [TXT کامل ۴۰ فایل](./xennic-preview-gate-delivery-v1.1.2.txt)
+- [ZIP نسخهٔ 1.1.2](./xennic-preview-gate-delivery-2026-10-31-v1.1.2.zip)
 
-**1.1.1 فقط برای بازبینی ایستا است.** تا بازبین سایت blockerها را تعیین تکلیف کند و مالک مجوز جداگانه بدهد، stack، migration، seed، OAuth، DNS، VPS یا gate فعال را اجرا/تغییر ندهید.
+1.1.2 فقط برای بازبینی ایستا است. تا پاسخ دستیار وبسایت، رفع blockerها، بررسی digestها و مجوز صریح مالک، هیچ stack، migration، seed، OAuth، DNS، VPS یا gate فعالی اجرا/تغییر نشود.
 
-## نسخهٔ 1.1.0 — منسوخ و غیرقابل‌اجرا
+## نسخه‌های پیشین — `SUPERSEDED / DO NOT RUN`
 
-**`1.1.0` با `1.1.1` superseded شده است: `SUPERSEDED / DO NOT RUN / برای اجرا ممنوع`.** فایل‌های تاریخی و checksumهایشان حفظ شده‌اند و حذف یا بازنویسی نشده‌اند. این نسخه فقط برای سابقه است؛ از آن برای run، deploy یا config استفاده نکنید. جزئیات در [اعلان deprecation](./DEPRECATED-1.1.0.fa.md) است.
+- **1.1.1** با 1.1.2 superseded است؛ به‌دلیل نقص‌های گزارش‌شدهٔ migration-check و media test، برای اجرا ممنوع است. [اعلان deprecation 1.1.1](./DEPRECATED-1.1.1.fa.md)
+- **1.1.0** نیز برای اجرا منسوخ و ممنوع است. [اعلان deprecation 1.1.0](./DEPRECATED-1.1.0.fa.md)
 
-- [TXT کامل تاریخی 1.1.0](./xennic-preview-gate-delivery-v1.1.0.txt)
-- [ZIP تاریخی 1.1.0](./xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip)
-- [SHA-256 TXT](./xennic-preview-gate-delivery-v1.1.0.txt.sha256)
-- [SHA-256 ZIP](./xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip.sha256)
+ZIP/TXTهای تاریخی و checksumهایشان حفظ شده‌اند و بازنویسی نشده‌اند:
 
-## حدود تحویل
+- [TXT تاریخی 1.1.1](./xennic-preview-gate-delivery-v1.1.1.txt) · [ZIP تاریخی 1.1.1](./xennic-preview-gate-delivery-2026-10-31-v1.1.1.zip)
+- [TXT تاریخی 1.1.0](./xennic-preview-gate-delivery-v1.1.0.txt) · [ZIP تاریخی 1.1.0](./xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip)
 
-مخزن عمومی است و فایل‌ها برای عموم قابل‌دریافت‌اند. نسخهٔ 1.1.1 می‌گوید چه اصلاح شده و چه چیزی هنوز آزموده نشده؛ static/source review یا checksum را با موفقیت runtime اشتباه نگیرید. هیچ تغییر VPS/DNS/gate فعال در این تحویل انجام نشده است. PR عمومی برای بازبینی: [#73](https://github.com/feerozmandi/ZNNY-Xennic-Vault/pull/73).
+مخزن عمومی است و هر فایل آن برای عموم قابل‌دریافت است. static review، syntax یا checksum را با موفقیت runtime اشتباه نگیرید. هیچ VPS، DNS یا gate فعالی تغییر نکرده است. PR عمومی برای بازبینی مجدد: [#73](https://github.com/feerozmandi/ZNNY-Xennic-Vault/pull/73).
