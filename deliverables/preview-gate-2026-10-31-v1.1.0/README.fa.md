@@ -2,9 +2,12 @@
 
 این پوشه فقط برای تحویل آرشیو بازبینی است؛ پیکربندی زنده یا زیرساخت را تغییر نمی‌دهد.
 
+- [دانلود فایل متنی با محتوای کامل ۴۰ فایل](./xennic-preview-gate-delivery-v1.1.0.txt)
+- [SHA-256 فایل متنی](./xennic-preview-gate-delivery-v1.1.0.txt.sha256)
+- SHA-256 متن: `7d0b0898fa2451c6c2c783c546d58fa5aab5df9ca1f1e9683bc8fb12ff9f2e9d`
 - [دانلود ZIP نسخهٔ 1.1.0](./xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip)
-- [فایل SHA-256](./xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip.sha256)
-- SHA-256: `244fe81004b4cfc448c5d6139d5d5e6047a17a1f5d41c90399012856f4e3b785`
+- [SHA-256 فایل ZIP](./xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip.sha256)
+- SHA-256 ZIP: `244fe81004b4cfc448c5d6139d5d5e6047a17a1f5d41c90399012856f4e3b785`
 - مبنای وبسایت: `feerozmandi/xennic-website@418de2b5b3a272e79a824ccde5411dc25f1002cc`
 - بسته شامل ۴۰ فایل، Compose پایه/overlay، Caddy و OAuth2 Proxy candidate، placeholder env، آزمون‌ها، Runbook و فهرست کامل فایل‌ها است.
 
