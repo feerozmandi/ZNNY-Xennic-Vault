@@ -1,0 +1,32 @@
+# ═══════════════════════════════════════════════════════════════════════
+# IEE 1405 — افزودنی به docker-compose موجود (~/xennic-infra)
+#
+# نصب: همین فایل را در ~/xennic-infra/docker-compose.override.yml کپی کنید
+#      (اگر از قبل override دارید، فقط بخش environment را اضافه کنید)
+# سپس: docker compose up -d n8n
+#
+# چرا؟
+#   • BALE_API_URL  → توکن بله در فایل گردش‌کار نوشته نمی‌شود
+#   • N8N_BLOCK_ENV_ACCESS_IN_NODE=false → n8n اجازه خواندن $env را داشته باشد
+#   • TZ تهران → زمان‌بندی cron درست کار کند
+#   • n8n روی 127.0.0.1 بماند (دسترسی فقط از داخل سرور/تانل)
+# ═══════════════════════════════════════════════════════════════════════
+services:
+  n8n:
+    environment:
+      - BALE_API_URL=${BALE_API_URL}
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - GENERIC_TIMEZONE=Asia/Tehran
+      - TZ=Asia/Tehran
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+    ports:
+      - "127.0.0.1:5678:5678"
+    restart: unless-stopped
+
+  postgres:
+    # پورت فقط روی loopback؛ دسترسی عمومی ممنوع (PRJ-IEE-007)
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped

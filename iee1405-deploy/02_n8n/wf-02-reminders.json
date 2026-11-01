@@ -1,0 +1,127 @@
+{
+  "name": "IEE1405-02 — یادآور پیگیری‌ها",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 30 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "2d17150d-77ad-599d-a949-51465022cf8b",
+      "name": "⏱ هر روز ۰۷:۳۰",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "زمان‌بندی به وقت تهران (GENERIC_TIMEZONE=Asia/Tehran)",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT chat_id, actor, text_body FROM iee1405.reminder_items();",
+        "options": {}
+      },
+      "id": "d76f561a-793c-56e4-ba4e-af64da675c63",
+      "name": "📋 پیگیری‌های باز",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "notes": "یک پیام به‌ازای هر مسئول؛ اگر چیزی نیست، هیچ پیامی نمی‌رود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://tapi.bale.ai/bot{{ $env.BALE_BOT_TOKEN }}/sendMessage",
+        "options": {},
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text_body }}"
+            }
+          ]
+        }
+      },
+      "id": "a7a42d6a-4391-59e5-ac3c-1ee0782638b2",
+      "name": "💬 ارسال یادآور",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "⏱ هر روز ۰۷:۳۰": {
+      "main": [
+        [
+          {
+            "node": "📋 پیگیری‌های باز",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 پیگیری‌های باز": {
+      "main": [
+        [
+          {
+            "node": "💬 ارسال یادآور",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Tehran",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "یادآور پیگیری‌های سررسیدشده تا ۳ روز آینده"
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "IEE1405"
+    }
+  ],
+  "active": false
+}
