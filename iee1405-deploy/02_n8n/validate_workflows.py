@@ -34,6 +34,7 @@ SUPPORTED = {
     "n8n-nodes-base.if": {1, 2, 2.1, 2.2, 2.3},
     "n8n-nodes-base.noOp": {1},
     "n8n-nodes-base.set": {3, 3.1, 3.2, 3.3, 3.4},
+    "n8n-nodes-base.manualTrigger": {1},
 }
 
 # پارامترهای نمونه برای اجرای هر گره SQL (به ترتیب $1..$n)
