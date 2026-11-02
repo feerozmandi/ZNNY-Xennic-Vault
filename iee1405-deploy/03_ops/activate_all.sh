@@ -37,7 +37,8 @@ if [[ -z "${N8N_CT:-}" ]]; then
     exit 1
 fi
 
-n8n() { $DK exec -i "$N8N_CT" n8n "$@"; }
+# </dev/null حیاتی است: docker exec -i وگرنه stdin فراخوان (مثلاً حلقه read) را می‌خورد
+n8n() { $DK exec -i "$N8N_CT" n8n "$@" </dev/null; }
 
 c_head "۱) اعتبارنامه PostgreSQL"
 
@@ -195,7 +196,7 @@ if [[ -n "$STALE" && "$STALE" != "" ]]; then
 fi
 
 COUNT=0
-while IFS='|' read -r wid wname; do
+while IFS='|' read -r wid wname <&3; do
     [[ -z "${wid:-}" ]] && continue
     EXISTS="$(pgq "$N8N_DB" -c "SELECT count(*) FROM workflow_entity WHERE id = '$wid'" 2>/dev/null | tr -d '[:space:]')"
     if [[ "$EXISTS" != "1" ]]; then
@@ -211,7 +212,7 @@ while IFS='|' read -r wid wname; do
         echo "❌"
         tail -3 /tmp/iee_pub.log | sed 's/^/     /'
     fi
-done <<< "$FIXED_IDS"
+done 3<<< "$FIXED_IDS"
 
 if [[ "$COUNT" == "0" ]]; then
     c_bad "هیچ گردش‌کاری منتشر نشد"

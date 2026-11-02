@@ -107,19 +107,22 @@ if HAS_TABLE execution_entity; then
          LIMIT 8" || true
 
     if HAS_TABLE execution_data; then
-        c_head "۳.۱) خطای آخرین اجراهای ناموفق (متن خام)"
-        # ساختار execution_data در نسخه‌های n8n متفاوت است (فشرده/تخت‌شده)؛
-        # به‌جای حدس‌زدن، چند صد کاراکتر اول آن چاپ می‌شود تا علت دقیق دیده شود.
-        pgq_pretty "$N8N_DB" -c "
-            SELECT e.id,
-                   to_char(e.\"startedAt\", 'HH24:MI:SS') AS at,
-                   left(regexp_replace(d.data::text, '\\\\s+', ' ', 'g'), 700) AS raw
-              FROM execution_entity e
-              JOIN execution_data d ON d.\"executionId\" = e.id
-             WHERE e.\"startedAt\" > now() - interval '1 hour'
-               AND e.status IN ('error', 'crashed')
-             ORDER BY e.id DESC
-             LIMIT 2" 2>/dev/null || c_warn "خواندن execution_data ممکن نشد"
+        c_head "۳.۱) خطای واقعی آخرین اجرای ناموفق (رمزگشایی‌شده)"
+        LAST_ERR_ID="$(SYSQ "SELECT id FROM execution_entity
+                              WHERE status IN ('error','crashed')
+                              ORDER BY id DESC LIMIT 1")"
+        if [[ -n "${LAST_ERR_ID:-}" ]]; then
+            RAW_DATA="$(pgq "$N8N_DB" -c "SELECT data FROM execution_data
+                                           WHERE \"executionId\" = $LAST_ERR_ID
+                                           ORDER BY id DESC LIMIT 1" 2>/dev/null)"
+            if [[ -n "${RAW_DATA:-}" ]]; then
+                printf '%s' "$RAW_DATA" | python3 "$HERE/decode_execution.py" 2>&1 | sed 's/^/     /'
+            else
+                c_warn "متن اجرای $LAST_ERR_ID در execution_data نیست (پاک‌شده یا هرس‌شده)"
+            fi
+        else
+            c_ok "اجرای ناموفقی ثبت نشده"
+        fi
     fi
 
     RECENT="$(SYSQ "SELECT count(*) FROM execution_entity WHERE \"startedAt\" > now() - interval '10 minutes'")"
@@ -137,6 +140,25 @@ else
 fi
 
 # ── ۴) داده ربات ───────────────────────────────────────────────────────
+c_head "۳.۵) دسترسی n8n به متغیرهای محیطی (علت رایج شکست گره HTTP)"
+BLOCK_FLAG="$($DK exec -i "$N8N_CT" printenv N8N_BLOCK_ENV_ACCESS_IN_NODE 2>/dev/null | tr -d '\r\n')"
+if [[ "$BLOCK_FLAG" == "false" ]]; then
+    c_ok "N8N_BLOCK_ENV_ACCESS_IN_NODE=false (دسترسی \$env آزاد است)"
+else
+    c_bad "N8N_BLOCK_ENV_ACCESS_IN_NODE=${BLOCK_FLAG:-<تنظیم نشده>} — گردش‌کار به \$env دسترسی ندارد"
+    c_hint "گردش‌کار آدرس بله را از \$env.BALE_API_URL می‌خواند؛ بدون آن گره HTTP شکست می‌خورد"
+    c_hint "bash 03_ops/setup_env.sh && bash 03_ops/activate_all.sh"
+fi
+if $DK exec -i "$N8N_CT" sh -c 'test -n "$BALE_API_URL"' 2>/dev/null; then
+    c_ok "BALE_API_URL داخل کانتینر n8n تعریف شده است (مقدار چاپ نمی‌شود)"
+else
+    c_bad "BALE_API_URL داخل کانتینر n8n تعریف نشده است"
+    c_hint "bash 03_ops/setup_env.sh   # از BALE_TOKEN_BOT در .env می‌سازد"
+fi
+if $DK exec -i "$PG_CT" psql -U "$PG_USER" -d "$PG_DB" -X -t -A -c 'SELECT 1' >/dev/null 2>&1; then
+    c_ok "دیتابیس $PG_DB از طریق psql داخل کانتینر در دسترس است"
+fi
+
 c_head "۴) وضعیت دریافت پیام در دیتابیس برنامه"
 pgq_pretty "$PG_DB" -c "
     SELECT key, left(coalesce(value, '—'), 30) AS value

@@ -243,7 +243,7 @@
         "resource": "database",
         "query": "SELECT iee1405.record_poll_error($1::text);",
         "options": {
-          "queryReplacement": "={{ [($json.error.message || 'unknown error')] }}"
+          "queryReplacement": "={{ [JSON.stringify($json)] }}"
         }
       },
       "id": "dd4f9a97-0dfb-51a4-bd73-82219360d2d4",
@@ -260,8 +260,10 @@
           "name": "Xennic PostgreSQL"
         }
       },
-      "notes": "خروجی خطای گره HTTP به اینجا می‌آید",
-      "notesInFlow": true
+      "executeOnce": true,
+      "notes": "خروجی خطای گره HTTP به اینجا می‌آید؛ پیام در SQL استخراج می‌شود",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
     }
   ],
   "connections": {

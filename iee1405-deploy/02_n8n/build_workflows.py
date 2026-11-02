@@ -225,12 +225,17 @@ def wf_inbound():
     )
 
     # شاخه خطا: اگر getUpdates شکست بخورد، ثبت می‌شود تا قطعی از سکوت تفکیک شود
+    # شاخه خطا باید هرگز خودش اجرا را نکشد: ورودی را عیناً JSON می‌فرستیم
+    # (اگر $json.error وجود نداشته باشد، دسترسی به .message کل اجرا را می‌شکست)
+    # و تحلیل پیام در خود SQL انجام می‌شود.
     n_pollerr = pg_node(
         "🛑 ثبت خطای دریافت", [880, 200],
         "SELECT iee1405.record_poll_error($1::text);",
-        params_expr="[($json.error.message || 'unknown error')]",
-        notes="خروجی خطای گره HTTP به اینجا می‌آید",
+        params_expr="[JSON.stringify($json)]",
+        execute_once=True,
+        notes="خروجی خطای گره HTTP به اینجا می‌آید؛ پیام در SQL استخراج می‌شود",
     )
+    n_pollerr["onError"] = "continueRegularOutput"
 
     nodes = [n_sched, n_offset, n_get, n_split, n_dispatch,
              n_advance, n_pending, n_send, n_mark, n_pollerr]

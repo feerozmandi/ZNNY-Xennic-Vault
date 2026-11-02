@@ -283,9 +283,35 @@ COMMENT ON FUNCTION iee1405.pending_replies IS 'پاسخ‌های ارسال‌�
 -- ─────────────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION iee1405.record_poll_error(p_message text)
 RETURNS void LANGUAGE plpgsql AS $$
+DECLARE v_txt text := COALESCE(p_message, 'unknown error'); v_json jsonb; v_node text;
 BEGIN
+    -- ورودی ممکن است JSON کامل خروجی خطای n8n باشد؛ پیام و نام گره از آن
+    -- استخراج می‌شود تا در /status علت واقعی دیده شود، نه یک رشته نامفهوم.
+    IF left(btrim(v_txt), 1) IN ('{', '[') THEN
+        BEGIN
+            v_json := v_txt::jsonb;
+        EXCEPTION WHEN others THEN
+            v_json := NULL;
+        END;
+        IF v_json IS NOT NULL THEN
+            v_node := COALESCE(v_json #>> '{error,node,name}', v_json ->> 'lastNodeExecuted');
+            v_txt  := COALESCE(
+                        v_json #>> '{error,message}',
+                        v_json #>> '{resultData,error,message}',
+                        v_json ->> 'message',
+                        v_txt);
+            IF v_json #>> '{error,description}' IS NOT NULL THEN
+                v_txt := v_txt || ' — ' || (v_json #>> '{error,description}');
+            END IF;
+            IF v_json #>> '{error,httpCode}' IS NOT NULL THEN
+                v_txt := v_txt || ' (HTTP ' || (v_json #>> '{error,httpCode}') || ')';
+            END IF;
+        END IF;
+    END IF;
+
     INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
-    VALUES (0, NULL, 'bale_getupdates', left(COALESCE(p_message, 'unknown'), 500), 'wf-01');
+    VALUES (0, NULL, 'bale_getupdates', left(v_txt, 500),
+            left(COALESCE('wf-01 · ' || v_node, 'wf-01'), 200));
     UPDATE iee1405.bot_state SET value = clock_timestamp()::text,
                                  updated_at = clock_timestamp()
      WHERE key = 'last_error';
