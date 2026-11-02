@@ -50,9 +50,36 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.poll_heartbeat() AS \"at\";",
+        "options": {}
+      },
+      "id": "3f7c9a93-554c-50db-be06-619b09f652cb",
+      "name": "💓 ضربان دریافت",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "هر اجرا این را ثبت می‌کند؛ پس «سکوت بله» از «توقف گردش‌کار» جدا می‌شود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
         "method": "GET",
-        "url": "=https://tapi.bale.ai/bot{{ $env.BALE_BOT_TOKEN }}/getUpdates",
-        "options": {},
+        "url": "={{ $env.BALE_API_URL }}/getUpdates",
+        "options": {
+          "timeout": 20000
+        },
         "sendQuery": true,
         "specifyQuery": "keypair",
         "queryParameters": {
@@ -77,12 +104,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        440,
+        660,
         0
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "retryOnFail": false,
       "onError": "continueErrorOutput",
       "notes": "long-poll = 0 تا اجرای زمان‌بند معطل نماند",
       "notesInFlow": true
@@ -98,7 +123,7 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        660,
+        880,
         0
       ],
       "alwaysOutputData": true
@@ -182,8 +207,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://tapi.bale.ai/bot{{ $env.BALE_BOT_TOKEN }}/sendMessage",
-        "options": {},
+        "url": "={{ $env.BALE_API_URL }}/sendMessage",
+        "options": {
+          "timeout": 20000
+        },
         "sendBody": true,
         "contentType": "form-urlencoded",
         "specifyBody": "keypair",
@@ -208,9 +235,7 @@
         1540,
         0
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "retryOnFail": false,
       "onError": "continueRegularOutput"
     },
     {
@@ -279,6 +304,17 @@
       ]
     },
     "📍 خواندن offset": {
+      "main": [
+        [
+          {
+            "node": "💓 ضربان دریافت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💓 ضربان دریافت": {
       "main": [
         [
           {

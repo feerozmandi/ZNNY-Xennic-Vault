@@ -97,11 +97,18 @@ def split_node(name, position, field, always_output=False):
 
 def bale_call(name, position, method, *, query_params=None, body_params=None,
               notes=None):
-    url = "=https://tapi.bale.ai/bot{{ $env.BALE_BOT_TOKEN }}/" + method
+    # BALE_API_URL تنها متغیری است که setup_env.sh می‌سازد و preflight.sh تأیید
+    # می‌کند (https://tapi.bale.ai/bot<TOKEN>). ارجاع به نام دیگری مثل
+    # BALE_BOT_TOKEN باعث می‌شد آدرس به «botundefined» تبدیل شود و هرگز کار نکند.
+    url = "={{ $env.BALE_API_URL }}/" + method
     params = {
         "method": "POST" if body_params else "GET",
         "url": url,
-        "options": {},
+        "options": {
+            # بدون timeout، یک اتصال معلق اجرا را دقیقه‌ها در حالت running
+            # نگه می‌داشت و صف اجراها پر می‌شد.
+            "timeout": 20000,
+        },
     }
     if query_params:
         params["sendQuery"] = True
@@ -126,9 +133,10 @@ def bale_call(name, position, method, *, query_params=None, body_params=None,
         "type": "n8n-nodes-base.httpRequest",
         "typeVersion": 4.2,
         "position": position,
-        "retryOnFail": True,
-        "maxTries": 3,
-        "waitBetweenTries": 3000,
+        # تلاش دوباره این‌جا لازم نیست: پاسخ‌ها در دیتابیس می‌مانند و اجرای
+        # بعدی (هر ۲۰ ثانیه) خودش بازفرست می‌کند. تلاش دوباره فقط صف را
+        # شلوغ می‌کرد و خطا را دیر نشان می‌داد.
+        "retryOnFail": False,
         "onError": "continueRegularOutput",
     }
     if notes:
@@ -176,8 +184,15 @@ def wf_inbound():
         notes="offset پایدار در جدول bot_state؛ با ری‌استارت از دست نمی‌رود",
     )
 
+    n_beat = pg_node(
+        "💓 ضربان دریافت", [440, 0],
+        "SELECT iee1405.poll_heartbeat() AS \"at\";",
+        execute_once=True,
+        notes="هر اجرا این را ثبت می‌کند؛ پس «سکوت بله» از «توقف گردش‌کار» جدا می‌شود",
+    )
+
     n_get = bale_call(
-        "📥 دریافت پیام‌ها", [440, 0], "getUpdates",
+        "📥 دریافت پیام‌ها", [660, 0], "getUpdates",
         query_params={
             "offset": "={{ Number($json.offset) + 1 }}",
             "limit": "50",
@@ -190,7 +205,7 @@ def wf_inbound():
     # alwaysOutputData حیاتی است: در اجرای بی‌پیام، split هیچ آیتمی تولید نمی‌کند
     # و گره‌های بعدی اجرا نمی‌شدند؛ در نتیجه last_poll_at هرگز تازه نمی‌شد و
     # پایش سلامت، «سکوت» را با «قطعی» اشتباه می‌گرفت.
-    n_split = split_node("✂️ تفکیک آپدیت‌ها", [660, 0], "result", always_output=True)
+    n_split = split_node("✂️ تفکیک آپدیت‌ها", [880, 0], "result", always_output=True)
 
     n_dispatch = pg_node(
         "🧠 پردازش در PostgreSQL", [1100, 0],
@@ -237,12 +252,13 @@ def wf_inbound():
     )
     n_pollerr["onError"] = "continueRegularOutput"
 
-    nodes = [n_sched, n_offset, n_get, n_split, n_dispatch,
+    nodes = [n_sched, n_offset, n_beat, n_get, n_split, n_dispatch,
              n_advance, n_pending, n_send, n_mark, n_pollerr]
 
     conns = {
         n_sched["name"]:  {"main": [[{"node": n_offset["name"],  "type": "main", "index": 0}]]},
-        n_offset["name"]: {"main": [[{"node": n_get["name"],     "type": "main", "index": 0}]]},
+        n_offset["name"]: {"main": [[{"node": n_beat["name"],    "type": "main", "index": 0}]]},
+        n_beat["name"]:   {"main": [[{"node": n_get["name"],     "type": "main", "index": 0}]]},
         n_get["name"]:    {"main": [
                                 [{"node": n_split["name"], "type": "main", "index": 0}],
                                 [{"node": n_pollerr["name"], "type": "main", "index": 0}],

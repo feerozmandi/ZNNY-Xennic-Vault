@@ -117,13 +117,24 @@ def check_structure(wf_name, wf):
             if len(branches) < 2 or not branches[1]:
                 err(wf_name, f"{n['name']}: onError خطا فعال است اما شاخه خطا وصل نشده")
         if t == "n8n-nodes-base.httpRequest":
-            if not n.get("retryOnFail"):
-                warn(wf_name, f"{n['name']}: retryOnFail خاموش است")
             if n.get("onError") not in ("continueRegularOutput", "continueErrorOutput"):
-                warn(wf_name, f"{n['name']}: onError تنظیم نشده — یک قطعی بله کل اجرا را متوقف می‌کند")
-            url = n.get("parameters", {}).get("url", "")
-            if "tapi.bale.ai" not in url:
-                warn(wf_name, f"{n['name']}: آدرس بله نیست: {url[:60]}")
+                err(wf_name, f"{n['name']}: onError تنظیم نشده — یک قطعی بله کل اجرا را متوقف می‌کند")
+            params = n.get("parameters", {})
+            # تنها متغیر تأییدشده BALE_API_URL است (setup_env.sh می‌سازد و
+            # preflight.sh بررسی می‌کند). نام دیگری یعنی آدرس «botundefined».
+            url = params.get("url", "")
+            if "$env.BALE_API_URL" not in url:
+                err(wf_name, f"{n['name']}: آدرس باید از $env.BALE_API_URL ساخته شود: {url[:60]}")
+            elif url.rstrip().endswith("BALE_API_URL"):
+                err(wf_name, f"{n['name']}: متد به آدرس اضافه نشده است")
+            # بدون timeout، درخواست معلق اجرا را دقیقه‌ها در حالت running نگه می‌دارد
+            timeout = (params.get("options") or {}).get("timeout")
+            if not isinstance(timeout, int) or timeout <= 0 or timeout > 120000:
+                err(wf_name, f"{n['name']}: options.timeout معتبر نیست ({timeout}) — "
+                             "درخواست معلق اجرا را قفل می‌کند")
+            if n.get("retryOnFail"):
+                warn(wf_name, f"{n['name']}: retryOnFail روشن است — صف اجرا شلوغ می‌شود; "
+                                "تحویل تضمین‌شده از دیتابیس می‌آید")
 
 
 def check_expressions(wf_name, wf):

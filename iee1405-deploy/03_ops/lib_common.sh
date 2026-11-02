@@ -131,6 +131,22 @@ bale_url_detect() {
     return 1
 }
 
+# ── نام دیتابیس خود n8n (نه دیتابیس برنامه) ───────────────────────────
+n8n_db_detect() {
+    local db=""
+    if [[ -n "${N8N_CT:-}" ]]; then
+        db="$($DK exec -i "$N8N_CT" printenv DB_POSTGRESDB_DATABASE 2>/dev/null | tr -d '\r\n')"
+    fi
+    if [[ -z "$db" && -n "${PG_CT:-}" ]]; then
+        db="$($DK exec -i "$PG_CT" printenv POSTGRES_DB 2>/dev/null | tr -d '\r\n')"
+    fi
+    db="${db:-n8n}"
+    # فقط اگر جدول گردش‌کارها وجود داشت، معتبر است
+    if [[ "$(pgq "$db" -c "SELECT to_regclass('workflow_entity') IS NOT NULL" 2>/dev/null | tr -d '[:space:]')" == "t" ]]; then
+        printf '%s' "$db"
+    fi
+}
+
 # ── پیام‌های رنگی ──────────────────────────────────────────────────────
 c_ok()   { printf '  \033[32m✅\033[0m %s\n' "$*"; }
 c_warn() { printf '  \033[33m⚠️ \033[0m %s\n' "$*"; }

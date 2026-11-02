@@ -125,6 +125,15 @@ if HAS_TABLE execution_entity; then
         fi
     fi
 
+    STUCK="$(SYSQ "SELECT count(*) FROM execution_entity
+                    WHERE status = 'running'
+                      AND \"startedAt\" < now() - interval '2 minutes'")"
+    if [[ -n "${STUCK:-}" && "${STUCK:-0}" -gt 0 ]]; then
+        c_bad "$STUCK اجرای «در حال اجرا» بیش از ۲ دقیقه — درخواست HTTP معلق مانده"
+        c_hint "گره HTTP باید timeout داشته باشد (در این نسخه: ۲۰ ثانیه) و n8n ری‌استارت شود"
+        c_hint "bash 03_ops/import_workflows.sh import && bash 03_ops/activate_all.sh"
+    fi
+
     RECENT="$(SYSQ "SELECT count(*) FROM execution_entity WHERE \"startedAt\" > now() - interval '10 minutes'")"
     ERRORS="$(SYSQ "SELECT count(*) FROM execution_entity WHERE \"startedAt\" > now() - interval '1 hour' AND (status = 'error' OR status = 'crashed')")"
     if [[ "${RECENT:-0}" -eq 0 ]]; then
@@ -159,6 +168,24 @@ if $DK exec -i "$PG_CT" psql -U "$PG_USER" -d "$PG_DB" -X -t -A -c 'SELECT 1' >/
     c_ok "دیتابیس $PG_DB از طریق psql داخل کانتینر در دسترس است"
 fi
 
+c_head "۳.۶) دسترسی کانتینر n8n به tapi.bale.ai"
+CONTAINER_NET="$($DK exec -i "$N8N_CT" node -e '
+const t = AbortSignal.timeout(8000);
+fetch("https://tapi.bale.ai", {signal: t})
+  .then(r => { console.log("HTTP " + r.status); process.exit(0); })
+  .catch(e => { console.log("ERR " + (e.name || "") + " " + (e.message || "")); process.exit(1); });
+' 2>&1 | tail -1)"
+case "$CONTAINER_NET" in
+    HTTP*)
+        c_ok "از داخل کانتینر n8n، tapi.bale.ai پاسخ داد ($CONTAINER_NET)" ;;
+    *timeout*|*Timeout*|*abort*|*Abort*)
+        c_bad "اتصال از داخل کانتینر به tapi.bale.ai زمان‌بندی شد (timeout)"
+        c_hint "یعنی درخواست getUpdates هرگز پاسخ نمی‌گیرد؛ خطای شبکه/VPN/فیلتر را بررسی کنید"
+        c_hint "تست میزبان: curl -s -m 10 -o /dev/null -w '%{http_code}\\n' https://tapi.bale.ai" ;;
+    *)
+        c_warn "پاسخ غیرمنتظره از داخل کانتینر: $CONTAINER_NET" ;;
+esac
+
 c_head "۴) وضعیت دریافت پیام در دیتابیس برنامه"
 pgq_pretty "$PG_DB" -c "
     SELECT key, left(coalesce(value, '—'), 30) AS value
@@ -173,6 +200,10 @@ pgq_pretty "$PG_DB" -c "
 c_head "۵) گام بعدی"
 if [[ -z "${WF01_ID:-}" ]]; then
     c_bad "گردش‌کار IEE1405-01 پیدا نشد — ابتدا ایمپورت کنید"
+    c_hint "bash 03_ops/import_workflows.sh import && bash 03_ops/activate_all.sh"
+elif [[ "${STUCK:-0}" -gt 0 ]]; then
+    c_hint "اجراها در «running» گیر کرده‌اند: درخواست HTTP پاسخ نگرفته و timeout ندارد"
+    c_hint "پس از ایمپورت/انتشار نسخه اصلاح‌شده و ری‌استارت، این وضعیت باید برطرف شود:"
     c_hint "bash 03_ops/import_workflows.sh import && bash 03_ops/activate_all.sh"
 elif [[ "${ERRORS:-0}" -gt 0 ]]; then
     c_hint "خطای گره در بخش ۳.۱ دیده می‌شود؛ اگر متن خام ناخوانا بود،"

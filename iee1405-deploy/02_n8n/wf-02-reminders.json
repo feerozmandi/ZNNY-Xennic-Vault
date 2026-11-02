@@ -51,8 +51,10 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=https://tapi.bale.ai/bot{{ $env.BALE_BOT_TOKEN }}/sendMessage",
-        "options": {},
+        "url": "={{ $env.BALE_API_URL }}/sendMessage",
+        "options": {
+          "timeout": 20000
+        },
         "sendBody": true,
         "contentType": "form-urlencoded",
         "specifyBody": "keypair",
@@ -77,9 +79,7 @@
         440,
         0
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
+      "retryOnFail": false,
       "onError": "continueRegularOutput"
     }
   ],

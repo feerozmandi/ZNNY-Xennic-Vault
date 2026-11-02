@@ -58,6 +58,18 @@ BEGIN
     RETURN v_max;
 END $$;
 
+-- ضربان: «هر ۲۰ ثانیه یک بار تلاش کردم» — مستقل از موفقیت یا شکست درخواست.
+-- چرا جدا از poll_advance؟ چون wenn شبکه/بله قطع باشد و درخواست معلق بماند،
+-- poll_advance هرگز اجرا نمی‌شد و تازگی زمان با «توقف گردش‌کار» اشتباه می‌شد.
+CREATE OR REPLACE FUNCTION iee1405.poll_heartbeat()
+RETURNS timestamptz LANGUAGE plpgsql AS $$
+DECLARE v_now timestamptz := clock_timestamp();
+BEGIN
+    UPDATE iee1405.bot_state SET value = v_now::text, updated_at = v_now
+     WHERE key = 'last_poll_at';
+    RETURN v_now;
+END $$;
+
 -- «آیا دریافت پیام‌ها سالم است؟» — یک نقطه حقیقت برای همه نماها و هشدارها
 CREATE OR REPLACE FUNCTION iee1405.poll_is_stale(p_grace interval DEFAULT '10 minutes')
 RETURNS boolean LANGUAGE sql STABLE AS $$

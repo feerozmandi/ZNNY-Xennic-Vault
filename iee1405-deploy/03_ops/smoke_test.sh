@@ -64,13 +64,48 @@ else
     fi
 fi
 
-c_head "۱) n8n"
-if n8n list:workflow --active=true 2>/dev/null | grep -q "IEE1405"; then
-    pass "گردش‌کار فعال IEE1405 وجود دارد:"
-    n8n list:workflow --active=true 2>/dev/null | grep "IEE1405" | sed 's/^/       /'
+c_head "۱) n8n (از دیتابیس خود n8n خوانده می‌شود)"
+# چرا از CLI نه؟ «n8n list:workflow --active=true» در 2.44.7 فهرست کامل نمی‌دهد
+# و گزارش «هیچ گردش‌کار فعالی نیست» می‌داد در حالی که ۴ گردش‌کار فعال بود.
+N8N_DB="$(n8n_db_detect)"
+if [[ -n "$N8N_DB" ]]; then
+    ACTIVE_LIST="$(pgq "$N8N_DB" -c "
+        SELECT id || ' | ' || name
+          FROM workflow_entity
+         WHERE name LIKE 'IEE1405%' AND active AND \"activeVersionId\" IS NOT NULL
+         ORDER BY name" 2>/dev/null)"
+    ACTIVE_COUNT="$(printf '%s' "$ACTIVE_LIST" | grep -c . || true)"
+    DUPES="$(pgq "$N8N_DB" -c "
+        SELECT count(*) FROM workflow_entity
+         WHERE name LIKE 'IEE1405%' AND active AND id NOT LIKE 'IEE1405-%'" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "${ACTIVE_COUNT:-0}" -ge 4 ]]; then
+        pass "$ACTIVE_COUNT گردش‌کار فعال:"
+        printf '%s\n' "$ACTIVE_LIST" | sed 's/^/       /'
+    elif [[ "${ACTIVE_COUNT:-0}" -gt 0 ]]; then
+        warn "$ACTIVE_COUNT از ۴ گردش‌کار فعال است:"
+        printf '%s\n' "$ACTIVE_LIST" | sed 's/^/       /'
+        info "bash 03_ops/activate_all.sh"
+    else
+        fail "هیچ گردش‌کار فعال IEE1405 نیست"
+        info "bash 03_ops/activate_all.sh"
+    fi
+    if [[ -n "${DUPES:-}" && "$DUPES" != "0" ]]; then
+        fail "$DUPES گردش‌کار تکراری (با شناسه قدیمی) هم فعال است — دو بار getUpdates می‌شود"
+        info "bash 03_ops/activate_all.sh   # تکراری‌ها را غیرفعال می‌کند"
+    fi
 else
-    fail "هیچ گردش‌کار فعال IEE1405 نیست"
-    info "bash 03_ops/activate_all.sh"
+    warn "دیتابیس n8n پیدا نشد — بررسی فعال بودن انجام نشد"
+fi
+
+# اجراهای گیرکرده: نشانه timeout/معلق‌ماندن درخواست
+if [[ -n "$N8N_DB" ]]; then
+    STUCK="$(pgq "$N8N_DB" -c "
+        SELECT count(*) FROM execution_entity
+         WHERE status = 'running' AND \"startedAt\" < now() - interval '2 minutes'" 2>/dev/null | tr -d '[:space:]')"
+    if [[ -n "${STUCK:-}" && "${STUCK:-0}" -gt 0 ]]; then
+        fail "$STUCK اجرای «در حال اجرا» بیش از ۲ دقیقه — درخواست معلق مانده"
+        info "bash 03_ops/diagnose_n8n.sh   # و timeout گره HTTP را بررسی کنید"
+    fi
 fi
 
 c_head "۲) وضعیت دریافت پیام (bot_state)"

@@ -6,7 +6,7 @@ domain: IEE
 status: draft
 owner: احمد فیروزمندی بندپی
 created: 2026-11-01
-version: 0.1.6
+version: 0.1.7
 dependencies: [PRJ-IEE-003, PRJ-IEE-004, PRJ-IEE-005, PRJ-IEE-007, PRJ-IEE-008, PRJ-IEE-010, PRJ-IEE-013]
 tags: [project, iee-1405, n8n, postgresql, automation, bale, bot, deployment, sql]
 ---
@@ -272,6 +272,7 @@ n8n هیچ داده‌ای را در حافظه خود نگه نمی‌دارد:
 
 ## ۱۳. Changelog
 
+- **v0.1.7 (۱۴۰۵-۰۸-۱۱):** علت اصلی «اجراهای گیرکرده در running» پیدا و رفع شد: گره‌های HTTP به `$env.BALE_BOT_TOKEN` ارجاع می‌دادند که در این استقرار وجود ندارد (متغیر واقعی `BALE_API_URL` است) — آدرس به `…/botundefined/…` تبدیل می‌شد؛ حالا همه گره‌ها `{{ $env.BALE_API_URL }}/<method>` هستند و اعتبارسنج، نام متغیر و وجود `options.timeout` را **خطا** می‌گیرد. افزون بر آن: `options.timeout=20s` و `retryOnFail=false` (بازفرست از صف دیتابیس می‌آید، نه از تکرار HTTP)؛ گره «💓 ضربان دریافت» با تابع `poll_heartbeat()` پیش از درخواست اجرا می‌شود تا تازگی زمان حتی با شبکه قطع از «توقف گردش‌کار» تفکیک شود؛ `activate_all.sh` میزبان دیتابیس را با اتصال TCP واقعی از داخل n8n کشف می‌کند؛ `smoke_test.sh` فعال‌بودن را از `workflow_entity` می‌خواند (خروجی `list:workflow` ناقص بود و «هیچ گردش‌کار فعالی نیست» دروغ می‌گفت) و اجراهای گیرکرده را گزارش می‌کند؛ `diagnose_n8n.sh` دسترسی کانتینر به `tapi.bale.ai` و اتصال TCP به دیتابیس را می‌آزماید.
 - **v0.1.6 (۱۴۰۵-۰۸-۱۱):** (۱) رفع باگ ارسال انبوه: `docker exec -i` داخل حلقه `while read`، stdin حلقه را می‌خورد و فقط گردش‌کار اول منتشر می‌شد — حالا حلقه از FD 3 می‌خواند و `n8n()` با `</dev/null` اجرا می‌شود؛ (۲) شاخه خطای `getUpdates` دیگر خودش اجرا را نمی‌شکند: ورودی با `JSON.stringify($json)` فرستاده می‌شود، `onError: continueRegularOutput` دارد و `record_poll_error` پیام/کد HTTP/نام گره را از JSON استخراج می‌کند (پیش‌تر `$json.error.message` وقتی `error` نبود، کل اجرا را می‌انداخت و هیچ خطایی ثبت نمی‌شد)؛ (۳) `decode_execution.py` برای رمزگشایی قالب فشرده `execution_data` (flatted) — علت واقعی «lastNodeExecuted = 7»؛ (۴) بخش ۳.۵ تشخیص: بررسی `N8N_BLOCK_ENV_ACCESS_IN_NODE` و وجود `BALE_API_URL` داخل کانتینر، چون گره HTTP آدرس بله را از `$env` می‌خواند.
 - **v0.1.5 (۱۴۰۵-۰۸-۱۱):** شناسه ثابت گردش‌کارها (`IEE1405-01`…`04`) تا ایمپورت دوباره به‌جای ساخت نسخه تکراری، همان رکورد را به‌روز کند — این تکراری شدن روی سرور واقعی دیده شد (۸ رکورد برای ۴ گردش‌کار و دو نسخه فعال)؛ `activate_all.sh` شناسه‌ها را از فایل‌های مخزن می‌خواند (نه از `list:workflow` که فهرست کامل نمی‌داد)، تکراری‌های قدیمی را غیرفعال می‌کند، ورود واقعی `iee_app` و حل نام سرویس `postgres` را پیش از انتشار می‌آزماید و شمار فعال‌ها را از `workflow_entity` می‌خواند؛ حذف `--run` از `diagnose_n8n.sh` (اجرای `n8n execute` کنار نمونه در حال اجرا با قفل مهاجرت و پورت 5679 تعارض دارد) و جای‌گزینی آن با چاپ متن خام `execution_data`.
 - **v0.1.4 (۱۴۰۵-۰۸-۱۱):** تشخیص سه‌گانه «ربات ساکت است و `last_poll_at` خالی» با `diagnose_n8n.sh` بر پایه دیتابیس خود n8n (`workflow_entity.active`/`activeVersionId`، `credentials_entity`، `execution_entity`/`execution_data` با نام گره و متن خطا) و `--run` برای اجرای دستی wf-01؛ خودترمیمی رمز: اگر `~/.iee1405-app-password` نباشد، رمز تازه ساخته، روی نقش‌ها تنظیم و کارت اعتبارنامه بازسازی می‌شود؛ تأیید وجود کارت اعتبارنامه از دیتابیس n8n در `activate_all.sh` (نه فقط خروجی CLI).

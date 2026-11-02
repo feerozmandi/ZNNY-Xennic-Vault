@@ -40,6 +40,48 @@ fi
 # </dev/null حیاتی است: docker exec -i وگرنه stdin فراخوان (مثلاً حلقه read) را می‌خورد
 n8n() { $DK exec -i "$N8N_CT" n8n "$@" </dev/null; }
 
+c_head "۰) میزبان دیتابیس از دید n8n"
+# نام سرویس در compose ممکن است «postgres» نباشد؛ به‌جای حدس، اتصال واقعی
+# TCP از داخل خودِ کانتینر n8n آزموده می‌شود. هر نامی که جواب داد، همان در
+# کارت اعتبارنامه نوشته می‌شود.
+probe_host() {
+    $DK exec -i "$N8N_CT" node -e '
+const net = require("net");
+const host = process.argv[1];
+const s = net.connect(5432, host);
+s.setTimeout(4000);
+s.on("connect", () => { console.log("OK"); s.destroy(); process.exit(0); });
+s.on("timeout", () => { s.destroy(); console.log("TIMEOUT"); process.exit(1); });
+s.on("error", (e) => { console.log("ERR " + (e.code || e.message)); process.exit(1); });
+' "$1" 2>&1 | tail -1
+}
+
+CRED_HOST="${PG_HOST:-}"
+if [[ -n "$CRED_HOST" ]]; then
+    R="$(probe_host "$CRED_HOST")"
+    [[ "$R" == "OK" ]] && c_ok "میزبان تعیین‌شده PG_HOST=$CRED_HOST وصل شد" \
+        || { c_warn "PG_HOST=$CRED_HOST وصل نشد ($R) — خودکار انتخاب می‌شود"; CRED_HOST=""; }
+fi
+if [[ -z "$CRED_HOST" ]]; then
+    for cand in postgres "$PG_SERVICE" "$PG_CT"; do
+        [[ -z "$cand" ]] && continue
+        R="$(probe_host "$cand")"
+        if [[ "$R" == "OK" ]]; then
+            CRED_HOST="$cand"
+            c_ok "میزبان دیتابیس برای کارت اعتبارنامه: $cand"
+            break
+        else
+            c_hint "«$cand» وصل نشد ($R)"
+        fi
+    done
+fi
+if [[ -z "$CRED_HOST" ]]; then
+    c_bad "هیچ‌یک از نام‌های دیتابیس از داخل n8n قابل دسترس نبود"
+    c_hint "نام سرویس را ببینید: cd $INFRA_DIR && docker compose config --services"
+    c_hint "سپس: PG_HOST=<نام سرویس> bash 03_ops/activate_all.sh"
+    exit 1
+fi
+
 c_head "۱) اعتبارنامه PostgreSQL"
 
 FORCE_CRED=0
@@ -96,7 +138,7 @@ else
     echo "  ساخت اعتبارنامه «$CRED_NAME» (id ثابت، مطابق ارجاع گردش‌کارها)"
     # فایل اعتبارنامه فقط داخل کانتینر و فقط برای چند لحظه وجود دارد
     N8N_CT="$N8N_CT" CRED_ID="$CRED_ID" CRED_NAME="$CRED_NAME" \
-    DB_HOST="postgres" DB_NAME="$PG_DB" DB_USER="iee_app" DB_PASS="$APP_PASS" \
+    DB_HOST="$CRED_HOST" DB_NAME="$PG_DB" DB_USER="iee_app" DB_PASS="$APP_PASS" \
     python3 -c '
 import json, os
 e = os.environ
@@ -134,7 +176,7 @@ N8N_DB="$($DK exec -i "$N8N_CT" printenv DB_POSTGRESDB_DATABASE 2>/dev/null | tr
 N8N_DB="${N8N_DB:-n8n}"
 CRED_IN_DB="$(pgq "$N8N_DB" -c "SELECT count(*) FROM credentials_entity WHERE id = '$CRED_ID'" 2>/dev/null | tr -d '[:space:]')"
 if [[ "$CRED_IN_DB" == "1" ]]; then
-    c_ok "تأیید از دیتابیس n8n: کارت اعتبارنامه موجود است"
+    c_ok "تأیید از دیتابیس n8n: کارت اعتبارنامه موجود است (میزبان: $CRED_HOST)"
 elif [[ -n "$CRED_IN_DB" ]]; then
     c_warn "کارت اعتبارنامه در دیتابیس n8n دیده نشد (خروجی: $CRED_IN_DB)"
     c_hint "اگر گردش‌کار خطای credential داد: bash 03_ops/diagnose_n8n.sh"
@@ -150,14 +192,6 @@ else
     c_bad "ورود iee_app به دیتابیس $PG_DB ناموفق بود"
     c_hint "یعنی گره‌های PostgreSQL در n8n هم همین خطا را می‌گیرند"
     c_hint "bash 03_ops/deploy_sql.sh   # نقش‌ها و رمز را از نو تنظیم می‌کند"
-fi
-
-# آیا از داخل کانتینر n8n نام سرویس postgres حل می‌شود؟
-if $DK exec -i "$N8N_CT" getent hosts postgres >/dev/null 2>&1; then
-    c_ok "نام سرویس «postgres» از داخل n8n قابل حل است"
-else
-    c_warn "از داخل n8n نام «postgres» حل نشد — میزبان کارت اعتبارنامه را بررسی کنید"
-    c_hint "docker network inspect $(cd "$INFRA_DIR" 2>/dev/null && docker compose ps -q "$N8N_SERVICE" 2>/dev/null | head -1) >/dev/null 2>&1"
 fi
 
 c_head "۲) انتشار گردش‌کارها (با شناسه ثابت)"
