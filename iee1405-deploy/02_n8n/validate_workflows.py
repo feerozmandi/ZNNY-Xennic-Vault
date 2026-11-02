@@ -15,6 +15,7 @@
 # اجرا:  python3 02_n8n/validate_workflows.py
 # ═══════════════════════════════════════════════════════════════════════
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -329,9 +330,29 @@ def check_cron(wf_name, wf):
                     err(wf_name, f"{n['name']}: عبارت cron باید ۵ یا ۶ بخش باشد: «{e}»")
 
 
+def _test_uri(srv):
+    """همان دیتابیس تولید (xennic) اگر ساختارش هست؛ وگرنه پیش‌فرض."""
+    base = srv.get_uri()
+    for name in (os.environ.get("IEE_TEST_DB"), "xennic", "postgres"):
+        if not name:
+            continue
+        cand = base.replace("/postgres?", f"/{name}?")
+        try:
+            r = subprocess.run(
+                [str(BIN / "psql"), cand, "-X", "-t", "-A", "-c",
+                 "SELECT to_regclass('iee1405.bot_state') IS NOT NULL"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=10)
+            if r.stdout.decode().strip() == "t":
+                return cand
+        except Exception:
+            continue
+    return base
+
+
 def run_sql(wf_name, node, sql):
     """اجرا با پارامترهای واقعی داخل تراکنش و ROLLBACK."""
     srv = pgserver.get_server("/tmp/pgdata", cleanup_mode=None)
+    uri = _test_uri(srv)
     n_params = len(set(re.findall(r"\$(\d+)", sql)))
     binds = SAMPLE_PARAMS.get(node["name"], [])
     if n_params and len(binds) < n_params:
@@ -342,7 +363,7 @@ def run_sql(wf_name, node, sql):
         return
 
     def q(s):
-        return subprocess.run([str(BIN / "psql"), srv.get_uri(), "-v", "ON_ERROR_STOP=1",
+        return subprocess.run([str(BIN / "psql"), uri, "-v", "ON_ERROR_STOP=1",
                                "-q", "-t", "-A"],
                               input=s.encode(),
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

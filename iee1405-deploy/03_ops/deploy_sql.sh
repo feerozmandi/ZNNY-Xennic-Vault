@@ -131,10 +131,15 @@ if [[ -n "${APP_PASSWORD:-}" ]]; then
     chmod 600 "$HOME/.iee1405-app-password"
     c_hint "رمز در ~/.iee1405-app-password ذخیره شد (فقط برای ساخت کارت اعتبارنامه در n8n)"
 else
-    pgq "$PG_DB" -v ON_ERROR_STOP=1 -f - < "$SQL_DIR/06_roles.sql" >/dev/null 2>&1 \
-        && c_warn "نقش‌ها بدون رمز ساخته شدند — قبل از استفاده رمز بگذارید:" \
-        || c_warn "نقش‌ها ساخته نشدند"
-    c_hint "APP_PASSWORD='رمز-قوی' bash 03_ops/deploy_sql.sh"
+    if pgq "$PG_DB" -v ON_ERROR_STOP=1 -f - < "$SQL_DIR/06_roles.sql" >/tmp/iee_roles.log 2>&1; then
+        c_warn "نقش‌ها بدون رمز ساخته شدند — قبل از استفاده رمز بگذارید:"
+        c_hint "APP_PASSWORD='رمز-قوی' bash 03_ops/deploy_sql.sh"
+    else
+        # شکست در گرنت‌ها باید همین‌جا دیده شود، نه با «permission denied» در n8n
+        c_bad "ساخت نقش‌ها/گرنت‌ها ناموفق بود:"
+        grep -E "ERROR|FATAL" /tmp/iee_roles.log | head -5 | sed 's/^/     /'
+        exit 1
+    fi
 fi
 
 # ── اتصال گوشی اصلی، اگر شناسه گفت‌وگو در .env باشد ──────────────────

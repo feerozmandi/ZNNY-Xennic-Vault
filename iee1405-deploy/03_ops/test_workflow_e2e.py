@@ -14,6 +14,7 @@
 # اجرا: python3 03_ops/test_workflow_e2e.py
 # ═══════════════════════════════════════════════════════════════════════
 import json
+import os
 import subprocess
 import sys
 import pathlib
@@ -26,9 +27,36 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 WF = ROOT / "02_n8n"
 
 srv = pgserver.get_server("/tmp/pgdata", cleanup_mode=None)
-URI = srv.get_uri()
+
+
+def _pick_db(srv):
+    """همان دیتابیسی را انتخاب می‌کند که در تولید استفاده می‌شود.
+
+    چرا؟ خوشه تست می‌تواند چند نسخه از ساختار داشته باشد (postgres و xennic).
+    اگر آزمون روی «پیش‌فرض» اجرا شود، سبز بودنش به این بستگی دارد کدام نسخه
+    سالم مانده باشد — و کمبود دسترسی نقش در نسخه دیگر پنهان می‌ماند.
+    """
+    base = srv.get_uri()
+    for name in (os.environ.get("IEE_TEST_DB"), "xennic", "postgres"):
+        if not name:
+            continue
+        cand = base.replace("/postgres?", f"/{name}?")
+        try:
+            r = subprocess.run(
+                [str(BIN / "psql"), cand, "-X", "-t", "-A", "-v", "ON_ERROR_STOP=1",
+                 "-c", "SELECT to_regclass('iee1405.bot_state') IS NOT NULL"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=10)
+            if r.stdout.decode().strip() == "t":
+                return cand
+        except Exception:
+            continue
+    return base
+
+
+URI = _pick_db(srv)
 
 PASS, FAIL = [], []
+print(f"پایگاه‌داده آزمون: {URI.rsplit('/', 1)[-1].split('?')[0]}")
 OWNER_CHAT = 900001
 UNKNOWN_CHAT = 900999
 
@@ -354,6 +382,20 @@ def main():
 
     gaps = psql_as("iee_app", "SELECT count(*) FROM iee1405.privilege_gaps();")[0][0]
     check("نقش iee_app کمبود دسترسی ندارد", gaps == "0", gaps)
+
+    # دقیقاً همان INSERTی که خطای سرور داد: بدون USAGE روی سیکوئنس، شکست می‌خورد.
+    # (فراخوانی bot_dispatch_json به‌تنهایی این را نشان نمی‌دهد، چون برای پیام
+    # مجاز مسیر خطا طی نمی‌شود و به bot_errors نمی‌نویسد.)
+    try:
+        psql_as("iee_app", "BEGIN; INSERT INTO iee1405.bot_errors (stage, message) "
+                           "VALUES ('e2e', 'x') RETURNING id; ROLLBACK;")
+        seq_ok = True
+    except RuntimeError:
+        seq_ok = False
+    check("iee_app می‌تواند در bot_errors بنویسد (سیکوئنس USAGE دارد)", seq_ok)
+    seq_priv = psql("SELECT has_sequence_privilege('iee_app', "
+                    "'iee1405.bot_errors_id_seq', 'USAGE');")[0][0]
+    check("USAGE روی bot_errors_id_seq صریحاً تأیید شد", seq_priv == "t", seq_priv)
 
     as_app_errors = []
     for i, text in enumerate(["/start", "/help", "/new", "شرکت آزمون دسترسی", "1",

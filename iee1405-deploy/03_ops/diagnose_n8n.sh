@@ -292,6 +292,36 @@ else
     esac
 fi
 
+c_head "۳.۸) دسترسی نقش ربات (iee_app) — منبع خطاهای permission denied"
+# n8n با iee_app کار می‌کند، نه با postgres. کمبود دسترسی فقط در لحظه اجرا
+# دیده می‌شود؛ پس این‌جا مستقیم آزموده و گزارش می‌شود.
+GAPS="$(pgq "$PG_DB" -c "SELECT count(*) FROM iee1405.privilege_gaps()" 2>/dev/null | tr -d '[:space:]')"
+if [[ "$GAPS" == "0" ]]; then
+    c_ok "کمبود دسترسی ندارد"
+elif [[ -z "$GAPS" ]]; then
+    c_warn "تابع بازبینی ساخته نشده — 06_roles.sql اجرا نشده است"
+    c_hint "bash 03_ops/fix_grants.sh"
+else
+    c_bad "کمبود دسترسی: $GAPS مورد"
+    pgq_pretty "$PG_DB" -c "SELECT kind, object_name, needed FROM iee1405.privilege_gaps()" |
+        sed 's/^/     /'
+    c_hint "bash 03_ops/fix_grants.sh"
+fi
+
+WRITE_TEST="$(pgq "$PG_DB" -c "
+BEGIN;
+SET ROLE iee_app;
+INSERT INTO iee1405.bot_errors (stage, message) VALUES ('diag', 'x');
+SELECT 'OK-WRITE';
+ROLLBACK;" 2>&1)"
+if printf '%s' "$WRITE_TEST" | grep -q 'OK-WRITE'; then
+    c_ok "نوشتن در bot_errors با نقش iee_app مجاز است"
+else
+    c_bad "نوشتن با نقش iee_app شکست می‌خورد:"
+    printf '%s\n' "$WRITE_TEST" | grep -E "ERROR|denied" | head -2 | sed 's/^/     /'
+    c_hint "bash 03_ops/fix_grants.sh"
+fi
+
 c_head "۴) وضعیت دریافت پیام در دیتابیس برنامه"
 pgq_pretty "$PG_DB" -c "
     SELECT key, left(coalesce(value, '—'), 30) AS value
