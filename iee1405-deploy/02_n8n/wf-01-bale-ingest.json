@@ -82,7 +82,7 @@
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 3000,
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "notes": "long-poll = 0 تا اجرای زمان‌بند معطل نماند",
       "notesInFlow": true
     },
@@ -99,7 +99,8 @@
       "position": [
         660,
         0
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -115,7 +116,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        880,
+        1100,
         0
       ],
       "credentials": {
@@ -131,6 +132,31 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
+        "query": "SELECT iee1405.poll_advance() AS \"offset\";",
+        "options": {}
+      },
+      "id": "8da34a93-7d17-508f-8621-e7ae2ae4f775",
+      "name": "⏭ ثبت زمان دریافت",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "offset از max(update_id) محاسبه می‌شود، نه از حافظه n8n",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
         "query": "SELECT update_id, chat_id, text_body\n  FROM iee1405.pending_replies(20);",
         "options": {}
       },
@@ -139,7 +165,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1100,
+        1320,
         0
       ],
       "credentials": {
@@ -178,7 +204,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1320,
+        1540,
         0
       ],
       "retryOnFail": true,
@@ -200,7 +226,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1540,
+        1760,
         0
       ],
       "credentials": {
@@ -214,16 +240,18 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT iee1405.poll_advance() AS \"offset\";",
-        "options": {}
+        "query": "SELECT iee1405.record_poll_error($1::text);",
+        "options": {
+          "queryReplacement": "={{ [($json.error.message || 'unknown error')] }}"
+        }
       },
-      "id": "2da77d7a-bf69-5651-a877-3246b6353495",
-      "name": "⏭ جلو بردن offset",
+      "id": "dd4f9a97-0dfb-51a4-bd73-82219360d2d4",
+      "name": "🛑 ثبت خطای دریافت",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1760,
-        0
+        880,
+        200
       ],
       "credentials": {
         "postgres": {
@@ -231,8 +259,7 @@
           "name": "Xennic PostgreSQL"
         }
       },
-      "executeOnce": true,
-      "notes": "offset از max(update_id) محاسبه می‌شود؛ نه از حافظه n8n",
+      "notes": "خروجی خطای گره HTTP به اینجا می‌آید",
       "notesInFlow": true
     }
   ],
@@ -267,10 +294,28 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "🛑 ثبت خطای دریافت",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "✂️ تفکیک آپدیت‌ها": {
+      "main": [
+        [
+          {
+            "node": "⏭ ثبت زمان دریافت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭ ثبت زمان دریافت": {
       "main": [
         [
           {
@@ -308,17 +353,6 @@
         [
           {
             "node": "✅ ثبت ارسال",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "✅ ثبت ارسال": {
-      "main": [
-        [
-          {
-            "node": "⏭ جلو بردن offset",
             "type": "main",
             "index": 0
           }

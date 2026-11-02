@@ -134,7 +134,7 @@ def main():
     remaining = psql(query_of("📤 پاسخ‌های آماده ارسال", wf))
     check("صف پس از ارسال خالی شد (تحویل تضمین‌شده)", len(remaining) == 0, str(len(remaining)))
 
-    new_offset = int(psql(query_of("⏭ جلو بردن offset", wf))[0][0])
+    new_offset = int(psql(query_of("⏭ ثبت زمان دریافت", wf))[0][0])
     check("offset به آخرین آپدیت رسید", new_offset >= 7007, str(new_offset))
 
     # ── بررسی رفتار ──
@@ -176,6 +176,14 @@ def main():
     dup_org = psql("SELECT count(*) FROM crm.organizations WHERE legal_name = 'شرکت برق‌آوران پارس'")
     check("آپدیت تکراری دوباره پردازش نشد", before == after, f"{before}→{after}")
     check("شرکت تکراری ساخته نشد", dup_org[0][0] == "1", dup_org[0][0])
+
+    # ── اجرای بی‌پیام: باید last_poll_at را تازه کند (باگ طراحی قبلی) ──
+    psql("UPDATE iee1405.bot_state SET value = '2000-01-01 00:00:00+00' WHERE key = 'last_poll_at';")
+    idle_rows = psql(query_of("⏭ ثبت زمان دریافت", wf))
+    fresh = psql("SELECT (value::timestamptz > '2020-01-01'::timestamptz) FROM iee1405.bot_state "
+                 "WHERE key = 'last_poll_at'")
+    check("اجرای بی‌پیام هم زمان دریافت را ثبت می‌کند",
+          fresh and fresh[0][0] == "t", str(fresh))
 
     # ── جریان‌های باقی‌مانده روی داده واقعی ──
     code = org[0][0]

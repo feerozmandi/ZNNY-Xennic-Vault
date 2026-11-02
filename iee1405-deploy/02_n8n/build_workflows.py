@@ -30,7 +30,7 @@ def nid(name: str) -> str:
 
 
 def pg_node(name, position, query, *, params_expr=None, execute_once=False,
-            notes=None, always_output=False):
+            notes=None):
     """گره PostgreSQL — همه پرس‌وجوها با پارامتر bind، بدون چسباندن رشته."""
     p = {
         "operation": "executeQuery",
@@ -41,8 +41,6 @@ def pg_node(name, position, query, *, params_expr=None, execute_once=False,
     if params_expr:
         # فرم آرایه: هر مقدار مستقل bind می‌شود ($1..$n)
         opts["queryReplacement"] = "={{ " + params_expr + " }}"
-    if always_output:
-        opts["outputColumns"] = []
     p["options"] = opts
     node = {
         "parameters": p,
@@ -79,8 +77,8 @@ def schedule_node(name, position, *, seconds=None, cron=None):
     }
 
 
-def split_node(name, position, field):
-    return {
+def split_node(name, position, field, always_output=False):
+    node = {
         "parameters": {
             "fieldToSplitOut": field,
             "options": {},
@@ -92,6 +90,9 @@ def split_node(name, position, field):
         "typeVersion": 1,
         "position": position,
     }
+    if always_output:
+        node["alwaysOutputData"] = True
+    return node
 
 
 def bale_call(name, position, method, *, query_params=None, body_params=None,
@@ -184,50 +185,74 @@ def wf_inbound():
         },
         notes="long-poll = 0 تا اجرای زمان‌بند معطل نماند",
     )
+    n_get["onError"] = "continueErrorOutput"
 
-    n_split = split_node("✂️ تفکیک آپدیت‌ها", [660, 0], "result")
+    # alwaysOutputData حیاتی است: در اجرای بی‌پیام، split هیچ آیتمی تولید نمی‌کند
+    # و گره‌های بعدی اجرا نمی‌شدند؛ در نتیجه last_poll_at هرگز تازه نمی‌شد و
+    # پایش سلامت، «سکوت» را با «قطعی» اشتباه می‌گرفت.
+    n_split = split_node("✂️ تفکیک آپدیت‌ها", [660, 0], "result", always_output=True)
 
-    # فقط یک پارامتر: کل آپدیت به‌صورت JSON.
-    # چرا نه چهار پارامتر؟ چون $json.message.chat.id برای آپدیت‌های بدون
-    # پیام متنی (عکس، پست کانال، callback) خطا می‌دهد و در n8n یک خطای گره،
-    # پردازش بقیه آپدیت‌های همان دسته را متوقف می‌کند. استخراج در SQL امن است.
     n_dispatch = pg_node(
-        "🧠 پردازش در PostgreSQL", [880, 0],
+        "🧠 پردازش در PostgreSQL", [1100, 0],
         "SELECT chat_id, status, reply_text, org_code\n"
         "  FROM iee1405.bot_dispatch_json($1::jsonb);",
         params_expr="JSON.stringify($json)",
         notes="کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد",
     )
 
+    # بلافاصله بعد از پردازش: در هر اجرا (حتی بی‌پیام) زمان دریافت ثبت می‌شود
+    n_advance = pg_node(
+        "⏭ ثبت زمان دریافت", [880, 0],
+        "SELECT iee1405.poll_advance() AS \"offset\";",
+        execute_once=True,
+        notes="offset از max(update_id) محاسبه می‌شود، نه از حافظه n8n",
+    )
+
     n_pending = pg_node(
-        "📤 پاسخ‌های آماده ارسال", [1100, 0],
+        "📤 پاسخ‌های آماده ارسال", [1320, 0],
         "SELECT update_id, chat_id, text_body\n"
         "  FROM iee1405.pending_replies(20);",
         execute_once=True,   # حیاتی: بدون این، به تعداد آیتم‌ها پیام تکراری می‌رود
         notes="ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
     )
 
-    n_send = send_message_node("💬 ارسال پاسخ", [1320, 0])
+    n_send = send_message_node("💬 ارسال پاسخ", [1540, 0])
 
     n_mark = pg_node(
-        "✅ ثبت ارسال", [1540, 0],
+        "✅ ثبت ارسال", [1760, 0],
         "SELECT iee1405.mark_delivered($1::bigint);",
         params_expr="[$json.update_id]",
     )
 
-    n_advance = pg_node(
-        "⏭ جلو بردن offset", [1760, 0],
-        "SELECT iee1405.poll_advance() AS \"offset\";",
-        execute_once=True,
-        notes="offset از max(update_id) محاسبه می‌شود؛ نه از حافظه n8n",
+    # شاخه خطا: اگر getUpdates شکست بخورد، ثبت می‌شود تا قطعی از سکوت تفکیک شود
+    n_pollerr = pg_node(
+        "🛑 ثبت خطای دریافت", [880, 200],
+        "SELECT iee1405.record_poll_error($1::text);",
+        params_expr="[($json.error.message || 'unknown error')]",
+        notes="خروجی خطای گره HTTP به اینجا می‌آید",
     )
 
     nodes = [n_sched, n_offset, n_get, n_split, n_dispatch,
-             n_pending, n_send, n_mark, n_advance]
+             n_advance, n_pending, n_send, n_mark, n_pollerr]
+
+    conns = {
+        n_sched["name"]:  {"main": [[{"node": n_offset["name"],  "type": "main", "index": 0}]]},
+        n_offset["name"]: {"main": [[{"node": n_get["name"],     "type": "main", "index": 0}]]},
+        n_get["name"]:    {"main": [
+                                [{"node": n_split["name"], "type": "main", "index": 0}],
+                                [{"node": n_pollerr["name"], "type": "main", "index": 0}],
+                          ]},
+        n_split["name"]:  {"main": [[{"node": n_advance["name"], "type": "main", "index": 0}]]},
+        n_advance["name"]:  {"main": [[{"node": n_dispatch["name"], "type": "main", "index": 0}]]},
+        n_dispatch["name"]: {"main": [[{"node": n_pending["name"], "type": "main", "index": 0}]]},
+        n_pending["name"]:  {"main": [[{"node": n_send["name"], "type": "main", "index": 0}]]},
+        n_send["name"]:     {"main": [[{"node": n_mark["name"], "type": "main", "index": 0}]]},
+    }
+
     wf = {
         "name": "IEE1405-01 — دریافت پیام‌های بله",
         "nodes": nodes,
-        "connections": flow(*[n["name"] for n in nodes]),
+        "connections": conns,
         "settings": {
             "executionOrder": "v1",
             "timezone": "Asia/Tehran",

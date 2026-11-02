@@ -14,6 +14,9 @@
 INFRA_DIR="${INFRA_DIR:-$HOME/xennic-infra}"
 ENV_FILE="${ENV_FILE:-$INFRA_DIR/.env}"
 PG_DB="${PG_DB:-xennic}"
+PG_USER="${PG_USER:-}"
+N8N_SERVICE="${N8N_SERVICE:-n8n}"
+PG_SERVICE="${PG_SERVICE:-postgres}"
 
 # ── انتخاب روش اجرای docker (با یا بدون sudo) ─────────────────────────
 dk_detect() {
@@ -76,12 +79,15 @@ pg_can_login() {
 # رمز از env داخل کانتینر می‌آید (POSTGRES_PASSWORD) پس به رمز نیاز نداریم.
 pgq() {
     local db="$1"; shift
+    # کاربر دیتابیس در اولین فراخوانی کشف می‌شود (روی سرور «n8n» است، نه postgres)
+    [[ -z "${PG_USER:-}" ]] && { dk_detect; ct_detect >/dev/null; pg_user_detect >/dev/null; }
     $DK exec -i "$PG_CT" psql -U "$PG_USER" -d "$db" -X -t -A "$@"
 }
 
 # خروجی جدول‌بندی‌شده برای گزارش چاپی (بدون -t -A)
 pgq_pretty() {
     local db="$1"; shift
+    [[ -z "${PG_USER:-}" ]] && { dk_detect; ct_detect >/dev/null; pg_user_detect >/dev/null; }
     $DK exec -i "$PG_CT" psql -U "$PG_USER" -d "$db" -X -P pager=off "$@"
 }
 

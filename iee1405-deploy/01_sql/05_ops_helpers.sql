@@ -34,20 +34,56 @@ $$;
 -- گام ۳ بعد از پردازش: جلو بردن offset تا max(update_id)
 CREATE OR REPLACE FUNCTION iee1405.poll_advance()
 RETURNS bigint LANGUAGE plpgsql AS $$
-DECLARE v_max bigint;
+DECLARE v_max bigint; v_off bigint;
 BEGIN
+    -- این دو ثبت باید **همیشه** انجام شوند، حتی وقتی هیچ پیام تازه‌ای نیست:
+    -- در غیر این صورت «سکوت» در بله شبیه «قطعی» دیده می‌شود.
+    -- clock_timestamp نه now(): داخل یک تراکنش now() ثابت است و ترتیب
+    -- «خطا بعد از دریافت موفق» قابل تشخیص نمی‌ماند.
+    UPDATE iee1405.bot_state SET value = clock_timestamp()::text,
+                                 updated_at = clock_timestamp()
+     WHERE key = 'last_poll_at';
+    -- دریافت موفق یعنی خطای قبلی برطرف شده است
+    UPDATE iee1405.bot_state SET value = NULL, updated_at = clock_timestamp()
+     WHERE key = 'last_error';
+
     SELECT max(u.update_id) INTO v_max FROM iee1405.bot_updates u;
-    IF v_max IS NULL THEN
-        RETURN iee1405.poll_offset();
+    v_off := iee1405.poll_offset();
+    IF v_max IS NULL OR v_off >= v_max THEN
+        RETURN v_off;
     END IF;
     UPDATE iee1405.bot_state
-       SET value = GREATEST(COALESCE(value::bigint, 0), v_max)::text,
-           updated_at = now()
+       SET value = v_max::text, updated_at = clock_timestamp()
      WHERE key = 'bale_offset';
-    UPDATE iee1405.bot_state SET value = now()::text, updated_at = now()
-     WHERE key = 'last_poll_at';
-    RETURN GREATEST(iee1405.poll_offset(), v_max);
+    RETURN v_max;
 END $$;
+
+-- «آیا دریافت پیام‌ها سالم است؟» — یک نقطه حقیقت برای همه نماها و هشدارها
+CREATE OR REPLACE FUNCTION iee1405.poll_is_stale(p_grace interval DEFAULT '10 minutes')
+RETURNS boolean LANGUAGE sql STABLE AS $$
+    WITH s AS (
+        SELECT (SELECT value::timestamptz FROM iee1405.bot_state WHERE key = 'last_poll_at') AS poll,
+               (SELECT value::timestamptz FROM iee1405.bot_state WHERE key = 'last_error')   AS err
+    )
+    SELECT (poll IS NULL)
+        OR (poll < now() - p_grace)
+        OR (err IS NOT NULL AND err > poll)
+      FROM s
+$$;
+
+-- خطاهای «واقعاً باز»: خطای getUpdates با دریافت موفق بعدی پاک می‌شود،
+-- وگرنه یک قطعی کوتاه تا یک ساعت هشدار تکراری می‌فرستاد.
+CREATE OR REPLACE FUNCTION iee1405.recent_error_count(p_window interval DEFAULT '1 hour')
+RETURNS bigint LANGUAGE sql STABLE AS $$
+    SELECT count(*)
+      FROM iee1405.bot_errors e
+     WHERE e.occurred_at > now() - p_window
+       AND (e.stage <> 'bale_getupdates'
+            OR e.occurred_at > COALESCE((SELECT value::timestamptz
+                                           FROM iee1405.bot_state
+                                          WHERE key = 'last_poll_at'),
+                                        '-infinity'::timestamptz))
+$$;
 
 -- ─────────────────────────────────────────────────────────────────────
 -- 3) پیام پایان روز (WF-03)
@@ -147,11 +183,16 @@ BEGIN
     IF v_poll IS NULL OR v_poll < now() - interval '10 minutes' THEN
         v_issues := v_issues || E'\n⚠️ دریافت پیام‌های بله در ۱۰ دقیقه گذشته اجرا نشده است.';
     END IF;
-    IF (SELECT count(*) FROM iee1405.bot_errors
-         WHERE occurred_at > now() - interval '1 hour') > 0 THEN
-        v_issues := v_issues || E'\n⚠️ خطای ربات در یک ساعت گذشته: ' ||
-                    (SELECT count(*) FROM iee1405.bot_errors
-                      WHERE occurred_at > now() - interval '1 hour');
+    IF (SELECT value::timestamptz FROM iee1405.bot_state WHERE key = 'last_error')
+       > COALESCE(v_poll, '-infinity'::timestamptz) THEN
+        v_issues := v_issues || E'\n🛑 آخرین درخواست getUpdates خطا داد: ' ||
+            COALESCE((SELECT left(message, 120) FROM iee1405.bot_errors
+                       WHERE stage = 'bale_getupdates'
+                       ORDER BY occurred_at DESC LIMIT 1), 'نامشخص');
+    END IF;
+    IF iee1405.recent_error_count(interval '1 hour') > 0 THEN
+        v_issues := v_issues || E'\n⚠️ خطای باز ربات: ' ||
+                    iee1405.recent_error_count(interval '1 hour');
     END IF;
     IF v_dq.tasks_overdue > 0 THEN
         v_issues := v_issues || E'\n⚠️ پیگیری گذشته از موعد: ' || v_dq.tasks_overdue;
@@ -187,8 +228,7 @@ RETURNS TABLE (chat_id bigint, text_body text)
 LANGUAGE sql STABLE AS $$
     WITH issues AS (
         SELECT
-            ((SELECT count(*) FROM iee1405.bot_errors
-               WHERE occurred_at > now() - interval '1 hour'))                  AS errors_1h,
+            iee1405.recent_error_count(interval '1 hour')                                AS errors_1h,
             ((SELECT value::timestamptz FROM iee1405.bot_state
                WHERE key = 'last_poll_at'))                                     AS last_poll,
             ((SELECT count(*) FROM crm.tasks
@@ -197,8 +237,7 @@ LANGUAGE sql STABLE AS $$
     SELECT o.chat_id, iee1405.health_text()
       FROM iee1405.owner_chat_ids() o, issues i
      WHERE i.errors_1h > 0
-        OR i.last_poll IS NULL
-        OR i.last_poll < now() - interval '2 hours'
+        OR iee1405.poll_is_stale(interval '2 hours')
         OR i.overdue > 10
 $$;
 
@@ -236,3 +275,20 @@ RETURNS void LANGUAGE sql AS $$
 $$;
 
 COMMENT ON FUNCTION iee1405.pending_replies IS 'پاسخ‌های ارسال‌نشده؛ مبنای تضمین تحویل';
+
+-- ─────────────────────────────────────────────────────────────────────
+-- 11) ثبت خطای دریافت از بله
+--     اگر getUpdates شکست بخورد، گردش‌کار این را ثبت می‌کند تا «سکوت»
+--     با «قطعی» اشتباه گرفته نشود.
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION iee1405.record_poll_error(p_message text)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
+    VALUES (0, NULL, 'bale_getupdates', left(COALESCE(p_message, 'unknown'), 500), 'wf-01');
+    UPDATE iee1405.bot_state SET value = clock_timestamp()::text,
+                                 updated_at = clock_timestamp()
+     WHERE key = 'last_error';
+END $$;
+
+

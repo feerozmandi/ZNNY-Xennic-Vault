@@ -40,9 +40,9 @@ bash 03_ops/preflight.sh
 bash 03_ops/setup_env.sh          # پر کردن BALE_TOKEN_BOT و متغیرهای لازم
 bash 00_audit/audit_postgres.sh                                  # فقط خواندن
 APP_PASSWORD="$(openssl rand -base64 18)" bash 03_ops/deploy_sql.sh  # ساختار + منطق
-bash 03_ops/import_workflows.sh import                            # گردش‌کارها
-# در رابط n8n: کارت «Xennic PostgreSQL» بسازید و در ۴ گردش‌کار انتخاب کنید
-bash 03_ops/import_workflows.sh activate
+bash 03_ops/import_workflows.sh import     # فقط گردش‌کارها را وارد می‌کند
+bash 03_ops/activate_all.sh                # کارت اعتبارنامه + انتشار + ری‌استارت + بررسی
+bash 03_ops/smoke_test.sh                  # آزمون دود: توکن، گردش‌کارها، تازگی دریافت
 ```
 
 > [!tip] اگر `preflight.sh` گفت «هیچ سرویس در حال اجرا نیست»
@@ -63,8 +63,19 @@ bash 03_ops/import_workflows.sh activate
 cd ~/ZNNY-Xennic-Vault
 git fetch origin arena/011e185b-znny-xennic-vault
 git checkout arena/011e185b-znny-xennic-vault
+git pull --ff-only origin arena/011e185b-znny-xennic-vault
 cd iee1405-deploy && bash 03_ops/preflight.sh
 ```
+
+> [!important] بعد از هر به‌روزرسانی، SQL را دوباره اعمال کنید
+> فایل‌های `01_sql/` **بی‌خطر و تکرارپذیر** هستند (بدون حذف داده). تغییر توابع
+> ربات و سلامت فقط با اجرای دوباره اعمال می‌شود:
+>
+> ```bash
+> bash 03_ops/deploy_sql.sh
+> bash 03_ops/import_workflows.sh import
+> bash 03_ops/activate_all.sh
+> ```
 
 ---
 
@@ -76,8 +87,8 @@ cd iee1405-deploy && bash 03_ops/preflight.sh
 | ۱. بازرسی وضعیت فعلی | `bash 00_audit/audit_postgres.sh` | ۱ دقیقه |
 | ۲. استقرار ساختار + منطق | `PG_DB=<db> bash 03_ops/deploy_sql.sh` | ۱ دقیقه |
 | ۳. ایمپورت گردش‌کارها | `bash 03_ops/import_workflows.sh import` | ۲ دقیقه |
-| ۴. اتصال اعتبارنامه | در رابط n8n: کارت «Xennic PostgreSQL» | ۲ دقیقه |
-| ۵. فعال‌سازی | `bash 03_ops/import_workflows.sh activate` | ۱ دقیقه |
+| ۴. اعتبارنامه + انتشار + ری‌استارت | `bash 03_ops/activate_all.sh` | ۲ دقیقه |
+| ۵. آزمون دود | `bash 03_ops/smoke_test.sh` | ۳۰ ثانیه |
 | ۶. ثبت گوشی‌ها | ارسال `/start` از بله، سپس `UPDATE crm.users …` | ۲ دقیقه |
 
 ---
@@ -187,22 +198,59 @@ bash 03_ops/import_workflows.sh list
 | `wf-03-digest.json` | IEE1405-03 — خلاصه پایان روز | روزانه ۲۰:۳۰ | آمار روز + نزدیک‌ترین پیگیری‌ها |
 | `wf-04-health.json` | IEE1405-04 — پایش سلامت | هر ۳۰ دقیقه | فقط وقتی مشکل هست هشدار می‌دهد |
 
-### اتصال اعتبارنامه (یک بار)
+### اتصال اعتبارنامه + فعال‌سازی (یک دستور)
 
-1. در n8n → **Credentials → New → Postgres**
-2. نام: `Xennic PostgreSQL`
-3. Host: `postgres` (نام سرویس در شبکه Docker) · Port: `5432` · Database: `xennic`
-4. User: `iee_app` · Password: همان `APP_PASSWORD`
-5. SSL: `disable` (ترافیک داخل شبکه Docker، پورت عمومی بسته است)
-6. در هر چهار گردش‌کار، گره‌های PostgreSQL را باز کنید و همین کارت را انتخاب کنید
-7. **Save** و سپس:
+در n8n 2.x دستور `update:workflow --active=true` منسوخ شده و کار نمی‌کند؛
+راه درست `publish:workflow` است و **بعد از انتشار باید n8n ری‌استارت شود**،
+وگرنه تغییرات اعمال نمی‌شوند. `activate_all.sh` همین‌ها را انجام می‌دهد:
+
+1. کارت اعتبارنامه `Xennic PostgreSQL` (شناسه `XENNIC-PG-CREDENTIAL`) را با
+   رمز `~/.iee1405-app-password` داخل کانتینر n8n می‌سازد
+2. هر چهار گردش‌کار `IEE1405*` را منتشر می‌کند
+3. `docker compose restart n8n` و انتظار تا بالا آمدن
+4. تعداد گردش‌کارهای فعال و تازگی `last_poll_at` را بررسی می‌کند
 
 ```bash
-bash 03_ops/import_workflows.sh activate
+bash 03_ops/activate_all.sh
 ```
 
-> اگر n8n اجازه انتخاب اعتبارنامه را نداد، یعنی شناسه در فایل JSON جای‌نگهدار
-> (`XENNIC-PG-CREDENTIAL`) است؛ انتخاب دستی همان کارت این را حل می‌کند.
+خروجی موفق:
+
+```
+[ OK ] اعتبارنامه XENNIC-PG-CREDENTIAL
+[ OK ] انتشار: 4 گردش‌کار
+[ OK ] فعال: 4 از 4
+[ OK ] دریافت پیام‌ها فعال است (last_poll_at تازه شد)
+```
+
+> [!important] اگر «فعال: 0 از 4» دیدید
+> یعنی `publish` انجام شده ولی n8n ری‌استارت نشده، یا متغیر
+> `N8N_RUNNERS_ENABLED`/`N8N_BLOCK_ENV_ACCESS_IN_NODE` در `.env` مانع شده است.
+> `docker compose restart n8n` را دستی بزنید و دوباره اسکریپت را اجرا کنید.
+
+---
+
+## ۳.۵. آزمون دود (بعد از هر تغییر)
+
+```bash
+bash 03_ops/smoke_test.sh                    # فقط بررسی
+bash 03_ops/smoke_test.sh --test-message     # + یک پیام آزمایشی به بله
+```
+
+چه چیزهایی را چک می‌کند:
+
+| بررسی | معنی خطا |
+|---|---|
+| `getMe` بله | توکن نامعتبر است — **یا** سرور به `tapi.bale.ai` دسترسی ندارد (اسکریپت این دو را تفکیک می‌کند) |
+| گردش‌کارهای فعال | `activate_all.sh` اجرا نشده یا n8n ری‌استارت نشده |
+| تازگی `last_poll_at` | wf-01 اجرا نمی‌شود؛ اگر «تازه است ولی خطا دارد» یعنی بله پاسخ نمی‌دهد |
+| کاربران با `bale_chat_id` | گوشی‌ها ثبت نشده‌اند (بخش ۴) |
+| شمارش داده‌ها | ساختار سالم است، هنوز چیزی ثبت نشده |
+
+> [!tip] «سکوت» با «قطعی» اشتباه نمی‌شود
+> wf-01 در هر اجرا — حتی وقتی هیچ پیام جدیدی نیست — زمان دریافت را ثبت می‌کند
+> (`poll_advance`). اگر `getUpdates` خطا بدهد، شاخه خطا آن را در `bot_errors`
+> ثبت می‌کند و `/status` علت را نشان می‌دهد.
 
 ---
 
@@ -314,13 +362,16 @@ docker compose -f ~/xennic-infra/docker-compose.yml exec -T postgres \
 
 | نشانه | علت محتمل | راه‌حل |
 |---|---|---|
-| ربات جواب نمی‌دهد | گردش‌کار ۰۱ فعال نیست | `import_workflows.sh activate` |
+| ربات جواب نمی‌دهد | گردش‌کار ۰۱ فعال نیست | `bash 03_ops/activate_all.sh` |
 | `401 Unauthorized` از بله | `BALE_API_URL` غلط | توکن را در `.env` بررسی و `docker compose up -d n8n` |
 | `Access to env vars denied` | `N8N_BLOCK_ENV_ACCESS_IN_NODE` تنظیم نشده | override را اعمال و ری‌استارت کنید |
 | `password authentication failed` | رمز `iee_app` | `APP_PASSWORD=... bash 03_ops/deploy_sql.sh` دوباره |
 | پیام تکراری می‌آید | `delivered_at` ثبت نشده | گردش‌کار ۰۱ را بررسی کنید؛ `pending_replies` تمیز می‌شود |
 | زمان‌بندی جابه‌جاست | TZ | `GENERIC_TIMEZONE=Asia/Tehran` |
 | `permission denied for table` | اجرای دستی با `iee_app` | با `postgres` اجرا کنید؛ `iee_app` فقط توابع را اجرا می‌کند |
+| `/status` می‌گوید «دریافت پیام‌ها در ۱۰ دقیقه گذشته اجرا نشده» | wf-01 غیرفعال یا n8n ری‌استارت نشده | `bash 03_ops/activate_all.sh` |
+| `/status` می‌گوید «آخرین دریافت خطا داد» | سرور به `tapi.bale.ai` نمی‌رسد (فیلتر/شبکه) | `bash 03_ops/smoke_test.sh` و سپس بررسی DNS/پروکسی |
+| `activate_all.sh`: «رمز یافت نشد» | `~/.iee1405-app-password` نیست | `bash 03_ops/deploy_sql.sh` را یک بار اجرا کنید |
 
 بررسی سریع سلامت:
 

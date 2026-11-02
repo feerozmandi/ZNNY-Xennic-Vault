@@ -761,6 +761,12 @@ BEGIN
     v_update_id := nullif(p_update ->> 'update_id', '')::bigint;
 
     IF v_update_id IS NULL THEN
+        -- بدون کلید update_id یعنی «این یک آپدیت نیست» — مثلاً اجرای بی‌پیام
+        -- wf-01 (getUpdates با result خالی). نه خطایی ثبت می‌شود و نه ردیفی
+        -- ساخته می‌شود، وگرنه هر ۲۰ ثانیه یک خطای جعلی در سلامت می‌نشست.
+        IF NOT (p_update ? 'update_id') THEN
+            RETURN;
+        END IF;
         RETURN QUERY SELECT NULL::bigint, 'invalid'::text, NULL::text, NULL::text;
         RETURN;
     END IF;

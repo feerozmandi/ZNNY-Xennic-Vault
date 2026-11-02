@@ -67,25 +67,10 @@ import)
 activate)
     require_n8n
     echo "════ فعال‌سازی ════"
-    found=0
-    while IFS='|' read -r id name _rest; do
-        id="$(printf '%s' "$id" | tr -d '[:space:]')"
-        [[ "$name" == *IEE1405* ]] || continue
-        found=$((found + 1))
-        printf '→ %s (%s) ' "$name" "$id"
-        if n8n update:workflow --id="$id" --active=true >/dev/null 2>&1; then
-            echo "✅ فعال"
-        else
-            echo "⚠️ با CLI فعال نشد — در رابط n8n دستی فعال کنید"
-        fi
-    done < <(n8n list:workflow 2>/dev/null | tail -n +2)
-    if [[ "$found" == "0" ]]; then
-        echo "⚠️ هیچ گردش‌کاری با پیشوند IEE1405 پیدا نشد. اول import را اجرا کنید."
-        exit 1
-    fi
+    echo "در n8n نسخه ۲، فعال‌سازی با publish:workflow انجام می‌شود و"
+    echo "پس از آن n8n باید ری‌استارت شود. این کار در activate_all.sh انجام می‌شود."
     echo ""
-    echo "یادآوری: n8n پس از ایمپورت ممکن است نیاز به ری‌استارت داشته باشد:"
-    echo "  cd $INFRA_DIR && docker compose restart $N8N_SERVICE"
+    bash "$(dirname "$0")/activate_all.sh"
     ;;
 
 list)

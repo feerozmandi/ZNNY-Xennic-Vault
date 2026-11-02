@@ -43,6 +43,7 @@ SAMPLE_PARAMS = {
         '{"update_id":7001,"message":{"chat_id":900001,"from":{"id":1},"text":"/help"}}'
     ],
     "✅ ثبت ارسال": ["7001"],
+    "🛑 ثبت خطای دریافت": ["Connection timed out"],
 }
 
 SECRET_PATTERNS = [
@@ -111,6 +112,10 @@ def check_structure(wf_name, wf):
                 err(wf_name, f"{n['name']}: resource باید database باشد")
             if n.get("parameters", {}).get("operation") != "executeQuery":
                 err(wf_name, f"{n['name']}: operation باید executeQuery باشد")
+        if t == "n8n-nodes-base.httpRequest" and n.get("onError") == "continueErrorOutput":
+            branches = wf.get("connections", {}).get(n["name"], {}).get("main", [])
+            if len(branches) < 2 or not branches[1]:
+                err(wf_name, f"{n['name']}: onError خطا فعال است اما شاخه خطا وصل نشده")
         if t == "n8n-nodes-base.httpRequest":
             if not n.get("retryOnFail"):
                 warn(wf_name, f"{n['name']}: retryOnFail خاموش است")
