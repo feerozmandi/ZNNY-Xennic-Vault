@@ -147,7 +147,7 @@ sleep 5
 c_ok "n8n پاسخ می‌دهد"
 
 c_head "۴) تأیید فعال بودن"
-ACTIVE="$(n8n list:workflow --active=true 2>/dev/null | grep -c "IEE1405" || true)"
+ACTIVE="$(n8n list:workflow --active=true 2>/dev/null | grep "IEE1405" | sort -u | grep -c . || true)"
 printf '  گردش‌کارهای فعال IEE1405: %s (انتظار: %s)\n' "${ACTIVE:-0}" "$COUNT"
 if [[ "${ACTIVE:-0}" -ge "$COUNT" ]]; then
     c_ok "همه گردش‌کارها فعال هستند"
