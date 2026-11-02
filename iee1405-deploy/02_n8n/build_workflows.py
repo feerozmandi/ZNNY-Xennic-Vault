@@ -186,7 +186,11 @@ def wf_inbound():
 
     n_beat = pg_node(
         "💓 ضربان دریافت", [440, 0],
-        "SELECT iee1405.poll_heartbeat() AS \"at\";",
+        # offset را هم برمی‌گرداند: گره HTTP بعد از این گره قرار دارد و اگر
+        # next_offset در ورودی‌اش نباشد، عبارت به NaN می‌رسد و بله
+        # «400 malformed request» می‌دهد (باگ واقعی نسخه ۰.۱.۹).
+        "SELECT iee1405.poll_offset() + 1 AS \"next_offset\",\n"
+        "       iee1405.poll_heartbeat() AS \"at\";",
         execute_once=True,
         notes="هر اجرا این را ثبت می‌کند؛ پس «سکوت بله» از «توقف گردش‌کار» جدا می‌شود",
     )
@@ -194,7 +198,7 @@ def wf_inbound():
     n_get = bale_call(
         "📥 دریافت پیام‌ها", [660, 0], "getUpdates",
         query_params={
-            "offset": "={{ Number($json.offset) + 1 }}",
+            "offset": "={{ $json.next_offset }}",
             "limit": "50",
             "timeout": "0",
         },

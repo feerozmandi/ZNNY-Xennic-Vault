@@ -212,7 +212,10 @@ esac
 c_head "۳.۷) آزمون زنده getUpdates از داخل کانتینر n8n"
 # توجه: ایمیج n8n «curl» ندارد (آلپاین) — پس با node آزموده می‌شود که خودش هم
 # همان runtime واقعی گره‌هاست. توکن چاپ نمی‌شود؛ فقط کد، زمان و بدنه ماسک‌شده.
-PROBE="$($DK exec -i "$N8N_CT" node -e '
+# offset واقعی از دیتابیس برنامه: همان عددی که گره «📥 دریافت پیام‌ها» می‌فرستد
+PROBE_OFFSET="$(pgq "$PG_DB" -c "SELECT iee1405.poll_offset() + 1" 2>/dev/null | tr -d '[:space:]')"
+PROBE_OFFSET="${PROBE_OFFSET:-1}"
+PROBE="$($DK exec -i -e "PROBE_OFFSET=$PROBE_OFFSET" "$N8N_CT" node -e '
 const url = process.env.BALE_API_URL;
 if (!url) { console.log("NORURL"); process.exit(0); }
 const mask = (s) => (s || "").replace(/bot[0-9]+:[A-Za-z0-9_-]+/g, "bot***").slice(0, 220);
@@ -227,24 +230,40 @@ const run = async (label, target) => {
   }
 };
 (async () => {
-  await run("PROBE", url + "/getUpdates?offset=0&limit=1&timeout=0");
+  const off = process.env.PROBE_OFFSET || "1";
+  // BAREPROBE: خط پایه (شبکه/توکن) — PROBE: دقیقاً همان URLی که گره تولید می‌سازد
+  await run("BAREPROBE", url + "/getUpdates");
+  await run("PROBE", url + "/getUpdates?offset=" + encodeURIComponent(off) + "&limit=50&timeout=0");
 })();
 ' 2>&1 | tail -2)"
 
 CODE="$(printf '%s' "$PROBE" | sed -n 's/^PROBE CODE=\([^ ]*\).*/\1/p')"
-MS="$(printf '%s' "$PROBE" | sed -n 's/.* MS=\([0-9]*\).*/\1/p')"
-BODY="$(printf '%s' "$PROBE" | sed -n 's/.* BODY=//p' | head -c 220)"
-ERRTXT="$(printf '%s' "$PROBE" | sed -n 's/.* ERR=//p' | head -c 200)"
+BARECODE="$(printf '%s' "$PROBE" | sed -n 's/^BAREPROBE CODE=\([^ ]*\).*/\1/p')"
+MS="$(printf '%s' "$PROBE" | sed -n 's/^PROBE .* MS=\([0-9]*\).*/\1/p')"
+BODY="$(printf '%s' "$PROBE" | sed -n 's/^PROBE .* BODY=//p' | head -c 220)"
+ERRTXT="$(printf '%s' "$PROBE" | sed -n 's/^PROBE .* ERR=//p' | head -c 200)"
 
 if printf '%s' "$PROBE" | grep -q NORURL; then
     c_bad "متغیر BALE_API_URL داخل کانتینر n8n نیست"
     c_hint "bash 03_ops/setup_env.sh"
 else
-    echo "     کد وضعیت: ${CODE:-?} · زمان پاسخ: ${MS:-?} میلی‌ثانیه"
+    echo "     آدرس آزمون: /getUpdates?offset=$PROBE_OFFSET&limit=50&timeout=0  (همان شکل تولید)"
+    echo "     خط پایه (بدون پارامتر): ${BARECODE:-?} · پاسخ شکل تولید: ${CODE:-?} · زمان: ${MS:-?} میلی‌ثانیه"
     [[ -n "$BODY" ]] && echo "     بدنه: $BODY"
     [[ -n "$ERRTXT" ]] && echo "     خطا: $ERRTXT"
 
     case "$CODE" in
+        400)
+            c_bad "بله درخواست را رد کرد: 400 (malformed request)"
+            if [[ "$BARECODE" == "200" ]]; then
+                c_hint "خط پایه ۲۰۰ است: شبکه و توکن سالم‌اند، پس **پارامترها** مقصرند"
+                c_hint "رایج‌ترین علت: offset خالی یا NaN — گره HTTP فیلدی را می‌خواند که گره بالادستی نمی‌دهد"
+                c_hint "گردش‌کار تازه را ایمپورت کنید: bash 03_ops/import_workflows.sh import && bash 03_ops/activate_all.sh"
+                c_hint "اعتبارسنجی هم این را می‌گیرد: python3 02_n8n/validate_workflows.py"
+            else
+                c_hint "خط پایه هم ۲۰۰ نیست — اول توکن و BALE_API_URL را ببینید (بخش ۳.۵)"
+            fi
+            ;;
         200)
             if printf '%s' "$BODY" | grep -q '"ok":false'; then
                 c_bad "بله پاسخ ۲۰۰ داد اما ok=false — این خطا باید در bot_errors دیده شود"

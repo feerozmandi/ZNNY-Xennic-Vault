@@ -166,6 +166,72 @@ def check_expressions(wf_name, wf):
             err(wf_name, "الگوی رمز/توکن در فایل پیدا شد — نباید در JSON باشد")
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# قاعده «ورودی گره HTTP»: هر $json.<field> در گره HTTP باید در خروجی گره
+# بالادستی وجود داشته باشد. باگ واقعی نسخه ۰.۱.۹ همین بود: گره ضربان فقط
+# {at} برمی‌گرداند و گره HTTP که بعد از آن است، $json.offset را undefined
+# می‌دید → «offset=NaN» → بله: 400 malformed request.
+# ═══════════════════════════════════════════════════════════════════════
+EXPR_FIELD = re.compile(r"\$json(?:\.([A-Za-z_][A-Za-z0-9_]*)|\[['\"]([^'\"]+)['\"]\])")
+SQL_ALIAS = re.compile(r'\bAS\s+(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))', re.IGNORECASE)
+
+
+def _fields_in(obj):
+    found = set()
+    if isinstance(obj, dict):
+        for v in obj.values():
+            found |= _fields_in(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            found |= _fields_in(v)
+    elif isinstance(obj, str):
+        for m in EXPR_FIELD.finditer(obj):
+            found.add(m.group(1) or m.group(2))
+    return found
+
+
+def _upstream(wf, node_name):
+    """گره‌هایی که خروجی‌شان به این گره می‌رسد (یک گام عقب)."""
+    ups = []
+    for src, conns in wf.get("connections", {}).items():
+        for branch in conns.get("main", []):
+            for link in branch or []:
+                if link.get("node") == node_name:
+                    ups.append(src)
+    return ups
+
+
+def check_http_inputs(wf_name, wf):
+    by_name = {n["name"]: n for n in wf["nodes"]}
+    for n in wf["nodes"]:
+        if n.get("type") != "n8n-nodes-base.httpRequest":
+            continue
+        used = _fields_in(n.get("parameters", {}))
+        if not used:
+            continue
+        for up_name in _upstream(wf, n["name"]):
+            up = by_name.get(up_name)
+            if not up or up.get("type") != "n8n-nodes-base.postgres":
+                continue
+            sql = up.get("parameters", {}).get("query", "")
+            aliases = {a or b for a, b in SQL_ALIAS.findall(sql)}
+            # ستون‌های بدون AS (مثل SELECT a, b) هم پذیرفته می‌شوند
+            # ستون‌های بدون AS، با یا بدون پیشوند جدول: o.chat_id → chat_id
+            aliases |= set(
+                re.findall(
+                    r"(?:SELECT|,)\s*(?:[A-Za-z_][A-Za-z0-9_]*\.)?([A-Za-z_][A-Za-z0-9_]*)",
+                    sql,
+                    re.I,
+                )
+            )
+            missing = used - aliases
+            if missing:
+                err(
+                    wf_name,
+                    f"گره «{n['name']}» از {sorted(missing)} استفاده می‌کند ولی خروجی گره "
+                    f"«{up_name}» این فیلدها را ندارد (متغیر undefined → مقدار NaN/خالی در URL)",
+                )
+
 def check_cron(wf_name, wf):
     for n in wf["nodes"]:
         rule = n.get("parameters", {}).get("rule", {})
@@ -226,6 +292,7 @@ def main():
         check_structure(wf_name, wf)
         check_expressions(wf_name, wf)
         check_cron(wf_name, wf)
+        check_http_inputs(wf_name, wf)
         for n in wf["nodes"]:
             if n.get("type") == "n8n-nodes-base.postgres":
                 sql = n["parameters"]["query"]

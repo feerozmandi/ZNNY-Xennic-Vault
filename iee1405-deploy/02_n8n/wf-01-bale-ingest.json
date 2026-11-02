@@ -52,7 +52,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT iee1405.poll_heartbeat() AS \"at\";",
+        "query": "SELECT iee1405.poll_offset() + 1 AS \"next_offset\",\n       iee1405.poll_heartbeat() AS \"at\";",
         "options": {}
       },
       "id": "3f7c9a93-554c-50db-be06-619b09f652cb",
@@ -86,7 +86,7 @@
           "parameters": [
             {
               "name": "offset",
-              "value": "={{ Number($json.offset) + 1 }}"
+              "value": "={{ $json.next_offset }}"
             },
             {
               "name": "limit",

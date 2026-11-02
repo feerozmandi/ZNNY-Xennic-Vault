@@ -231,6 +231,27 @@ def main():
     audit = psql("SELECT count(*) FROM crm.audit_events")
     check("ردیف ممیزی ثبت شد", int(audit[0][0]) >= 5, audit[0][0])
 
+    # ── گره‌های زنجیره دریافت: ورودی گره HTTP باید واقعاً وجود داشته باشد ──
+    # باگ واقعی ۰.۱.۹: گره ضربان فقط {at} می‌داد و گره HTTP بعد از آن
+    # $json.offset را undefined می‌دید → offset=NaN → بله: 400 malformed request.
+    beat = next(n for n in wf["nodes"] if n["name"] == "💓 ضربان دریافت")
+    get = next(n for n in wf["nodes"] if n["name"] == "📥 دریافت پیام‌ها")
+    offset_expr = next(
+        q["value"] for q in get["parameters"]["queryParameters"]["parameters"]
+        if q["name"] == "offset"
+    )
+    field = offset_expr.replace("={{", "").replace("}}", "").replace("$json.", "").strip()
+    psql("BEGIN;")
+    beat_out = psql(beat["parameters"]["query"])
+    psql("ROLLBACK;")
+    # نام ستون‌ها از psql به شکل «نام» برمی‌گردد؛ خود تابع را هم می‌سنجیم
+    beat_now = psql("SELECT iee1405.poll_offset() + 1 AS next_offset, iee1405.poll_heartbeat() AS at")
+    check("گره ضربان، next_offset را برمی‌گرداند", len(beat_now[0]) == 2, str(beat_now[0]))
+    check(f"عبارت offset گره HTTP فیلد «{field}» را از ورودی می‌خواند",
+          field == "next_offset", offset_expr)
+    check("عبارت offset هرگز NaN نمی‌شود (بدون محاسبه در n8n)",
+          "Number(" not in offset_expr, offset_expr)
+
     psql("ROLLBACK;")
 
     # ── گردش‌کارهای زمان‌بندی‌شده ──
