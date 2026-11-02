@@ -79,7 +79,7 @@ def main():
     psql("BEGIN;")
     # وضعیت پایدار را در همین تراکنش صفر می‌کنیم تا آزمون به اجرای قبلی وابسته نباشد
     psql("DELETE FROM iee1405.bot_updates;")
-    psql("UPDATE iee1405.bot_state SET value = '0' WHERE key = 'bale_offset';")
+    psql("SELECT iee1405.poll_reset(0);")
     psql("UPDATE crm.users SET bale_chat_id = $1 WHERE username = 'ahmad';", [OWNER_CHAT])
 
     def msg(uid, chat, text):
@@ -129,7 +129,9 @@ def main():
         update_id, chat_id, text = int(row[0]), int(row[1]), row[2]
         send_message(chat_id, text)
         OUTBOX.append({"chat_id": chat_id, "text": text})
-        psql(query_of("✅ ثبت ارسال", wf), [update_id])  # mark_delivered
+        # همان دو ورودی گره واقعی: update_id از گره صف + پاسخ بله از گره ارسال
+        psql(query_of("✅ ثبت ارسال", wf),
+             [update_id, '{"ok":true,"result":{"message_id":1}}'])
 
     remaining = psql(query_of("📤 پاسخ‌های آماده ارسال", wf))
     check("صف پس از ارسال خالی شد (تحویل تضمین‌شده)", len(remaining) == 0, str(len(remaining)))
@@ -262,6 +264,67 @@ def main():
         out = psql(pg["parameters"]["query"], fail_ok=True)
         psql("ROLLBACK;")
         check(f"{wfname} پرس‌وجو اجرا شد", True, f"{len(out)} ردیف")
+
+    # ── رفتار دسته‌ای دریافت: ترتیب، offset و پاسخ تکراری ──
+    # واقعیت روی سرور: پس از قطعی، ۸ «/start» با هم می‌رسند. سه چیز باید درست
+    # باشد: offset جلو برود (نه صفر بماند)، فقط یک راهنما فرستاده شود، و
+    # آپدیتی که پردازش نشد گردش‌کار را در حلقه بی‌پایان نیندازد.
+    psql("DELETE FROM iee1405.bot_updates;")
+    psql("DELETE FROM iee1405.bot_errors;")
+    psql("SELECT iee1405.poll_reset(0);")
+    psql("UPDATE crm.users SET bale_chat_id = $1 WHERE username = 'ahmad';", [OWNER_CHAT])
+
+    batch = [msg(8001, OWNER_CHAT, "/start"), msg(8002, OWNER_CHAT, "/start"),
+             msg(8003, OWNER_CHAT, "/start")]
+    psql("SELECT iee1405.poll_watch($1::jsonb);", [json.dumps({"ok": True, "result": batch})])
+    for u in batch:
+        psql("SELECT * FROM iee1405.bot_dispatch_json($1::jsonb);", [json.dumps(u, ensure_ascii=False)])
+    off = psql("SELECT iee1405.poll_advance();")[0][0]
+    check("offset بعد از یک دسته سه‌تایی جلو رفت", off == "8003", off)
+
+    pend = psql("SELECT count(*) FROM iee1405.pending_replies(20);")[0][0]
+    check("سه «/start» تکراری یک راهنما می‌فرستد", pend == "1", pend)
+    kept = psql("SELECT count(*) FROM iee1405.bot_updates;")[0][0]
+    check("همه سه آپدیت ثبت شدند (هیچ داده‌ای دور نریخته شد)", kept == "3", kept)
+
+    psql("SELECT iee1405.poll_watch($1::jsonb);", [json.dumps({"ok": True, "result": []})])
+    off2 = psql("SELECT iee1405.poll_advance();")[0][0]
+    check("دسته خالی offset را عقب نمی‌برد", off2 == "8003", off2)
+
+    # آپدیتی که پردازش نشود نباید باعث طوفان درخواست شود
+    psql("SELECT iee1405.poll_reset(0);")
+    psql("SELECT iee1405.poll_watch($1::jsonb);",
+         [json.dumps({"ok": True, "result": [{"update_id": 9001}, {"update_id": 9002}]})])
+    off3 = psql("SELECT iee1405.poll_advance();")[0][0]
+    check("آپدیت پردازش‌نشده offset را قفل نمی‌کند", off3 == "9002", off3)
+    lost = psql("SELECT count(*) FROM iee1405.bot_errors WHERE stage = 'unrecorded';")[0][0]
+    check("آپدیت گم‌شده ثبت شد", lost == "2", lost)
+    psql("SELECT iee1405.poll_advance();")
+    lost2 = psql("SELECT count(*) FROM iee1405.bot_errors WHERE stage = 'unrecorded';")[0][0]
+    check("ثبت گم‌شده تکرار نمی‌شود", lost2 == "2", lost2)
+
+    # ── ثبت ارسال بر اساس پاسخ واقعی بله ──
+    # باگ واقعی ۰.۱.۱۱: گره ثبت ارسال update_id را از $json می‌خواند که در
+    # خروجی sendMessage وجود ندارد → mark_delivered(NULL) → پیام هر ۲۰ ثانیه
+    # دوباره فرستاده می‌شد.
+    psql("DELETE FROM iee1405.bot_updates WHERE update_id BETWEEN 9101 AND 9102;")
+    psql("DELETE FROM iee1405.bot_errors;")
+    psql("INSERT INTO iee1405.bot_updates (update_id, chat_id, raw, reply_text) "
+         "VALUES (9101, 900001, '{}'::jsonb, 'سلام'), (9102, 900001, '{}'::jsonb, 'سلام');")
+
+    ok = psql("SELECT iee1405.mark_sent(9101, $1::jsonb);", ['{"ok":true,"result":{"message_id":9}}'])[0][0]
+    check("ارسال موفق «تحویل‌شده» ثبت می‌شود", ok == "delivered", ok)
+    left = psql("SELECT count(*) FROM iee1405.pending_replies(50) WHERE update_id = 9101;")[0][0]
+    check("پیام تحویل‌شده در صف نمی‌ماند", left == "0", left)
+
+    bad = '{"ok":false,"error_code":400,"description":"chat not found"}'
+    results = [psql("SELECT iee1405.mark_sent(9102, $1::jsonb);", [bad])[0][0] for _ in range(5)]
+    check("ارسال ناموفق تا ۵ بار تلاش می‌کند", results[:4] == ["retry"] * 4, results[:4])
+    check("بعد از ۵ تلاش رها می‌شود (حلقه بی‌پایان نمی‌شود)", results[4] == "gave-up", results[4])
+    errs = psql("SELECT count(*) FROM iee1405.bot_errors WHERE stage = 'send';")[0][0]
+    check("هر تلاش ناموفق در bot_errors ثبت می‌شود", errs == "5", errs)
+    noid = psql("SELECT iee1405.mark_sent(NULL, NULL);")[0][0]
+    check("شناسه تهی، خطا نمی‌دهد", noid == "no-id", noid)
 
     print(f"\n{len(PASS)} موفق · {len(FAIL)} ناموفق")
     if FAIL:

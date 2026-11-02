@@ -709,6 +709,21 @@ BEGIN
         END IF;
     END IF;
 
+    -- ۵.۵.۹) پاسخ تکراری: اگر همان چت در ۱۰ دقیقه گذشته همین متن راهنما را
+    -- گرفته باشد، دوباره فرستاده نمی‌شود. علت واقعی: پس از قطعی، هشت «/start»
+    -- پشت‌سرهم در یک دسته می‌آید و کاربر هشت پیام یکسان می‌گیرد. آپدیت‌ها
+    -- همه ثبت می‌شوند؛ فقط ارسال تکرار نمی‌شود. این قاعده **فقط** برای راهنما
+    -- است، نه پیام‌های تأیید ثبت داده (وگرنه دو ثبت پشت‌سرهم یک تأیید می‌گرفت).
+    IF v_cmd IN ('/start', '/help') AND v_reply IS NOT NULL AND EXISTS (
+        SELECT 1 FROM iee1405.bot_updates u
+         WHERE u.chat_id = p_chat_id
+           AND u.update_id <> p_update_id
+           AND u.reply_text = v_reply
+           AND u.processed_at > clock_timestamp() - interval '10 minutes'
+    ) THEN
+        v_reply := NULL;
+    END IF;
+
     -- ۵.۶) ثبت نتیجه در لاگ آپدیت
     UPDATE iee1405.bot_updates
        SET status = 'processed', reply_text = v_reply, actor = v_actor, processed_at = now()

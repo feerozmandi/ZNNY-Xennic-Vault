@@ -18,7 +18,9 @@ INSERT INTO iee1405.bot_state (key, value) VALUES
     ('bale_offset', '0'),
     ('poll_enabled', 'true'),
     ('last_poll_at', NULL),
-    ('last_error', NULL)
+    ('last_error', NULL),
+    ('bale_seen_max', NULL),      -- بزرگ‌ترین update_id که بله در آخرین دریافت داد
+    ('bale_batch_ids', NULL)      -- فهرست update_idهای همان دریافت (برای بررسی گم‌شدن)
 ON CONFLICT (key) DO NOTHING;
 
 COMMENT ON TABLE iee1405.bot_state IS 'وضعیت پایدار سرویس؛ با ری‌استارت n8n از دست نمی‌رود';
@@ -47,7 +49,29 @@ BEGIN
     UPDATE iee1405.bot_state SET value = NULL, updated_at = clock_timestamp()
      WHERE key = 'last_error';
 
-    SELECT max(u.update_id) INTO v_max FROM iee1405.bot_updates u;
+    -- بیشترین شناسه‌ای که **دیده شد** (نه فقط آنچه ذخیره شد)
+    SELECT GREATEST(
+               COALESCE((SELECT max(u.update_id) FROM iee1405.bot_updates u), 0),
+               -- فقط اگر در همین چرخه دسته‌ای دیده شده باشد؛ مقدار کهنه بی‌اثر است
+               CASE WHEN COALESCE((SELECT value FROM iee1405.bot_state
+                                    WHERE key = 'bale_batch_ids'), '[]') <> '[]'
+                    THEN COALESCE((SELECT value::bigint FROM iee1405.bot_state
+                                    WHERE key = 'bale_seen_max'), 0)
+                    ELSE 0 END
+           ) INTO v_max;
+
+    -- اگر آپدیتی گرفته شد ولی هیچ ردیفی برایش ساخته نشد، گم نشود: ثبت می‌شود
+    INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
+    SELECT b.id, NULL, 'unrecorded',
+           'آپدیت گرفته شد ولی در bot_updates ثبت نشد (پردازش ناقص ماند)',
+           'offset از این آپدیت گذشت تا طوفان تلاش تکرار نشود'
+      FROM (SELECT jsonb_array_elements_text(
+                     COALESCE((SELECT value::text FROM iee1405.bot_state
+                                WHERE key = 'bale_batch_ids'), '[]')::jsonb)::bigint AS id) b
+     WHERE NOT EXISTS (SELECT 1 FROM iee1405.bot_updates u WHERE u.update_id = b.id)
+       AND NOT EXISTS (SELECT 1 FROM iee1405.bot_errors e
+                        WHERE e.update_id = b.id AND e.stage = 'unrecorded');
+
     v_off := iee1405.poll_offset();
     IF v_max IS NULL OR v_off >= v_max THEN
         RETURN v_off;
@@ -57,6 +81,22 @@ BEGIN
      WHERE key = 'bale_offset';
     RETURN v_max;
 END $$;
+
+-- بازنشانی آگاهانه: فقط از این راه offset را عقب ببرید. اگر این کار را با
+-- UPDATE دستی بکنید، نشانگرهای کمکی (seen_max/batch_ids) کهنه می‌مانند.
+CREATE OR REPLACE FUNCTION iee1405.poll_reset(p_offset bigint DEFAULT 0)
+RETURNS bigint LANGUAGE plpgsql AS $$
+BEGIN
+    UPDATE iee1405.bot_state SET value = p_offset::text, updated_at = clock_timestamp()
+     WHERE key = 'bale_offset';
+    UPDATE iee1405.bot_state SET value = NULL, updated_at = clock_timestamp()
+     WHERE key = 'bale_seen_max';
+    UPDATE iee1405.bot_state SET value = '[]', updated_at = clock_timestamp()
+     WHERE key = 'bale_batch_ids';
+    RETURN p_offset;
+END $$;
+
+COMMENT ON FUNCTION iee1405.poll_reset IS 'بازخوانی از شناسه مشخص؛ نشانگرهای کمکی را هم صفر می‌کند';
 
 -- ضربان: «هر ۲۰ ثانیه یک بار تلاش کردم» — مستقل از موفقیت یا شکست درخواست.
 -- چرا جدا از poll_advance؟ چون wenn شبکه/بله قطع باشد و درخواست معلق بماند،
@@ -80,6 +120,27 @@ BEGIN
     IF p_response IS NULL THEN
         PERFORM iee1405.record_poll_error('{"error":{"message":"پاسخ خالی از بله"}}');
         RETURN COALESCE(p_response, '{}'::jsonb);
+    END IF;
+
+    -- شناسه‌های همین دریافت را ثبت می‌کنیم. چرا؟ جلو بردن offset نباید به
+    -- موفقیت گره «پردازش» گره‌خورده باشد؛ وگرنه یک آپدیت مشکل‌دار باعث می‌شود
+    -- همان دسته هر ۲۰ ثانیه دوباره گرفته شود (طوفان تلاش و پاسخ تکراری).
+    IF jsonb_typeof(p_response -> 'result') = 'array' THEN
+        UPDATE iee1405.bot_state
+           SET value = COALESCE((
+                   SELECT jsonb_agg((x ->> 'update_id')::bigint ORDER BY (x ->> 'update_id')::bigint)::text
+                     FROM jsonb_array_elements(p_response -> 'result') x
+                    WHERE (x ->> 'update_id') ~ '^[0-9]+$'), '[]'),
+               updated_at = clock_timestamp()
+         WHERE key = 'bale_batch_ids';
+        -- بازنویسی می‌شود (نه انباره): اگر offset دستی به عقب برگردد، این مقدار
+        -- قدیمی جلوی آن را نمی‌گیرد.
+        UPDATE iee1405.bot_state
+           SET value = COALESCE((SELECT max((x ->> 'update_id')::bigint)
+                                   FROM jsonb_array_elements(p_response -> 'result') x
+                                  WHERE (x ->> 'update_id') ~ '^[0-9]+$'), 0)::text,
+               updated_at = clock_timestamp()
+         WHERE key = 'bale_seen_max';
     END IF;
 
     IF (p_response ->> 'ok') = 'false' THEN
@@ -347,10 +408,59 @@ LANGUAGE sql STABLE AS $$
       FROM iee1405.bot_updates u
      WHERE u.reply_text IS NOT NULL
        AND u.delivered_at IS NULL
-       AND u.status <> 'duplicate'
+       AND u.status IN ('received', 'processed', 'skipped')
      ORDER BY u.update_id
      LIMIT p_limit
 $$;
+
+-- ثبت نتیجه ارسال. چرا پاسخ بله هم ورودی است؟ چون «ارسال شد» را نباید از
+-- متن خطای n8n حدس زد: بله برای خیلی از خطاها کد ۲۰۰ با ok:false می‌دهد.
+-- اگر ارسال ناموفق باشد، پیام در صف می‌ماند و در چرخه بعد دوباره تلاش می‌شود؛
+-- بعد از ۵ تلاش رها می‌شود تا حلقه بی‌پایان ارسال رخ ندهد (و در bot_errors می‌ماند).
+CREATE OR REPLACE FUNCTION iee1405.mark_sent(p_update_id bigint, p_response jsonb DEFAULT NULL)
+RETURNS text LANGUAGE plpgsql AS $$
+DECLARE
+    v_ok       boolean := COALESCE((p_response ->> 'ok')::boolean, false);
+    v_attempts int;
+    v_code     text;
+BEGIN
+    IF p_update_id IS NULL THEN
+        RETURN 'no-id';
+    END IF;
+
+    IF v_ok THEN
+        UPDATE iee1405.bot_updates
+           SET delivered_at = clock_timestamp(), status = 'processed'
+         WHERE update_id = p_update_id;
+        RETURN 'delivered';
+    END IF;
+
+    v_code := COALESCE(p_response #>> '{error,status}',
+                       p_response ->> 'error_code',
+                       p_response ->> 'message',
+                       '?');
+    UPDATE iee1405.bot_updates
+       SET raw = jsonb_set(COALESCE(raw, '{}'::jsonb), '{_attempts}',
+                           to_jsonb(COALESCE((raw ->> '_attempts')::int, 0) + 1), true)
+     WHERE update_id = p_update_id
+     RETURNING COALESCE((raw ->> '_attempts')::int, 0) INTO v_attempts;
+
+    INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
+    SELECT p_update_id, u.chat_id, 'send',
+           'ارسال به بله ناموفق بود (کد ' || COALESCE(v_code, '?') || ')',
+           left(COALESCE(p_response::text, '—'), 400)
+      FROM iee1405.bot_updates u
+     WHERE u.update_id = p_update_id;
+
+    IF COALESCE(v_attempts, 0) >= 5 THEN
+        UPDATE iee1405.bot_updates SET delivered_at = clock_timestamp()
+         WHERE update_id = p_update_id;
+        RETURN 'gave-up';
+    END IF;
+    RETURN 'retry';
+END $$;
+
+COMMENT ON FUNCTION iee1405.mark_sent IS 'ثبت ارسال بر اساس پاسخ واقعی بله؛ تلاش محدود تا حلقه بی‌پایان نشود';
 
 CREATE OR REPLACE FUNCTION iee1405.mark_delivered(p_update_id bigint)
 RETURNS void LANGUAGE sql AS $$

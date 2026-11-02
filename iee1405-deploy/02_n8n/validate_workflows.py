@@ -45,7 +45,8 @@ SAMPLE_PARAMS = {
     ],
     # پاسخ موفق بله، همان شکل واقعی getUpdates
     "🩺 بازرسی پاسخ بله": ['{"ok":true,"result":[]}'],
-    "✅ ثبت ارسال": ["7001"],
+    # پاسخ واقعی sendMessage بله + شناسه آپدیتی که باید «ارسال‌شده» شود
+    "✅ ثبت ارسال": ["7001", '{"ok":true,"result":{"message_id":5}}'],
     "🛑 ثبت خطای دریافت": ["Connection timed out"],
 }
 
@@ -201,17 +202,67 @@ def _upstream(wf, node_name):
     return ups
 
 
+# گره‌هایی که ورودی‌شان را از جای دیگری می‌گیرند (نه آیتم گره بالادستی)
+REFERENCE_ONLY = {"n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.manualTrigger",
+                  "n8n-nodes-base.splitOut", "n8n-nodes-base.if", "n8n-nodes-base.noOp"}
+
+
+# خروجی شناخته‌شده گره‌های HTTP بله: از روی انتهای URL تشخیص داده می‌شود.
+# sendMessage پاسخ {ok, result:{message_id}} می‌دهد و **update_id ندارد**؛
+# استفاده از $json.update_id بعد از آن همیشه NULL است.
+HTTP_OUTPUTS = {
+    "/getUpdates": {"ok", "result", "error_code", "description"},
+    "/sendMessage": {"ok", "result", "error_code", "description"},
+    "/setWebhook": {"ok", "description"},
+    "/deleteWebhook": {"ok", "description"},
+}
+
+
+def _http_fields(url):
+    for suffix, fields in HTTP_OUTPUTS.items():
+        if suffix in url:
+            return fields
+    return None
+
 def check_http_inputs(wf_name, wf):
+    """هر $json.<field> باید در خروجی گره بالادستی وجود داشته باشد.
+
+    باگ واقعی ۰.۱.۱۱: گره «ثبت ارسال» بعد از گره ارسال بود و $json.update_id
+    می‌خواند؛ خروجی گره ارسال پاسخ بله است و update_id ندارد → NULL → پیام
+    هر ۲۰ ثانیه تکرار می‌شد. ارجاع صریح به گره دیگر ($('...').item) از این
+    قاعده مستثنی است.
+    """
     by_name = {n["name"]: n for n in wf["nodes"]}
     for n in wf["nodes"]:
-        if n.get("type") != "n8n-nodes-base.httpRequest":
+        if n.get("type") in REFERENCE_ONLY:
             continue
-        used = _fields_in(n.get("parameters", {}))
+        params = n.get("parameters", {})
+        # $('نام گره').item.json.x → وابستگی به گره دیگر است، نه به گره بالادست
+        if "$(" in json.dumps(params, ensure_ascii=False) or "$node[" in json.dumps(params, ensure_ascii=False):
+            continue
+        used = _fields_in(params)
         if not used:
             continue
         for up_name in _upstream(wf, n["name"]):
             up = by_name.get(up_name)
-            if not up or up.get("type") != "n8n-nodes-base.postgres":
+            if not up:
+                continue
+
+            if up.get("type") == "n8n-nodes-base.httpRequest":
+                # خروجی شناخته‌شده HTTP: فیلدهای غیرموجود را می‌گیریم
+                allowed = _http_fields(up.get("parameters", {}).get("url", ""))
+                if allowed is None:
+                    continue
+                missing = {f for f in used if f not in allowed and f not in {"data", "json"}}
+                if missing:
+                    err(
+                        wf_name,
+                        f"گره «{n['name']}» از {sorted(missing)} استفاده می‌کند ولی خروجی گره "
+                        f"«{up_name}» (پاسخ بله) این فیلدها را ندارد → مقدار NULL",
+                    )
+                continue
+
+            if up.get("type") != "n8n-nodes-base.postgres":
                 continue
             sql = up.get("parameters", {}).get("query", "")
             aliases = {a or b for a, b in SQL_ALIAS.findall(sql)}
@@ -231,6 +282,41 @@ def check_http_inputs(wf_name, wf):
                     f"گره «{n['name']}» از {sorted(missing)} استفاده می‌کند ولی خروجی گره "
                     f"«{up_name}» این فیلدها را ندارد (متغیر undefined → مقدار NaN/خالی در URL)",
                 )
+
+# ═══════════════════════════════════════════════════════════════════════
+# قاعده «ترتیب وابستگی»: جلو بردن offset باید **بعد** از پردازش باشد، چون
+# poll_advance() مقدارش را از bot_updates می‌خواند. باگ واقعی ۰.۱.۱۱ همین
+# بود: advance قبل از dispatch اجرا می‌شد، جدول خالی بود و offset صفر
+# می‌ماند → همان دسته هر ۲۰ ثانیه دوباره گرفته می‌شد.
+# ═══════════════════════════════════════════════════════════════════════
+ADVANCE_NODES = {"⏭ ثبت زمان دریافت": "🧠 پردازش در PostgreSQL"}
+
+
+def _reachable(wf, start):
+    seen, stack = set(), [start]
+    while stack:
+        cur = stack.pop()
+        for branch in wf.get("connections", {}).get(cur, {}).get("main", []):
+            for link in branch or []:
+                nxt = link.get("node")
+                if nxt and nxt not in seen:
+                    seen.add(nxt)
+                    stack.append(nxt)
+    return seen
+
+
+def check_order(wf_name, wf):
+    names = {n["name"] for n in wf["nodes"]}
+    for advance, before in ADVANCE_NODES.items():
+        if advance not in names or before not in names:
+            continue
+        # advance باید از before قابل دسترسی باشد (یعنی پایین‌دست آن)
+        if advance not in _reachable(wf, before):
+            err(
+                wf_name,
+                f"ترتیب غلط: «{advance}» باید بعد از «{before}» باشد، وگرنه "
+                f"جدول bot_updates هنگام خواندن خالی است و offset جلو نمی‌رود",
+            )
 
 def check_cron(wf_name, wf):
     for n in wf["nodes"]:
@@ -293,6 +379,7 @@ def main():
         check_expressions(wf_name, wf)
         check_cron(wf_name, wf)
         check_http_inputs(wf_name, wf)
+        check_order(wf_name, wf)
         for n in wf["nodes"]:
             if n.get("type") == "n8n-nodes-base.postgres":
                 sql = n["parameters"]["query"]

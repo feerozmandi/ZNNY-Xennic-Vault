@@ -232,7 +232,7 @@ def wf_inbound():
         "⏭ ثبت زمان دریافت", [1100, 0],
         "SELECT iee1405.poll_advance() AS \"offset\";",
         execute_once=True,
-        notes="offset از max(update_id) محاسبه می‌شود، نه از حافظه n8n",
+        notes="بعد از پردازش اجرا می‌شود تا max(update_id) واقعاً موجود باشد",
     )
 
     n_pending = pg_node(
@@ -245,10 +245,14 @@ def wf_inbound():
 
     n_send = send_message_node("💬 ارسال پاسخ", [1760, 0])
 
+    # update_id از گره «پاسخ‌های آماده ارسال» خوانده می‌شود، نه از $json:
+    # خروجی گره ارسال، پاسخ بله است (ok/message_id) و update_id ندارد؛ نسخه
+    # ۰.۱.۱۱ همین‌جا mark_delivered(NULL) می‌داد → هیچ ارسالی ثبت نمی‌شد و
+    # همان پیام هر ۲۰ ثانیه تکرار می‌شد.
     n_mark = pg_node(
         "✅ ثبت ارسال", [1980, 0],
-        "SELECT iee1405.mark_delivered($1::bigint);",
-        params_expr="[$json.update_id]",
+        "SELECT iee1405.mark_sent($1::bigint, $2::jsonb) AS result;",
+        params_expr="[$('📤 پاسخ\u200cهای آماده ارسال').item.json.update_id, JSON.stringify($json)]",
     )
 
     # شاخه خطا: اگر getUpdates شکست بخورد، ثبت می‌شود تا قطعی از سکوت تفکیک شود
@@ -276,9 +280,12 @@ def wf_inbound():
                                 [{"node": n_pollerr["name"], "type": "main", "index": 0}],
                           ]},
         n_watch["name"]:  {"main": [[{"node": n_split["name"], "type": "main", "index": 0}]]},
-        n_split["name"]:  {"main": [[{"node": n_advance["name"], "type": "main", "index": 0}]]},
-        n_advance["name"]:  {"main": [[{"node": n_dispatch["name"], "type": "main", "index": 0}]]},
-        n_dispatch["name"]: {"main": [[{"node": n_pending["name"], "type": "main", "index": 0}]]},
+        # ترتیب حیاتی است: poll_advance() بیشترین update_id را از bot_updates
+        # می‌خواند. اگر قبل از «پردازش» اجرا شود، جدول هنوز خالی است، offset
+        # صفر می‌ماند و همان دسته هر ۲۰ ثانیه دوباره گرفته می‌شود (باگ ۰.۱.۱۱).
+        n_split["name"]:  {"main": [[{"node": n_dispatch["name"], "type": "main", "index": 0}]]},
+        n_dispatch["name"]: {"main": [[{"node": n_advance["name"], "type": "main", "index": 0}]]},
+        n_advance["name"]:  {"main": [[{"node": n_pending["name"], "type": "main", "index": 0}]]},
         n_pending["name"]:  {"main": [[{"node": n_send["name"], "type": "main", "index": 0}]]},
         n_send["name"]:     {"main": [[{"node": n_mark["name"], "type": "main", "index": 0}]]},
     }

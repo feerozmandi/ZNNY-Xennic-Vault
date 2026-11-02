@@ -203,7 +203,7 @@
         }
       },
       "executeOnce": true,
-      "notes": "offset از max(update_id) محاسبه می‌شود، نه از حافظه n8n",
+      "notes": "بعد از پردازش اجرا می‌شود تا max(update_id) واقعاً موجود باشد",
       "notesInFlow": true
     },
     {
@@ -269,9 +269,9 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT iee1405.mark_delivered($1::bigint);",
+        "query": "SELECT iee1405.mark_sent($1::bigint, $2::jsonb) AS result;",
         "options": {
-          "queryReplacement": "={{ [$json.update_id] }}"
+          "queryReplacement": "={{ [$('📤 پاسخ‌های آماده ارسال').item.json.update_id, JSON.stringify($json)] }}"
         }
       },
       "id": "14fe4ce9-534c-530e-8174-d4ed9b566aa8",
@@ -385,17 +385,6 @@
       "main": [
         [
           {
-            "node": "⏭ ثبت زمان دریافت",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "⏭ ثبت زمان دریافت": {
-      "main": [
-        [
-          {
             "node": "🧠 پردازش در PostgreSQL",
             "type": "main",
             "index": 0
@@ -404,6 +393,17 @@
       ]
     },
     "🧠 پردازش در PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "⏭ ثبت زمان دریافت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭ ثبت زمان دریافت": {
       "main": [
         [
           {
