@@ -52,6 +52,23 @@ def psql(sql, params=None, fail_ok=False):
     return [r.split("\x1f") for r in out.split("\x1e") if r.strip() != ""]
 
 
+def psql_as(role, sql, params=None):
+    """اجرا با نقش مشخص. n8n با iee_app کار می‌کند، نه با postgres؛ پس هر
+    دسترسی که در این نقش نباشد، در تولید به «permission denied» می‌رسد."""
+    cmd = sql.rstrip().rstrip(";")
+    if params:
+        binds = " ".join("'" + str(x).replace("'", "''") + "'" for x in params)
+        cmd += f"\n\\bind {binds}\n\\g"
+    p = subprocess.run([str(BIN / "psql"), URI, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A",
+                        "-F", "\x1f", "-R", "\x1e"],
+                       input=f"SET ROLE {role};\n{cmd}".encode(),
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = p.stdout.decode("utf-8", "replace").strip()
+    if p.returncode != 0:
+        raise RuntimeError(f"SQL as {role} failed: {sql[:160]}\n{out[:500]}")
+    return [r.split("\x1f") for r in out.split("\x1e") if r.strip() != ""]
+
+
 def node(name, wf):
     return next(n for n in wf["nodes"] if n["name"] == name)
 
@@ -325,6 +342,44 @@ def main():
     check("هر تلاش ناموفق در bot_errors ثبت می‌شود", errs == "5", errs)
     noid = psql("SELECT iee1405.mark_sent(NULL, NULL);")[0][0]
     check("شناسه تهی، خطا نمی‌دهد", noid == "no-id", noid)
+
+    # ── دسترسی‌های نقش واقعی (iee_app) ──
+    # خطای واقعی روی سرور: «permission denied for sequence bot_errors_id_seq»
+    # و «permission denied for table users». هیچ‌کدام در نقش postgres دیده
+    # نمی‌شوند، پس کل مسیر ربات باید با همان نقش n8n آزموده شود.
+    psql("DELETE FROM iee1405.bot_errors;")
+    psql("DELETE FROM iee1405.bot_updates;")
+    psql("SELECT iee1405.poll_reset(0);")
+    psql("UPDATE crm.users SET bale_chat_id = $1 WHERE username = 'ahmad';", [OWNER_CHAT])
+
+    gaps = psql_as("iee_app", "SELECT count(*) FROM iee1405.privilege_gaps();")[0][0]
+    check("نقش iee_app کمبود دسترسی ندارد", gaps == "0", gaps)
+
+    as_app_errors = []
+    for i, text in enumerate(["/start", "/help", "/new", "شرکت آزمون دسترسی", "1",
+                              "38-12", "/today", "/find پارس", "/status", "/cancel"]):
+        uid = 9800 + i
+        upd = json.dumps(msg(uid, OWNER_CHAT, text), ensure_ascii=False)
+        try:
+            st = psql_as("iee_app", "SELECT status FROM iee1405.bot_dispatch_json($1::jsonb);", [upd])[0][0]
+        except RuntimeError as e:
+            as_app_errors.append(f"{text}: {e}")
+            continue
+        if st == "error":
+            as_app_errors.append(text)
+    check("کل مسیر ربات با نقش iee_app بدون خطا اجرا شد", not as_app_errors, str(as_app_errors[:3]))
+
+    db_errs = psql("SELECT count(*) FROM iee1405.bot_errors;")[0][0]
+    check("هیچ خطای دسترسی در bot_errors نماند", db_errs == "0", db_errs)
+
+    # ارسال هم باید با همین نقش ثبت شود (سیکوئنس bot_errors و bot_updates)
+    try:
+        psql_as("iee_app", "SELECT iee1405.mark_sent($1::bigint, $2::jsonb);",
+                ["9800", '{"ok":false,"error_code":400}'])
+        send_ok = True
+    except RuntimeError:
+        send_ok = False
+    check("ثبت ارسال ناموفق با iee_app مجاز است", send_ok)
 
     print(f"\n{len(PASS)} موفق · {len(FAIL)} ناموفق")
     if FAIL:

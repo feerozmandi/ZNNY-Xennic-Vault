@@ -160,6 +160,32 @@ UNION ALL SELECT 'کاربر', count(*)::text FROM crm.users" | sed 's/^/  /'
 echo ""
 pgq_pretty "$PG_DB" -c "SELECT iee1405.health_text()" | sed 's/^/  /'
 
+# ── دسترسی نقش ربات: خطاهای واقعی «permission denied» این‌جا پیدا می‌شوند ──
+echo ""
+c_head "دسترسی نقش iee_app (همان نقشی که n8n استفاده می‌کند)"
+GAPS="$(pgq "$PG_DB" -c "SELECT count(*) FROM iee1405.privilege_gaps()" 2>/dev/null | tr -d '[:space:]')"
+if [[ "$GAPS" == "0" ]]; then
+    c_ok "بدون کمبود دسترسی"
+elif [[ -z "$GAPS" ]]; then
+    c_warn "تابع بازبینی ساخته نشده (06_roles.sql اجرا نشده است)"
+    c_hint "APP_PASSWORD='رمز-قوی' bash 03_ops/deploy_sql.sh"
+else
+    c_bad "کمبود دسترسی: $GAPS مورد — ربات در تولید با «permission denied» متوقف می‌شود"
+    pgq_pretty "$PG_DB" -c "SELECT kind, object_name, needed FROM iee1405.privilege_gaps()" | sed 's/^/  /'
+    c_hint "grants در 01_sql/06_roles.sql است؛ دوباره اجرا کنید: bash 03_ops/deploy_sql.sh"
+fi
+
+# آزمون واقعی: توابع ربات با نقش iee_app (نه با postgres)
+# SET ROLE خودش یک خط «SET» چاپ می‌کند؛ فقط آخرین خط، جواب کوئری است
+APP_TEST="$(pgq "$PG_DB" -c "SET ROLE iee_app; SELECT iee1405.poll_offset();" 2>&1 |
+            tail -1 | tr -d '[:space:]')"
+if [[ "$APP_TEST" =~ ^[0-9]+$ ]]; then
+    c_ok "توابع پایه با نقش iee_app اجرا می‌شوند"
+else
+    c_warn "آزمون نقش iee_app ناموفق: $(printf '%s' "$APP_TEST" | head -c 80)"
+    c_hint "bash 03_ops/deploy_sql.sh   # گرنت‌ها را دوباره اعمال می‌کند"
+fi
+
 echo ""
 echo "✅ استقرار تمام شد"
 echo "   گام بعدی: bash 03_ops/import_workflows.sh import"

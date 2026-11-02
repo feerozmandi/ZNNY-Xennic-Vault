@@ -313,6 +313,34 @@ bash 03_ops/open_ui.sh
 > (وگرنه هشت پیام یکسان پشت سر هم می‌آمد). پیام‌های تأیید ثبت داده از این
 > قاعده مستثنی‌اند تا دو ثبت پشت‌سرهم یک تأیید نگیرد.
 
+### اگر گره‌ای «permission denied» داد
+
+> [!danger] این خطا هیچ ربطی به n8n ندارد
+> n8n با نقش `iee_app` به PostgreSQL وصل می‌شود، نه با `postgres`. هر دسترسی که
+> به این نقش داده نشود، فقط در لحظه اجرا معلوم می‌شود:
+>
+> | پیام | معنا | رفع |
+> |---|---|---|
+> | `permission denied for sequence bot_errors_id_seq` | INSERT روی جدولی که شناسه‌اش `bigserial` است، بدون `USAGE` روی سیکوئنس | `GRANT USAGE, SELECT ON ALL SEQUENCES ...` |
+> | `permission denied for table users` | ربات `last_seen_at` را به‌روز می‌کند اما `UPDATE` نداشت | `GRANT UPDATE (last_seen_at, bale_chat_id) ON crm.users` |
+>
+> هر دو در `01_sql/06_roles.sql` رفع شده‌اند. **راه‌حل دائمی:** بعد از هر تغییر
+> ساختار، `bash 03_ops/deploy_sql.sh` را اجرا کنید؛ در پایان، دسترسی‌ها را
+> بازبینی می‌کند و اگر کمبودی باشد نام می‌برد.
+
+بازبینی دستی در هر زمان:
+
+```bash
+bash 03_ops/deploy_sql.sh --verify-only
+# یا داخل psql:
+SELECT * FROM iee1405.privilege_gaps();   -- خروجی خالی = سالم
+```
+
+> [!tip] چرا این باگ فقط روی سرور دیده شد
+> آزمون‌های قبلی با کاربر `postgres` اجرا می‌شدند و همه‌چیز مجاز بود. حالا
+> `test_workflow_e2e.py` کل مسیر ربات را با `SET ROLE iee_app` اجرا می‌کند،
+> پس کمبود دسترسی در همان آزمون محلی قرمز می‌شود، نه در نیمه‌شب روی سرور.
+
 ### اگر گام ۴ خطای ۴۰۰ داد: «malformed request»
 
 > [!danger] علت قطعی و رفعشده در v0.1.10
