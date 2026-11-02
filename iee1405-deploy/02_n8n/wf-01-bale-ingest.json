@@ -114,7 +114,34 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "result",
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.poll_watch($1::jsonb) AS response;",
+        "options": {
+          "queryReplacement": "={{ [JSON.stringify($json)] }}"
+        }
+      },
+      "id": "9327807a-9bc6-59e1-8c36-0fa158a2a104",
+      "name": "🩺 بازرسی پاسخ بله",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "بله خطاها را با HTTP 200 و ok:false برمی‌گرداند؛ این‌جا ثبت می‌شود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "response.result",
         "options": {},
         "include": "noOtherFields"
       },
@@ -123,7 +150,7 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        880,
+        1100,
         0
       ],
       "alwaysOutputData": true
@@ -142,7 +169,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1100,
+        1320,
         0
       ],
       "credentials": {
@@ -166,7 +193,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        880,
+        1100,
         0
       ],
       "credentials": {
@@ -191,7 +218,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1320,
+        1540,
         0
       ],
       "credentials": {
@@ -232,7 +259,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1540,
+        1760,
         0
       ],
       "retryOnFail": false,
@@ -252,7 +279,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1760,
+        1980,
         0
       ],
       "credentials": {
@@ -329,7 +356,7 @@
       "main": [
         [
           {
-            "node": "✂️ تفکیک آپدیت‌ها",
+            "node": "🩺 بازرسی پاسخ بله",
             "type": "main",
             "index": 0
           }
@@ -337,6 +364,17 @@
         [
           {
             "node": "🛑 ثبت خطای دریافت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🩺 بازرسی پاسخ بله": {
+      "main": [
+        [
+          {
+            "node": "✂️ تفکیک آپدیت‌ها",
             "type": "main",
             "index": 0
           }

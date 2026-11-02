@@ -202,13 +202,21 @@ def wf_inbound():
     )
     n_get["onError"] = "continueErrorOutput"
 
+    n_watch = pg_node(
+        "🩺 بازرسی پاسخ بله", [880, 0],
+        "SELECT iee1405.poll_watch($1::jsonb) AS response;",
+        params_expr="[JSON.stringify($json)]",
+        execute_once=True,
+        notes="بله خطاها را با HTTP 200 و ok:false برمی‌گرداند؛ این‌جا ثبت می‌شود",
+    )
+
     # alwaysOutputData حیاتی است: در اجرای بی‌پیام، split هیچ آیتمی تولید نمی‌کند
     # و گره‌های بعدی اجرا نمی‌شدند؛ در نتیجه last_poll_at هرگز تازه نمی‌شد و
     # پایش سلامت، «سکوت» را با «قطعی» اشتباه می‌گرفت.
-    n_split = split_node("✂️ تفکیک آپدیت‌ها", [880, 0], "result", always_output=True)
+    n_split = split_node("✂️ تفکیک آپدیت‌ها", [1100, 0], "response.result", always_output=True)
 
     n_dispatch = pg_node(
-        "🧠 پردازش در PostgreSQL", [1100, 0],
+        "🧠 پردازش در PostgreSQL", [1320, 0],
         "SELECT chat_id, status, reply_text, org_code\n"
         "  FROM iee1405.bot_dispatch_json($1::jsonb);",
         params_expr="JSON.stringify($json)",
@@ -217,24 +225,24 @@ def wf_inbound():
 
     # بلافاصله بعد از پردازش: در هر اجرا (حتی بی‌پیام) زمان دریافت ثبت می‌شود
     n_advance = pg_node(
-        "⏭ ثبت زمان دریافت", [880, 0],
+        "⏭ ثبت زمان دریافت", [1100, 0],
         "SELECT iee1405.poll_advance() AS \"offset\";",
         execute_once=True,
         notes="offset از max(update_id) محاسبه می‌شود، نه از حافظه n8n",
     )
 
     n_pending = pg_node(
-        "📤 پاسخ‌های آماده ارسال", [1320, 0],
+        "📤 پاسخ‌های آماده ارسال", [1540, 0],
         "SELECT update_id, chat_id, text_body\n"
         "  FROM iee1405.pending_replies(20);",
         execute_once=True,   # حیاتی: بدون این، به تعداد آیتم‌ها پیام تکراری می‌رود
         notes="ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
     )
 
-    n_send = send_message_node("💬 ارسال پاسخ", [1540, 0])
+    n_send = send_message_node("💬 ارسال پاسخ", [1760, 0])
 
     n_mark = pg_node(
-        "✅ ثبت ارسال", [1760, 0],
+        "✅ ثبت ارسال", [1980, 0],
         "SELECT iee1405.mark_delivered($1::bigint);",
         params_expr="[$json.update_id]",
     )
@@ -252,7 +260,7 @@ def wf_inbound():
     )
     n_pollerr["onError"] = "continueRegularOutput"
 
-    nodes = [n_sched, n_offset, n_beat, n_get, n_split, n_dispatch,
+    nodes = [n_sched, n_offset, n_beat, n_get, n_watch, n_split, n_dispatch,
              n_advance, n_pending, n_send, n_mark, n_pollerr]
 
     conns = {
@@ -260,9 +268,10 @@ def wf_inbound():
         n_offset["name"]: {"main": [[{"node": n_beat["name"],    "type": "main", "index": 0}]]},
         n_beat["name"]:   {"main": [[{"node": n_get["name"],     "type": "main", "index": 0}]]},
         n_get["name"]:    {"main": [
-                                [{"node": n_split["name"], "type": "main", "index": 0}],
+                                [{"node": n_watch["name"], "type": "main", "index": 0}],
                                 [{"node": n_pollerr["name"], "type": "main", "index": 0}],
                           ]},
+        n_watch["name"]:  {"main": [[{"node": n_split["name"], "type": "main", "index": 0}]]},
         n_split["name"]:  {"main": [[{"node": n_advance["name"], "type": "main", "index": 0}]]},
         n_advance["name"]:  {"main": [[{"node": n_dispatch["name"], "type": "main", "index": 0}]]},
         n_dispatch["name"]: {"main": [[{"node": n_pending["name"], "type": "main", "index": 0}]]},

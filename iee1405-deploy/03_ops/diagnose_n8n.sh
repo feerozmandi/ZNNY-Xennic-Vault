@@ -186,6 +186,51 @@ case "$CONTAINER_NET" in
         c_warn "پاسخ غیرمنتظره از داخل کانتینر: $CONTAINER_NET" ;;
 esac
 
+c_head "۳.۷) آزمون زنده getUpdates از داخل کانتینر n8n"
+# این تنها آزمونی است که می‌گوید درخواست واقعی «سریع برمی‌گردد» یا «معلق می‌ماند».
+# توکن چاپ نمی‌شود: فقط کد وضعیت، زمان پاسخ و ۲۰۰ کاراکتر اول بدنه (ماسک‌شده).
+PROBE="$($DK exec -i "$N8N_CT" sh -c '
+url="$BALE_API_URL/getUpdates?offset=0&limit=1&timeout=0"
+out=$(mktemp)
+res=$(curl -s -m 15 -o "$out" -w "%{http_code} %{time_total}" "$url" 2>&1)
+code=$(echo "$res" | cut -d" " -f1)
+secs=$(echo "$res" | cut -d" " -f2)
+body=$(head -c 200 "$out" 2>/dev/null | sed "s/bot[0-9][0-9]*:[A-Za-z0-9_-]*/bot***/g")
+rm -f "$out"
+echo "CODE=$code TIME=$secs"
+echo "BODY=$body"
+' 2>&1)"
+CODE="$(printf '%s' "$PROBE" | sed -n 's/^CODE=\([^ ]*\).*/\1/p')"
+TIME_S="$(printf '%s' "$PROBE" | sed -n 's/.*TIME=\([0-9.]*\).*/\1/p')"
+BODY="$(printf '%s' "$PROBE" | sed -n 's/^BODY=//p' | head -c 200)"
+
+echo "     کد وضعیت: ${CODE:-?} · زمان پاسخ: ${TIME_S:-?} ثانیه"
+[[ -n "$BODY" ]] && echo "     بدنه: $BODY"
+
+case "$CODE" in
+    200)
+        c_ok "getUpdates پاسخ ۲۰۰ داد (بدنه بالا: ok/result خالی یعنی هیچ پیام تازه‌ای نیست)"
+        if awk -v t="${TIME_S:-0}" 'BEGIN { exit !(t + 0 > 10) }'; then
+            c_warn "پاسخ کند بود ($TIME_S ثانیه) — با بازه ۲۰ ثانیه‌ای اجراها روی هم می‌افتند"
+        else
+            c_ok "پاسخ سریع بود ($TIME_S ثانیه)"
+        fi
+        ;;
+    000|"")
+        c_bad "درخواست کامل نشد (timeout یا خطای اتصال) — همان چیزی که اجراها را معلق می‌کند"
+        c_hint "اگر curl هم معلق می‌ماند، مشکل از شبکه/فیلتر است نه n8n"
+        ;;
+    401|403)
+        c_bad "توکن رد شد ($CODE) — BALE_TOKEN_BOT را در .env بررسی کنید"
+        ;;
+    404)
+        c_bad "مسیر یا توکن اشتباه است (404) — BALE_API_URL باید به /bot<TOKEN> ختم شود"
+        ;;
+    *)
+        c_warn "پاسخ غیرمنتظره: $CODE"
+        ;;
+esac
+
 c_head "۴) وضعیت دریافت پیام در دیتابیس برنامه"
 pgq_pretty "$PG_DB" -c "
     SELECT key, left(coalesce(value, '—'), 30) AS value

@@ -20,6 +20,10 @@ services:
       - GENERIC_TIMEZONE=Asia/Tehran
       - TZ=Asia/Tehran
       - N8N_DIAGNOSTICS_ENABLED=false
+      # سقف سخت روی هر اجرا (ثانیه): حتی اگر گره‌ای timeout خودش را نادیده بگیرد،
+      # اجرا بسته می‌شود و صف روی هم نمی‌افتد. بازه گردش‌کار ۲۰ ثانیه است.
+      - EXECUTIONS_TIMEOUT=45
+      - EXECUTIONS_TIMEOUT_MAX=120
       - EXECUTIONS_DATA_PRUNE=true
       - EXECUTIONS_DATA_MAX_AGE=168
     ports:

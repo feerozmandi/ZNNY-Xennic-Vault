@@ -42,6 +42,8 @@ SAMPLE_PARAMS = {
     "🧠 پردازش در PostgreSQL": [
         '{"update_id":7001,"message":{"chat_id":900001,"from":{"id":1},"text":"/help"}}'
     ],
+    # پاسخ موفق بله، همان شکل واقعی getUpdates
+    "🩺 بازرسی پاسخ بله": ['{"ok":true,"result":[]}'],
     "✅ ثبت ارسال": ["7001"],
     "🛑 ثبت خطای دریافت": ["Connection timed out"],
 }
@@ -112,6 +114,8 @@ def check_structure(wf_name, wf):
                 err(wf_name, f"{n['name']}: resource باید database باشد")
             if n.get("parameters", {}).get("operation") != "executeQuery":
                 err(wf_name, f"{n['name']}: operation باید executeQuery باشد")
+        if wf_name.startswith("IEE1405-01") and "poll_watch" not in json.dumps(n, ensure_ascii=False):
+            pass
         if t == "n8n-nodes-base.httpRequest" and n.get("onError") == "continueErrorOutput":
             branches = wf.get("connections", {}).get(n["name"], {}).get("main", [])
             if len(branches) < 2 or not branches[1]:

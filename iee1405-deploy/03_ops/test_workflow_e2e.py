@@ -185,6 +185,22 @@ def main():
     check("اجرای بی‌پیام هم زمان دریافت را ثبت می‌کند",
           fresh and fresh[0][0] == "t", str(fresh))
 
+    # ── بازرسی پاسخ بله (ok:false با HTTP 200) ──
+    errors_before = int(psql("SELECT count(*) FROM iee1405.bot_errors")[0][0])
+    watch_ok = psql(query_of("🩺 بازرسی پاسخ بله", wf),
+                    ['{"ok":true,"result":[]}'])
+    check("پاسخ موفق بله خطایی ثبت نمی‌کند",
+          int(psql("SELECT count(*) FROM iee1405.bot_errors")[0][0]) == errors_before,
+          str(watch_ok)[:80])
+    watch_bad = psql(query_of("🩺 بازرسی پاسخ بله", wf),
+                     ['{"ok":false,"error_code":401,"description":"Unauthorized"}'])
+    check("پاسخ ناموفق بله ثبت می‌شود (نه سکوت)",
+          int(psql("SELECT count(*) FROM iee1405.bot_errors")[0][0]) == errors_before + 1,
+          str(watch_bad)[:80])
+    err_text = psql("SELECT message FROM iee1405.bot_errors ORDER BY occurred_at DESC LIMIT 1")[0][0]
+    check("پیام خطا خواناست", "Unauthorized" in err_text, err_text[:60])
+    psql("DELETE FROM iee1405.bot_errors WHERE stage = 'bale_getupdates'")
+
     # ── جریان‌های باقی‌مانده روی داده واقعی ──
     code = org[0][0]
     flows = [

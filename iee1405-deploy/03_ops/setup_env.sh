@@ -104,7 +104,8 @@ if [[ "$(env_get BALE_TOKEN_BOT || true)" != "$TOKEN_IN" ]]; then
     env_set BALE_TOKEN_BOT "$TOKEN_IN"; CHANGED=$((CHANGED+1))
     c_ok "BALE_TOKEN_BOT نوشته شد"
 fi
-for kv in "N8N_BLOCK_ENV_ACCESS_IN_NODE=false" "GENERIC_TIMEZONE=Asia/Tehran" "TZ=Asia/Tehran"; do
+for kv in "N8N_BLOCK_ENV_ACCESS_IN_NODE=false" "GENERIC_TIMEZONE=Asia/Tehran" "TZ=Asia/Tehran" \
+          "EXECUTIONS_TIMEOUT=45" "EXECUTIONS_TIMEOUT_MAX=120"; do
     k="${kv%%=*}"; v="${kv#*=}"
     if [[ "$(env_get "$k" || true)" != "$v" ]]; then
         env_set "$k" "$v"; CHANGED=$((CHANGED+1))
@@ -116,7 +117,26 @@ chmod 600 "$ENV_FILE"
 
 # ── ۳) فایل override (اگر n8n متغیر را از .env نگیرد) ──────────────────
 if [[ -f "$OVERRIDE" ]]; then
-    c_ok "docker-compose.override.yml موجود است (دست‌نخورده می‌ماند)"
+    if grep -q "EXECUTIONS_TIMEOUT" "$OVERRIDE"; then
+        c_ok "docker-compose.override.yml موجود و به‌روز است"
+    else
+        # کلیدهای تازه (سقف اجرا) باید به override موجود اضافه شوند،
+        # وگرنه با وجود «موفق» بودن setup، اجراها هرگز بسته نمی‌شوند.
+        cp -a "$OVERRIDE" "$OVERRIDE.bak-$STAMP"
+        python3 - "$OVERRIDE" <<'PYEOF'
+import sys, pathlib
+p = pathlib.Path(sys.argv[1])
+text = p.read_text(encoding="utf-8")
+add = ["      - EXECUTIONS_TIMEOUT=45", "      - EXECUTIONS_TIMEOUT_MAX=120"]
+anchor = "      - N8N_DIAGNOSTICS_ENABLED=false"
+if anchor in text:
+    text = text.replace(anchor, anchor + "\n" + "\n".join(add), 1)
+else:
+    text = text.replace("    environment:", "    environment:\n" + "\n".join(add), 1)
+p.write_text(text, encoding="utf-8")
+PYEOF
+        c_ok "کلیدهای سقف اجرا به override موجود اضافه شد (نسخه پشتیبان: $OVERRIDE.bak-$STAMP)"
+    fi
 else
     cp "$HERE/03_ops/docker-compose.override.yml" "$OVERRIDE"
     c_ok "docker-compose.override.yml ساخته شد"
@@ -150,6 +170,15 @@ fi
 $DK exec -i "$N8N_CT" printenv N8N_BLOCK_ENV_ACCESS_IN_NODE 2>/dev/null | grep -q '^false$' \
     && c_ok "N8N_BLOCK_ENV_ACCESS_IN_NODE=false داخل کانتینر" \
     || { c_bad "N8N_BLOCK_ENV_ACCESS_IN_NODE داخل کانتینر false نیست"; exit 1; }
+
+# سقف اجرا: اگر تنظیم نشده باشد، یک گره معلق می‌تواند صف را دقیقه‌ها قفل کند
+EXEC_TO="$($DK exec -i "$N8N_CT" printenv EXECUTIONS_TIMEOUT 2>/dev/null | tr -d '\r\n')"
+if [[ -n "$EXEC_TO" ]]; then
+    c_ok "EXECUTIONS_TIMEOUT=$EXEC_TO ثانیه (سقف هر اجرا)"
+else
+    c_warn "EXECUTIONS_TIMEOUT تنظیم نشده — اجرای گیرکرده بسته نمی‌شود"
+    c_hint "فایل override در $INFRA_DIR را به‌روز کنید: cp $HERE/03_ops/docker-compose.override.yml $INFRA_DIR/"
+fi
 
 echo ""
 echo "════ تمام ════"

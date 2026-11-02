@@ -70,6 +70,32 @@ BEGIN
     RETURN v_now;
 END $$;
 
+-- بازرسی پاسخ بله پیش از پردازش:
+--   بله برای بسیاری از خطاها (توکن اشتباه، پارامتر بد) کد ۲۰۰ با {"ok":false}
+--   برمی‌گرداند. بدون این تابع، چنین خطایی «هیچ آپدیتی نبود» تلقی می‌شد و
+--   هیچ‌جا ثبت نمی‌شد. پاسخ عیناً برمی‌گردد تا ادامه زنجیره تغییر نکند.
+CREATE OR REPLACE FUNCTION iee1405.poll_watch(p_response jsonb)
+RETURNS jsonb LANGUAGE plpgsql AS $$
+BEGIN
+    IF p_response IS NULL THEN
+        PERFORM iee1405.record_poll_error('{"error":{"message":"پاسخ خالی از بله"}}');
+        RETURN COALESCE(p_response, '{}'::jsonb);
+    END IF;
+
+    IF (p_response ->> 'ok') = 'false' THEN
+        PERFORM iee1405.record_poll_error(
+            jsonb_build_object(
+                'error', jsonb_build_object(
+                    'message',     COALESCE(p_response ->> 'description', 'ok=false'),
+                    'description', 'پاسخ بله ناموفق بود (HTTP 200)',
+                    'httpCode',    COALESCE(p_response ->> 'error_code', '—'),
+                    'node',        jsonb_build_object('name', '📥 دریافت پیام‌ها')
+                )
+            )::text);
+    END IF;
+    RETURN p_response;
+END $$;
+
 -- «آیا دریافت پیام‌ها سالم است؟» — یک نقطه حقیقت برای همه نماها و هشدارها
 CREATE OR REPLACE FUNCTION iee1405.poll_is_stale(p_grace interval DEFAULT '10 minutes')
 RETURNS boolean LANGUAGE sql STABLE AS $$
