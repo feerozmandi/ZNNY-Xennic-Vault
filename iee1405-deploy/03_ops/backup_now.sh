@@ -27,9 +27,11 @@ FILE="$OUT_DIR/iee-${LABEL}-${STAMP}.dump"
 
 mkdir -p "$OUT_DIR"
 
+# از پوشه infra اجرا می‌شود تا override و .env هم خوانده شوند
+dc() { ( cd "$INFRA_DIR" && docker compose "$@" ); }
+
 echo "→ پشتیبان‌گیری از «$PG_DB» → $FILE"
-if docker compose -f "$INFRA_DIR/docker-compose.yml" exec -T "$PG_SERVICE" \
-        pg_dump -U "$PG_USER" -d "$PG_DB" -Fc --no-owner > "$FILE"; then
+if dc exec -T "$PG_SERVICE" pg_dump -U "$PG_USER" -d "$PG_DB" -Fc --no-owner > "$FILE"; then
     SIZE=$(du -h "$FILE" | cut -f1)
     echo "  ✅ $SIZE"
 else
@@ -39,16 +41,14 @@ else
 fi
 
 # نسخه متنی برای بازبینی/جست‌وجو (فشرده)
-docker compose -f "$INFRA_DIR/docker-compose.yml" exec -T "$PG_SERVICE" \
-    pg_dump -U "$PG_USER" -d "$PG_DB" --no-owner 2>/dev/null | gzip -6 > "${FILE%.dump}.sql.gz" || true
+dc exec -T "$PG_SERVICE" pg_dump -U "$PG_USER" -d "$PG_DB" --no-owner 2>/dev/null | gzip -6 > "${FILE%.dump}.sql.gz" || true
 
 # نگهداشت ۱۴ نسخه اخیر
 ls -1t "$OUT_DIR"/iee-*.dump 2>/dev/null | tail -n +15 | xargs -r rm -f
 ls -1t "$OUT_DIR"/iee-*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
 
 # بررسی سلامت فایل پشتیبان (بدون بازگردانی)
-if docker compose -f "$INFRA_DIR/docker-compose.yml" exec -T "$PG_SERVICE" \
-        pg_restore --list < "$FILE" >/dev/null 2>&1; then
+if dc exec -T "$PG_SERVICE" pg_restore --list < "$FILE" >/dev/null 2>&1; then
     echo "  ✅ فایل پشتیبان سالم و قابل بازگردانی است"
 else
     echo "  ⚠️ فهرست پشتیبان خوانده نشد — قبل از اتکا، بازگردانی آزمایشی انجام دهید"

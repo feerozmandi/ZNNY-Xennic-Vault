@@ -23,10 +23,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WF_DIR="$HERE/02_n8n"
 INFRA_DIR="${INFRA_DIR:-$HOME/xennic-infra}"
 N8N_SERVICE="${N8N_SERVICE:-n8n}"
-COMPOSE=(docker compose -f "$INFRA_DIR/docker-compose.yml")
 ACTION="${1:-import}"
 
-n8n() { "${COMPOSE[@]}" exec -T "$N8N_SERVICE" n8n "$@"; }
+# از پوشه infra اجرا می‌شود تا docker-compose.override.yml و .env هم خوانده شوند
+dc()  { ( cd "$INFRA_DIR" && docker compose "$@" ); }
+n8n() { dc exec -T "$N8N_SERVICE" n8n "$@"; }
 
 require_n8n() {
     if ! n8n --version >/dev/null 2>&1; then
@@ -43,7 +44,7 @@ import)
     for f in "$WF_DIR"/wf-*.json; do
         base="$(basename "$f")"
         printf '→ %s ' "$base"
-        "${COMPOSE[@]}" exec -T "$N8N_SERVICE" sh -c 'cat > /tmp/wf.json' < "$f"
+        dc exec -T "$N8N_SERVICE" sh -c 'cat > /tmp/wf.json' < "$f"
         if n8n import:workflow --input=/tmp/wf.json >/tmp/n8n_import.log 2>&1; then
             echo "✅"
         else
@@ -78,7 +79,7 @@ activate)
     fi
     echo ""
     echo "یادآوری: n8n پس از ایمپورت ممکن است نیاز به ری‌استارت داشته باشد:"
-    echo "  docker compose -f $INFRA_DIR/docker-compose.yml restart $N8N_SERVICE"
+    echo "  cd $INFRA_DIR && docker compose restart $N8N_SERVICE"
     ;;
 
 list)
@@ -93,7 +94,7 @@ export)
     OUT="${BACKUP_DIR:-$HOME/xennic-backups}"
     mkdir -p "$OUT"
     n8n export:workflow --all --output=/tmp/n8n-export.json >/dev/null 2>&1 || true
-    "${COMPOSE[@]}" exec -T "$N8N_SERVICE" cat /tmp/n8n-export.json > "$OUT/n8n-workflows-$STAMP.json"
+    dc exec -T "$N8N_SERVICE" cat /tmp/n8n-export.json > "$OUT/n8n-workflows-$STAMP.json"
     echo "→ $OUT/n8n-workflows-$STAMP.json"
     ls -lh "$OUT/n8n-workflows-$STAMP.json"
     ;;

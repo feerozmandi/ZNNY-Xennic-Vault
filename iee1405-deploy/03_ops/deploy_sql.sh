@@ -22,17 +22,20 @@ PG_USER="${PG_USER:-postgres}"
 PG_DB="${PG_DB:-xennic}"
 MODE="${1:-deploy}"
 
+# از پوشه infra اجرا می‌شود تا docker-compose.override.yml و .env هم اثر کنند
 if [[ -n "${PSQL_CMD:-}" ]]; then
     read -r -a PSQL <<< "$PSQL_CMD"
+    pgq() { "${PSQL[@]}" "$@"; }
+    dc()  { docker compose -f "$INFRA_DIR/docker-compose.yml" "$@"; }
 else
-    PSQL=(docker compose -f "$INFRA_DIR/docker-compose.yml" exec -T "$PG_SERVICE"
-          psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 -X)
+    dc()  { ( cd "$INFRA_DIR" && docker compose "$@" ); }
+    pgq() { dc exec -T "$PG_SERVICE" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 -X "$@"; }
 fi
 
 run_file() {
     local f="$1"
     echo "→ $f"
-    if ! "${PSQL[@]}" -f - < "$f" >/tmp/iee_deploy_out.txt 2>/tmp/iee_deploy_err.txt; then
+    if ! pgq -f - < "$f" >/tmp/iee_deploy_out.txt 2>/tmp/iee_deploy_err.txt; then
         echo "❌ خطا در $f"
         tail -30 /tmp/iee_deploy_err.txt
         tail -10 /tmp/iee_deploy_out.txt
@@ -49,7 +52,7 @@ echo " حالت: $MODE"
 echo "════════════════════════════════════════════════"
 
 # ── بررسی اتصال ──
-if ! "${PSQL[@]}" -c 'SELECT 1' >/dev/null 2>&1; then
+if ! pgq -c 'SELECT 1' >/dev/null 2>&1; then
     echo "❌ اتصال برقرار نشد. بررسی کنید:"
     echo "   1) docker compose -f $INFRA_DIR/docker-compose.yml ps"
     echo "   2) نام دیتابیس: PG_DB=$PG_DB (پیش‌فرض xennic)"
@@ -57,14 +60,14 @@ if ! "${PSQL[@]}" -c 'SELECT 1' >/dev/null 2>&1; then
 fi
 
 # ── بررسی وضعیت فعلی ──
-EXISTING=$("${PSQL[@]}" -t -A -c \
+EXISTING=$(pgq -t -A -c \
   "SELECT count(*) FROM pg_tables WHERE schemaname IN ('crm','iee1405');")
 echo "جدول‌های موجود در schemaهای crm/iee1405: $EXISTING"
 
 if [[ "$MODE" == "--verify-only" ]]; then
     echo ""
     echo "وضعیت:"
-    "${PSQL[@]}" -c "SELECT schemaname, count(*) AS tables FROM pg_tables
+    pgq -c "SELECT schemaname, count(*) AS tables FROM pg_tables
                       WHERE schemaname IN ('crm','iee1405') GROUP BY 1 ORDER BY 1;"
     exit 0
 fi
@@ -89,18 +92,18 @@ run_file "$SQL_DIR/05_ops_helpers.sql"
 # ── نقش‌ها: رمز فقط اگر APP_PASSWORD داده شده باشد ──
 if [[ -n "${APP_PASSWORD:-}" ]]; then
     echo "→ ساخت نقش‌ها با رمز از متغیر محیطی"
-    "${PSQL[@]}" -v app_password="$APP_PASSWORD" -f - < "$SQL_DIR/06_roles.sql"
+    pgq -v app_password="$APP_PASSWORD" -f - < "$SQL_DIR/06_roles.sql"
     echo "  ✅"
 else
     echo "→ نقش‌ها بدون رمز (APP_PASSWORD تنظیم نشده)"
-    "${PSQL[@]}" -c "SELECT 'برای ساخت نقش‌ها: APP_PASSWORD=... bash 03_ops/deploy_sql.sh'" >/dev/null
-    "${PSQL[@]}" -f - < "$SQL_DIR/06_roles.sql" || true
+    pgq -c "SELECT 'برای ساخت نقش‌ها: APP_PASSWORD=... bash 03_ops/deploy_sql.sh'" >/dev/null
+    pgq -f - < "$SQL_DIR/06_roles.sql" || true
 fi
 
 # ── تأیید نهایی ──
 echo ""
 echo "── تأیید ──"
-"${PSQL[@]}" -c "
+pgq -c "
 SELECT 'table' AS kind, count(*) AS n FROM pg_tables WHERE schemaname IN ('crm','iee1405')
 UNION ALL SELECT 'view', count(*) FROM pg_views WHERE schemaname IN ('crm','iee1405')
 UNION ALL SELECT 'function', count(*) FROM information_schema.routines
@@ -108,7 +111,7 @@ UNION ALL SELECT 'function', count(*) FROM information_schema.routines
 UNION ALL SELECT 'orgs', count(*) FROM crm.organizations
 UNION ALL SELECT 'categories', count(*) FROM crm.product_categories
 UNION ALL SELECT 'exhibition', count(*) FROM iee1405.exhibitions;"
-"${PSQL[@]}" -c "SELECT iee1405.health_text();"
+pgq -c "SELECT iee1405.health_text();"
 
 echo ""
 echo "✅ استقرار تمام شد"

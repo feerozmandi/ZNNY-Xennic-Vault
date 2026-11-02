@@ -2,16 +2,66 @@
 
 > بسته اجرایی برای نمایشگاه بیست‌وششم صنعت برق (۱۶–۱۹ آبان ۱۴۰۵).
 > همه داده‌ها در **یک پایگاه‌داده PostgreSQL دائمی** می‌مانند؛ n8n فقط لوله است.
-> مستندات پروژه: `ZNNY-Xennic-Vault/04_Projects/IEE_1405/PRJ-IEE-016 — اتوماسیون n8n و اتصال به PostgreSQL.md`
+> مستندات پروژه: `ZNNY-Xennic-Vault/04_Projects/IEE_1405/PRJ-IEE-015 — اتوماسیون n8n و اتصال به PostgreSQL.md`
 
 ---
 
-## ۰. در یک نگاه
+## ۰. شروع سریع (روی خودِ سرور)
+
+> [!warning] مهم
+> این دستورها **روی VPS** اجرا می‌شوند، نه روی لپ‌تاپ.
+> اگر همین حالا داخل سرور هستید (`xennic@server2085:~$`)، دستور `ssh` لازم نیست —
+> از سرور به خودش SSH زدن با `Connection timed out` شکست می‌خورد.
+
+```bash
+# ۱) گرفتن فایل‌ها (مخزن عمومی است؛ نیازی به توکن نیست)
+cd ~
+git clone --branch arena/011e185b-znny-xennic-vault --single-branch \
+    https://github.com/feerozmandi/ZNNY-Xennic-Vault.git
+cd ZNNY-Xennic-Vault/iee1405-deploy
+
+# ۲) بررسی پیش‌نیازها — در یک نگاه می‌گوید چه چیزی کم است
+bash 03_ops/preflight.sh
+```
+
+`preflight.sh` نام واقعی کانتینرها، نام دیتابیس، نسخه n8n، وضعیت متغیرهای
+`BALE_API_URL` و `N8N_BLOCK_ENV_ACCESS_IN_NODE` و فضای دیسک را بررسی می‌کند و
+در پایان **دستور بعدی را با مقادیر واقعی** چاپ می‌کند. اگر خروجی آن «همه
+پیش‌نیازها آماده است» بود، ادامه دهید:
+
+```bash
+bash 00_audit/audit_postgres.sh                                  # فقط خواندن
+PG_DB=xennic APP_PASSWORD='<رمز-قوی>' bash 03_ops/deploy_sql.sh   # ساختار + منطق
+bash 03_ops/import_workflows.sh import                            # گردش‌کارها
+# در رابط n8n: کارت «Xennic PostgreSQL» بسازید و در ۴ گردش‌کار انتخاب کنید
+bash 03_ops/import_workflows.sh activate
+```
+
+`PG_DB` را با مقداری که `preflight.sh` پیشنهاد می‌دهد عوض کنید.
+
+> [!note] چرا `--branch`
+> این بسته فعلاً روی شاخه `arena/011e185b-znny-xennic-vault` است (PR #75).
+> با `git clone` ساده، شاخه `dev` گرفته می‌شود و پوشه `iee1405-deploy` **وجود ندارد**.
+> پس از ادغام PR، دستور ساده `git clone` کافی خواهد بود.
+
+### اگر قبلاً مخزن را روی سرور دارید
+
+```bash
+cd ~/ZNNY-Xennic-Vault
+git fetch origin arena/011e185b-znny-xennic-vault
+git checkout arena/011e185b-znny-xennic-vault
+cd iee1405-deploy && bash 03_ops/preflight.sh
+```
+
+---
+
+## ۰.۱. جدول مراحل
 
 | مرحله | دستور | زمان |
 |---|---|---|
+| ۰. بررسی پیش‌نیازها | `bash 03_ops/preflight.sh` | ۳۰ ثانیه |
 | ۱. بازرسی وضعیت فعلی | `bash 00_audit/audit_postgres.sh` | ۱ دقیقه |
-| ۲. استقرار ساختار + منطق | `bash 03_ops/deploy_sql.sh` | ۱ دقیقه |
+| ۲. استقرار ساختار + منطق | `PG_DB=<db> bash 03_ops/deploy_sql.sh` | ۱ دقیقه |
 | ۳. ایمپورت گردش‌کارها | `bash 03_ops/import_workflows.sh import` | ۲ دقیقه |
 | ۴. اتصال اعتبارنامه | در رابط n8n: کارت «Xennic PostgreSQL» | ۲ دقیقه |
 | ۵. فعال‌سازی | `bash 03_ops/import_workflows.sh activate` | ۱ دقیقه |
@@ -19,7 +69,18 @@
 
 ---
 
-## ۱. بازرسی (بدون هیچ تغییری)
+## ۰.۲. خطاهای رایج در گام صفر
+
+| پیام | معنا | راه‌حل |
+|---|---|---|
+| `ssh: connect ... port 33878: Connection timed out` | از داخل سرور به خودش SSH زده‌اید (یا از شبکه‌ای که پورت بسته است) | اگر `whoami` = `xennic` و `hostname` = `server2085`، همین‌جا هستید؛ `ssh` را حذف کنید |
+| `fatal: repository '…' does not exist` | جای‌نگهدار `…` عیناً وارد شده | آدرس کامل را از بخش ۰ کپی کنید |
+| `bash: 00_audit/...: No such file or directory` | clone انجام نشده یا از پوشه اشتباه اجرا شده | `cd ~/ZNNY-Xennic-Vault/iee1405-deploy` سپس دوباره |
+| `iee1405-deploy` بعد از clone نیست | شاخه پیش‌فرض (`dev`) گرفته شده | `--branch arena/011e185b-znny-xennic-vault --single-branch` |
+
+---
+
+## ۱. بازرسی (بدون هیچ تغییری)## ۱. بازرسی (بدون هیچ تغییری)
 
 ```bash
 cd ~/iee1405-deploy
