@@ -441,9 +441,10 @@
     "executionOrder": "v1",
     "timezone": "Asia/Tehran",
     "saveManualExecutions": true,
-    "saveExecutionProgress": false,
+    "saveExecutionProgress": true,
     "saveDataErrorExecution": "all",
     "saveDataSuccessExecution": "none",
+    "executionTimeout": 30,
     "callerPolicy": "workflowsFromSameOwner"
   },
   "staticData": null,

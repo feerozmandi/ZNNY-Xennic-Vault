@@ -96,6 +96,51 @@ BEGIN
     RETURN p_response;
 END $$;
 
+-- اقدام خودترمیمی: اگر دریافت واقعاً مرده باشد (نه فقط کند/خطا)،
+-- گردش‌کار ۰۱ را دوباره فعال می‌کنیم. تلاش‌ها محدود و ثبت‌شده است تا
+-- حلقه بی‌پایان نشود. WF-04 هر ۳۰ دقیقه یک بار این تابع را صدا می‌زند.
+CREATE OR REPLACE FUNCTION iee1405.recover_if_dead(
+    p_stale interval DEFAULT '15 minutes',
+    p_max_attempts int DEFAULT 6,
+    p_window interval DEFAULT '6 hours'
+) RETURNS boolean LANGUAGE plpgsql AS $$
+DECLARE
+    v_poll  timestamptz := (SELECT value::timestamptz FROM iee1405.bot_state WHERE key = 'last_poll_at');
+    v_tries bigint;
+BEGIN
+    -- فقط وقتی هیچ ضربانی در بازه نرسیده باشد
+    IF v_poll IS NOT NULL AND v_poll > now() - p_stale THEN
+        RETURN false;
+    END IF;
+
+    SELECT count(*) INTO v_tries
+      FROM iee1405.bot_errors
+     WHERE stage = 'self_recovery'
+       AND occurred_at > now() - p_window;
+
+    IF v_tries >= p_max_attempts THEN
+        -- یک بار در بازه هشدار بده، بعد ساکت شو (نه حلقه بی‌پایان)
+        IF NOT EXISTS (SELECT 1 FROM iee1405.bot_errors
+                        WHERE stage = 'self_recovery_gave_up'
+                          AND occurred_at > now() - p_window) THEN
+            INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
+            VALUES (0, NULL, 'self_recovery_gave_up',
+                    'خودترمیمی ' || v_tries || ' بار تلاش کرد و موفق نشد؛ دخالت دستی لازم است',
+                    'wf-04 · bash 03_ops/diagnose_n8n.sh');
+        END IF;
+        RETURN false;
+    END IF;
+
+    INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
+    VALUES (0, NULL, 'self_recovery',
+            'دریافت پیام‌ها مرده بود؛ تلاش ' || (v_tries + 1) || ' برای فعال‌سازی دوباره',
+            'wf-04 · bash 03_ops/diagnose_n8n.sh');
+    -- ضربان را هم جلو می‌بریم تا در همان بازه دوباره تلاش نشود
+    UPDATE iee1405.bot_state SET value = clock_timestamp()::text, updated_at = clock_timestamp()
+     WHERE key = 'last_poll_at' AND (value IS NULL OR value::timestamptz < now() - p_stale);
+    RETURN true;
+END $$;
+
 -- «آیا دریافت پیام‌ها سالم است؟» — یک نقطه حقیقت برای همه نماها و هشدارها
 CREATE OR REPLACE FUNCTION iee1405.poll_is_stale(p_grace interval DEFAULT '10 minutes')
 RETURNS boolean LANGUAGE sql STABLE AS $$

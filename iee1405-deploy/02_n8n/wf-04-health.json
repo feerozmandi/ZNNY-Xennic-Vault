@@ -28,7 +28,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT chat_id, text_body FROM iee1405.health_alert_rows();",
+        "query": "WITH rec AS (SELECT iee1405.recover_if_dead() AS did_recover) SELECT chat_id, text_body FROM iee1405.health_alert_rows();",
         "options": {}
       },
       "id": "22333e8f-cd60-50f1-9a40-9ef40bf5061e",
@@ -112,6 +112,8 @@
     "timezone": "Asia/Tehran",
     "saveDataSuccessExecution": "none",
     "saveDataErrorExecution": "all",
+    "saveExecutionProgress": true,
+    "executionTimeout": 30,
     "callerPolicy": "workflowsFromSameOwner"
   },
   "staticData": null,

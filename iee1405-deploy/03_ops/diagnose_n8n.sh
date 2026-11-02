@@ -149,6 +149,29 @@ else
 fi
 
 # ── ۴) داده ربات ───────────────────────────────────────────────────────
+c_head "۳.۲) اجرای گیرکرده تا کدام گره رسیده؟"
+# با saveExecutionProgress=true، n8n داده را مرحله‌به‌مرحله ذخیره می‌کند.
+# پس می‌توان دید یک اجرای تمام‌نشده کجا ایستاده است.
+if HAS_TABLE execution_data; then
+    RUN_ID="$(SYSQ "SELECT id FROM execution_entity WHERE status = 'running' ORDER BY id DESC LIMIT 1")"
+    if [[ -n "${RUN_ID:-}" ]]; then
+        RUN_RAW="$(pgq "$N8N_DB" -c "SELECT data FROM execution_data
+                                      WHERE \"executionId\" = $RUN_ID
+                                      ORDER BY id DESC LIMIT 1" 2>/dev/null)"
+        if [[ -n "${RUN_RAW:-}" ]]; then
+            echo "     اجرای $RUN_ID:"
+            printf '%s' "$RUN_RAW" | python3 "$HERE/decode_execution.py" 2>&1 | sed 's/^/       /'
+            echo "     ↑ گره‌ای که وضعیتش ثبت نشده، همان‌جایی است که اجرا منتظر مانده"
+        else
+            c_warn "برای اجرای $RUN_ID هنوز داده‌ای ذخیره نشده (saveExecutionProgress)"
+            c_hint "اگر این پیام تکرار شد، نسخه تازه گردش‌کار ایمپورت نشده است:"
+            c_hint "bash 03_ops/import_workflows.sh import && bash 03_ops/activate_all.sh"
+        fi
+    else
+        c_ok "اجرای در حال اجرایی وجود ندارد"
+    fi
+fi
+
 c_head "۳.۵) دسترسی n8n به متغیرهای محیطی (علت رایج شکست گره HTTP)"
 BLOCK_FLAG="$($DK exec -i "$N8N_CT" printenv N8N_BLOCK_ENV_ACCESS_IN_NODE 2>/dev/null | tr -d '\r\n')"
 if [[ "$BLOCK_FLAG" == "false" ]]; then
@@ -187,49 +210,68 @@ case "$CONTAINER_NET" in
 esac
 
 c_head "۳.۷) آزمون زنده getUpdates از داخل کانتینر n8n"
-# این تنها آزمونی است که می‌گوید درخواست واقعی «سریع برمی‌گردد» یا «معلق می‌ماند».
-# توکن چاپ نمی‌شود: فقط کد وضعیت، زمان پاسخ و ۲۰۰ کاراکتر اول بدنه (ماسک‌شده).
-PROBE="$($DK exec -i "$N8N_CT" sh -c '
-url="$BALE_API_URL/getUpdates?offset=0&limit=1&timeout=0"
-out=$(mktemp)
-res=$(curl -s -m 15 -o "$out" -w "%{http_code} %{time_total}" "$url" 2>&1)
-code=$(echo "$res" | cut -d" " -f1)
-secs=$(echo "$res" | cut -d" " -f2)
-body=$(head -c 200 "$out" 2>/dev/null | sed "s/bot[0-9][0-9]*:[A-Za-z0-9_-]*/bot***/g")
-rm -f "$out"
-echo "CODE=$code TIME=$secs"
-echo "BODY=$body"
-' 2>&1)"
-CODE="$(printf '%s' "$PROBE" | sed -n 's/^CODE=\([^ ]*\).*/\1/p')"
-TIME_S="$(printf '%s' "$PROBE" | sed -n 's/.*TIME=\([0-9.]*\).*/\1/p')"
-BODY="$(printf '%s' "$PROBE" | sed -n 's/^BODY=//p' | head -c 200)"
+# توجه: ایمیج n8n «curl» ندارد (آلپاین) — پس با node آزموده می‌شود که خودش هم
+# همان runtime واقعی گره‌هاست. توکن چاپ نمی‌شود؛ فقط کد، زمان و بدنه ماسک‌شده.
+PROBE="$($DK exec -i "$N8N_CT" node -e '
+const url = process.env.BALE_API_URL;
+if (!url) { console.log("NORURL"); process.exit(0); }
+const mask = (s) => (s || "").replace(/bot[0-9]+:[A-Za-z0-9_-]+/g, "bot***").slice(0, 220);
+const run = async (label, target) => {
+  const t0 = Date.now();
+  try {
+    const r = await fetch(target, { signal: AbortSignal.timeout(15000) });
+    const body = await r.text();
+    console.log(`${label} CODE=${r.status} MS=${Date.now() - t0} BODY=${mask(body)}`);
+  } catch (e) {
+    console.log(`${label} CODE=000 MS=${Date.now() - t0} ERR=${(e.name || "")}: ${(e.message || "")}`);
+  }
+};
+(async () => {
+  await run("PROBE", url + "/getUpdates?offset=0&limit=1&timeout=0");
+})();
+' 2>&1 | tail -2)"
 
-echo "     کد وضعیت: ${CODE:-?} · زمان پاسخ: ${TIME_S:-?} ثانیه"
-[[ -n "$BODY" ]] && echo "     بدنه: $BODY"
+CODE="$(printf '%s' "$PROBE" | sed -n 's/^PROBE CODE=\([^ ]*\).*/\1/p')"
+MS="$(printf '%s' "$PROBE" | sed -n 's/.* MS=\([0-9]*\).*/\1/p')"
+BODY="$(printf '%s' "$PROBE" | sed -n 's/.* BODY=//p' | head -c 220)"
+ERRTXT="$(printf '%s' "$PROBE" | sed -n 's/.* ERR=//p' | head -c 200)"
 
-case "$CODE" in
-    200)
-        c_ok "getUpdates پاسخ ۲۰۰ داد (بدنه بالا: ok/result خالی یعنی هیچ پیام تازه‌ای نیست)"
-        if awk -v t="${TIME_S:-0}" 'BEGIN { exit !(t + 0 > 10) }'; then
-            c_warn "پاسخ کند بود ($TIME_S ثانیه) — با بازه ۲۰ ثانیه‌ای اجراها روی هم می‌افتند"
-        else
-            c_ok "پاسخ سریع بود ($TIME_S ثانیه)"
-        fi
-        ;;
-    000|"")
-        c_bad "درخواست کامل نشد (timeout یا خطای اتصال) — همان چیزی که اجراها را معلق می‌کند"
-        c_hint "اگر curl هم معلق می‌ماند، مشکل از شبکه/فیلتر است نه n8n"
-        ;;
-    401|403)
-        c_bad "توکن رد شد ($CODE) — BALE_TOKEN_BOT را در .env بررسی کنید"
-        ;;
-    404)
-        c_bad "مسیر یا توکن اشتباه است (404) — BALE_API_URL باید به /bot<TOKEN> ختم شود"
-        ;;
-    *)
-        c_warn "پاسخ غیرمنتظره: $CODE"
-        ;;
-esac
+if printf '%s' "$PROBE" | grep -q NORURL; then
+    c_bad "متغیر BALE_API_URL داخل کانتینر n8n نیست"
+    c_hint "bash 03_ops/setup_env.sh"
+else
+    echo "     کد وضعیت: ${CODE:-?} · زمان پاسخ: ${MS:-?} میلی‌ثانیه"
+    [[ -n "$BODY" ]] && echo "     بدنه: $BODY"
+    [[ -n "$ERRTXT" ]] && echo "     خطا: $ERRTXT"
+
+    case "$CODE" in
+        200)
+            if printf '%s' "$BODY" | grep -q '"ok":false'; then
+                c_bad "بله پاسخ ۲۰۰ داد اما ok=false — این خطا باید در bot_errors دیده شود"
+                c_hint "bash 03_ops/smoke_test.sh   # بخش ۵"
+            else
+                c_ok "getUpdates سالم است: ۲۰۰ در ${MS} میلی‌ثانیه"
+            fi
+            if [[ "${MS:-0}" -gt 5000 ]] 2>/dev/null; then
+                c_warn "پاسخ کند است (بیش از ۵ ثانیه) — با بازه ۲۰ ثانیه‌ای اجراها روی هم می‌افتند"
+            fi
+            ;;
+        000)
+            c_bad "درخواست کامل نشد: $ERRTXT"
+            c_hint "اگر AbortError/timeout است، بله از این سرور پاسخ نمی‌دهد (شبکه/فیلتر)"
+            c_hint "اگر ENOTFOUND است، DNS کانتینر مشکل دارد"
+            ;;
+        401|403)
+            c_bad "توکن رد شد ($CODE)"
+            ;;
+        404)
+            c_bad "مسیر اشتباه (404) — BALE_API_URL باید به /bot<TOKEN> ختم شود"
+            ;;
+        *)
+            c_warn "پاسخ غیرمنتظره: $CODE"
+            ;;
+    esac
+fi
 
 c_head "۴) وضعیت دریافت پیام در دیتابیس برنامه"
 pgq_pretty "$PG_DB" -c "

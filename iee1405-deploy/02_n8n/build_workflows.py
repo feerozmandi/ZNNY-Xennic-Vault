@@ -287,9 +287,14 @@ def wf_inbound():
             "executionOrder": "v1",
             "timezone": "Asia/Tehran",
             "saveManualExecutions": True,
-            "saveExecutionProgress": False,
+            # با True، n8n داده را مرحله‌به‌مرحله ذخیره می‌کند؛ بنابراین
+            # می‌توان دید یک اجرای «در حال اجرا» تا کدام گره رسیده است.
+            "saveExecutionProgress": True,
             "saveDataErrorExecution": "all",
             "saveDataSuccessExecution": "none",
+            # سقف زمانی گردش‌کار (ثانیه). n8n این را بین گره‌ها بررسی می‌کند؛
+            # مقدار محیطی EXECUTIONS_TIMEOUT هم پشتیبان است.
+            "executionTimeout": 30,
             "callerPolicy": "workflowsFromSameOwner",
         },
         "staticData": None,
@@ -322,6 +327,8 @@ def wf_reminders():
             "timezone": "Asia/Tehran",
             "saveDataSuccessExecution": "none",
             "saveDataErrorExecution": "all",
+            "saveExecutionProgress": True,
+            "executionTimeout": 30,
             "callerPolicy": "workflowsFromSameOwner",
         },
         "staticData": None,
@@ -354,6 +361,8 @@ def wf_digest():
             "timezone": "Asia/Tehran",
             "saveDataSuccessExecution": "none",
             "saveDataErrorExecution": "all",
+            "saveExecutionProgress": True,
+            "executionTimeout": 30,
             "callerPolicy": "workflowsFromSameOwner",
         },
         "staticData": None,
@@ -371,6 +380,8 @@ def wf_health():
     n_sched = schedule_node("⏱ هر ۳۰ دقیقه", [0, 0], cron="0 */30 * * * *")
     n_q = pg_node(
         "🩺 بررسی سلامت", [220, 0],
+        # نخست خودترمیمی: اگر دریافت واقعاً مرده باشد، تلاش می‌شود دوباره فعال شود
+        "WITH rec AS (SELECT iee1405.recover_if_dead() AS did_recover) "
         "SELECT chat_id, text_body FROM iee1405.health_alert_rows();",
         notes="فقط وقتی مشکل هست ردیف برمی‌گرداند؛ در حالت سالم ساکت است",
     )
@@ -385,6 +396,8 @@ def wf_health():
             "timezone": "Asia/Tehran",
             "saveDataSuccessExecution": "none",
             "saveDataErrorExecution": "all",
+            "saveExecutionProgress": True,
+            "executionTimeout": 30,
             "callerPolicy": "workflowsFromSameOwner",
         },
         "staticData": None,

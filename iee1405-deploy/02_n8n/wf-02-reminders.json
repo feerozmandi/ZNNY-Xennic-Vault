@@ -112,6 +112,8 @@
     "timezone": "Asia/Tehran",
     "saveDataSuccessExecution": "none",
     "saveDataErrorExecution": "all",
+    "saveExecutionProgress": true,
+    "executionTimeout": 30,
     "callerPolicy": "workflowsFromSameOwner"
   },
   "staticData": null,

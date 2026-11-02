@@ -254,6 +254,13 @@ if [[ "$COUNT" == "0" ]]; then
 fi
 c_ok "$COUNT گردش‌کار منتشر شد"
 
+c_head "۲.۵) بستن اجراهای مرده"
+# ردیف‌های running قدیمی فقط گزارش را قرمز می‌کنند و شمارش خطا را بالا می‌برند.
+# همان کاری انجام می‌شود که n8n در crash-recovery می‌کند: running → crashed.
+if [[ -x "$HERE/clean_executions.sh" || -f "$HERE/clean_executions.sh" ]]; then
+    bash "$HERE/clean_executions.sh" 2>&1 | grep -E "✅|⚠️|❌" | sed 's/^/  /'
+fi
+
 c_head "۳) ری‌استارت n8n (لازم است تا انتشار اثر کند)"
 if ( cd "$INFRA_DIR" && docker compose restart "$N8N_SERVICE" >/dev/null 2>&1 ); then
     c_ok "n8n ری‌استارت شد"
