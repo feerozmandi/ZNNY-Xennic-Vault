@@ -57,7 +57,6 @@ if [[ -z "${APP_PASS:-}" || ! -f "$PASS_FILE" ]]; then
         mkdir -p "$(dirname "$PASS_FILE")"
         if printf '%s' "$APP_PASS" > "$PASS_FILE" 2>/dev/null && chmod 600 "$PASS_FILE"; then
             c_ok "رمز تازه تنظیم شد و در $PASS_FILE ذخیره شد"
-            FORCE_CRED=1
         else
             c_bad "نوشتن فایل رمز ناموفق بود: $PASS_FILE"
             c_hint "دسترسی پوشه خانه را بررسی کنید؛ رمز در دیتابیس تنظیم شد اما ذخیره نشد"
@@ -70,7 +69,15 @@ if [[ -z "${APP_PASS:-}" || ! -f "$PASS_FILE" ]]; then
     fi
 else
     c_ok "رمز برنامه از $PASS_FILE خوانده شد"
+    if pgq "$PG_DB" -v ON_ERROR_STOP=1 -v app_password="$APP_PASS" -f - \
+            < "$HERE/../01_sql/06_roles.sql" >/dev/null 2>/tmp/iee_roles.err; then
+        c_ok "رمز نقش‌های دیتابیس با فایل رمز هم‌تراز شد"
+    else
+        c_warn "هم‌تراز کردن رمز نقش‌ها ناموفق بود (کارت اعتبارنامه ممکن است رمز قدیمی داشته باشد)"
+        grep -m3 ERROR /tmp/iee_roles.err | sed 's/^/     /'
+    fi
 fi
+FORCE_CRED=1   # کارت اعتبارنامه همیشه از همین رمز بازسازی می‌شود (idempotent)
 [[ -z "${APP_PASS:-}" ]] && { c_bad "رمز خالی است"; exit 1; }
 
 # بررسی وجود اعتبارنامه (export بدون رمز، فقط برای دیدن نام‌ها)

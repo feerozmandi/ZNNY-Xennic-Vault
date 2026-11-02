@@ -118,7 +118,8 @@ if HAS_TABLE execution_entity; then
               FROM execution_entity e
               JOIN execution_data d ON d.\"executionId\" = e.id
              WHERE e.\"startedAt\" > now() - interval '3 hours'
-               AND d.data::text LIKE '%\"error\"%'
+               AND (e.status IN ('error', 'crashed')
+                    OR d.data::text ~ '\"resultData\":\\s*\\{\\s*\"error\"')
              ORDER BY e.id DESC
              LIMIT 3" 2>/dev/null || c_warn "خواندن متن خطا ممکن نشد (ساختار execution_data متفاوت است)"
     fi
