@@ -6,7 +6,7 @@ domain: IEE
 status: draft
 owner: احمد فیروزمندی بندپی
 created: 2026-11-01
-version: 0.1.4
+version: 0.1.5
 dependencies: [PRJ-IEE-003, PRJ-IEE-004, PRJ-IEE-005, PRJ-IEE-007, PRJ-IEE-008, PRJ-IEE-010, PRJ-IEE-013]
 tags: [project, iee-1405, n8n, postgresql, automation, bale, bot, deployment, sql]
 ---
@@ -272,6 +272,7 @@ n8n هیچ داده‌ای را در حافظه خود نگه نمی‌دارد:
 
 ## ۱۳. Changelog
 
+- **v0.1.5 (۱۴۰۵-۰۸-۱۱):** شناسه ثابت گردش‌کارها (`IEE1405-01`…`04`) تا ایمپورت دوباره به‌جای ساخت نسخه تکراری، همان رکورد را به‌روز کند — این تکراری شدن روی سرور واقعی دیده شد (۸ رکورد برای ۴ گردش‌کار و دو نسخه فعال)؛ `activate_all.sh` شناسه‌ها را از فایل‌های مخزن می‌خواند (نه از `list:workflow` که فهرست کامل نمی‌داد)، تکراری‌های قدیمی را غیرفعال می‌کند، ورود واقعی `iee_app` و حل نام سرویس `postgres` را پیش از انتشار می‌آزماید و شمار فعال‌ها را از `workflow_entity` می‌خواند؛ حذف `--run` از `diagnose_n8n.sh` (اجرای `n8n execute` کنار نمونه در حال اجرا با قفل مهاجرت و پورت 5679 تعارض دارد) و جای‌گزینی آن با چاپ متن خام `execution_data`.
 - **v0.1.4 (۱۴۰۵-۰۸-۱۱):** تشخیص سه‌گانه «ربات ساکت است و `last_poll_at` خالی» با `diagnose_n8n.sh` بر پایه دیتابیس خود n8n (`workflow_entity.active`/`activeVersionId`، `credentials_entity`، `execution_entity`/`execution_data` با نام گره و متن خطا) و `--run` برای اجرای دستی wf-01؛ خودترمیمی رمز: اگر `~/.iee1405-app-password` نباشد، رمز تازه ساخته، روی نقش‌ها تنظیم و کارت اعتبارنامه بازسازی می‌شود؛ تأیید وجود کارت اعتبارنامه از دیتابیس n8n در `activate_all.sh` (نه فقط خروجی CLI).
 - **v0.1.3 (۱۴۰۵-۰۸-۱۱):** اصلاح دو باگ پایش و فعال‌سازی: (۱) `poll_advance` در اجرای بی‌پیام هم `last_poll_at` را ثبت می‌کند و اجرای بعدی خطای قبلی را پاک می‌کند، پس «سکوت» بله دیگر «قطعی» دیده نمی‌شود؛ (۲) شاخه خطای `getUpdates` با `record_poll_error` و نمایش علت در `/status`؛ `bot_dispatch_json` برای ورودی بدون `update_id` صفر ردیف برمی‌گرداند (نه خطای جعلی)؛ افزودن `activate_all.sh` و `smoke_test.sh` بر پایه رفتار واقعی CLI در n8n 2.44.7 (D-15-04)؛ `poll_is_stale` و `recent_error_count` به‌عنوان نقطه حقیقت سلامت؛ اصلاح ترتیب تعریف توابع در `05_ops_helpers.sql` تا ساخت از صفر کار کند.
 - **v0.1.2 (۱۴۰۵-۰۸-۱۰):** کشف خودکار کانتینر/کاربر دیتابیس از `docker ps` و `POSTGRES_USER` (روی این سرور: `xennic-infra-postgres-1` و کاربر `n8n`)؛ ساخت خودکار دیتابیس اختصاصی `xennic` بدون دست زدن به دیتابیس `n8n`؛ خواندن توکن از کلید موجود `BALE_TOKEN_BOT` و ساخت `BALE_API_URL` در override؛ افزودن `restore_test.sh` (آزمون واقعی بازگردانی) و `lib_common.sh` مشترک.

@@ -373,10 +373,21 @@ FILES = {
 }
 
 
+# شناسه ثابت گردش‌کارها — بدون این، هر ایمپورت یک گردش‌کار *تازه* می‌سازد
+# و نسخه قبلی فعال می‌ماند (دو بار polling و پیام تکراری).
+FIXED_IDS = {
+    "wf-01-bale-ingest.json": "IEE1405-01",
+    "wf-02-reminders.json":   "IEE1405-02",
+    "wf-03-digest.json":      "IEE1405-03",
+    "wf-04-health.json":      "IEE1405-04",
+}
+
+
 def main():
     written = []
     for filename, fn in FILES.items():
         wf = fn()
+        wf = {"id": FIXED_IDS[filename], **wf}
         path = HERE / filename
         path.write_text(json.dumps(wf, ensure_ascii=False, indent=2) + "\n",
                         encoding="utf-8")

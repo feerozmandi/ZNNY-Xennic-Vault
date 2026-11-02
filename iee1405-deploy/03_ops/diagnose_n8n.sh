@@ -3,7 +3,6 @@
 # IEE 1405 — تشخیص: چرا گردش‌کار اجرا نمی‌شود؟
 #
 #   bash 03_ops/diagnose_n8n.sh          # گزارش کامل (فقط خواندن)
-#   bash 03_ops/diagnose_n8n.sh --run    # + اجرای دستی wf-01 برای دیدن خطای واقعی
 #
 # این اسکریپت به دیتابیس خود n8n نگاه می‌کند (نه فقط به خروجی CLI):
 #   • workflow_entity    → active و activeVersionId
@@ -16,11 +15,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib_common.sh
 source "$HERE/lib_common.sh"
 
-RUN_NOW=false
 for arg in "$@"; do
     case "$arg" in
-        --run) RUN_NOW=true ;;
-        -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
         *) echo "گزینه ناشناخته: $arg" >&2; exit 2 ;;
     esac
 done
@@ -110,18 +107,19 @@ if HAS_TABLE execution_entity; then
          LIMIT 8" || true
 
     if HAS_TABLE execution_data; then
-        c_head "۳.۱) خطای آخرین اجراها"
+        c_head "۳.۱) خطای آخرین اجراهای ناموفق (متن خام)"
+        # ساختار execution_data در نسخه‌های n8n متفاوت است (فشرده/تخت‌شده)؛
+        # به‌جای حدس‌زدن، چند صد کاراکتر اول آن چاپ می‌شود تا علت دقیق دیده شود.
         pgq_pretty "$N8N_DB" -c "
-            SELECT e.id, coalesce(e.status, '—') AS status,
-                   substring(d.data::text from '\"lastNodeExecuted\":\"([^\"]{0,40})\"') AS last_node,
-                   substring(d.data::text from '\"message\":\"([^\"]{0,120})')       AS error
+            SELECT e.id,
+                   to_char(e.\"startedAt\", 'HH24:MI:SS') AS at,
+                   left(regexp_replace(d.data::text, '\\\\s+', ' ', 'g'), 700) AS raw
               FROM execution_entity e
               JOIN execution_data d ON d.\"executionId\" = e.id
-             WHERE e.\"startedAt\" > now() - interval '3 hours'
-               AND (e.status IN ('error', 'crashed')
-                    OR d.data::text ~ '\"resultData\":\\s*\\{\\s*\"error\"')
+             WHERE e.\"startedAt\" > now() - interval '1 hour'
+               AND e.status IN ('error', 'crashed')
              ORDER BY e.id DESC
-             LIMIT 3" 2>/dev/null || c_warn "خواندن متن خطا ممکن نشد (ساختار execution_data متفاوت است)"
+             LIMIT 2" 2>/dev/null || c_warn "خواندن execution_data ممکن نشد"
     fi
 
     RECENT="$(SYSQ "SELECT count(*) FROM execution_entity WHERE \"startedAt\" > now() - interval '10 minutes'")"
@@ -150,22 +148,15 @@ pgq_pretty "$PG_DB" -c "
            (SELECT count(*) FROM iee1405.bot_errors)  AS errors" || true
 
 # ── ۵) اجرای دستی برای دیدن خطای واقعی ─────────────────────────────────
+c_head "۵) گام بعدی"
 if [[ -z "${WF01_ID:-}" ]]; then
-    c_head "۵) اجرای دستی"
     c_bad "گردش‌کار IEE1405-01 پیدا نشد — ابتدا ایمپورت کنید"
     c_hint "bash 03_ops/import_workflows.sh import && bash 03_ops/activate_all.sh"
-elif [[ "$RUN_NOW" == true ]]; then
-    c_head "۵) اجرای دستی IEE1405-01 (خطای واقعی همین‌جا دیده می‌شود)"
-    OUT="$($DK exec -i "$N8N_CT" n8n execute --id="$WF01_ID" 2>&1 | tail -40)"
-    printf '%s\n' "$OUT" | sed 's/^/     /'
-    if printf '%s' "$OUT" | grep -qi "Execution was successful"; then
-        c_ok "اجرای دستی موفق بود — پس مشکل فقط در زمان‌بند/فعال‌سازی است"
-    else
-        c_bad "اجرای دستی ناموفق — علت در چند خط بالا (نام گره و پیام خطا)"
-    fi
+elif [[ "${ERRORS:-0}" -gt 0 ]]; then
+    c_hint "خطای گره در بخش ۳.۱ دیده می‌شود؛ اگر متن خام ناخوانا بود،"
+    c_hint "لاگ زنده کانتینر را ببینید: docker logs --since 5m \"$N8N_CT\" 2>&1 | grep -i -m5 error"
 else
-    c_head "۵) گام بعدی"
-    c_hint "برای دیدن خطای واقعی: bash 03_ops/diagnose_n8n.sh --run"
+    c_hint "همه‌چیز مرتب است: در بله به ربات /start بفرستید و smoke_test.sh را اجرا کنید"
 fi
 
 echo

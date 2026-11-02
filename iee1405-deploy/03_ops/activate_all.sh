@@ -139,34 +139,82 @@ elif [[ -n "$CRED_IN_DB" ]]; then
     c_hint "اگر گردش‌کار خطای credential داد: bash 03_ops/diagnose_n8n.sh"
 fi
 
-c_head "۲) انتشار گردش‌کارها"
-# list:workflow خروجی «id|name» می‌دهد و سرستون ندارد — هر خط یک گردش‌کار
-LIST="$(n8n list:workflow 2>/dev/null)"
-if [[ -z "$LIST" ]]; then
-    c_bad "فهرست گردش‌کارها خالی است — ایمپورت انجام شده؟"
-    c_hint "bash 03_ops/import_workflows.sh import"
+c_head "۱.۵) آزمون واقعی اتصال (قبل از انتشار)"
+# آیا iee_app با همین رمز می‌تواند وارد شود؟ (خطای «password authentication failed»
+# شایع‌ترین علت شکست گره‌های SQL است و هیچ اثری در bot_state نمی‌گذارد)
+if $DK exec -e PGPASSWORD="$APP_PASS" -i "$PG_CT" psql -U iee_app -d "$PG_DB" -X -t -A \
+        -c 'SELECT 1' 2>/dev/null | grep -q '^1$'; then
+    c_ok "ورود iee_app به دیتابیس $PG_DB موفق بود"
+else
+    c_bad "ورود iee_app به دیتابیس $PG_DB ناموفق بود"
+    c_hint "یعنی گره‌های PostgreSQL در n8n هم همین خطا را می‌گیرند"
+    c_hint "bash 03_ops/deploy_sql.sh   # نقش‌ها و رمز را از نو تنظیم می‌کند"
+fi
+
+# آیا از داخل کانتینر n8n نام سرویس postgres حل می‌شود؟
+if $DK exec -i "$N8N_CT" getent hosts postgres >/dev/null 2>&1; then
+    c_ok "نام سرویس «postgres» از داخل n8n قابل حل است"
+else
+    c_warn "از داخل n8n نام «postgres» حل نشد — میزبان کارت اعتبارنامه را بررسی کنید"
+    c_hint "docker network inspect $(cd "$INFRA_DIR" 2>/dev/null && docker compose ps -q "$N8N_SERVICE" 2>/dev/null | head -1) >/dev/null 2>&1"
+fi
+
+c_head "۲) انتشار گردش‌کارها (با شناسه ثابت)"
+
+# چرا از CLI برای گرفتن شناسه استفاده نمی‌کنیم؟
+#   «n8n list:workflow» در 2.44.7 فهرست کامل/قابل‌اتکا نمی‌دهد و هر ایمپورت
+#   بدون شناسه ثابت، یک گردش‌کار تازه می‌سازد (همان تکراری‌های فعلی). پس
+#   شناسه‌ها از فایل‌های خود مخزن خوانده و از دیتابیس n8n تأیید می‌شوند.
+FIXED_IDS="$(python3 - "$HERE/../02_n8n" <<'PYEOF'
+import glob, json, os, sys
+d = sys.argv[1]
+ids = []
+for f in sorted(glob.glob(os.path.join(d, "wf-*.json"))):
+    wf = json.load(open(f, encoding="utf-8"))
+    if wf.get("id"):
+        ids.append("%s|%s" % (wf["id"], wf["name"]))
+print("\n".join(ids))
+PYEOF
+)"
+if [[ -z "$FIXED_IDS" ]]; then
+    c_bad "شناسه گردش‌کارها در فایل‌های 02_n8n پیدا نشد"
     exit 1
+fi
+
+# گردش‌کارهای تکراری (ایمپورت‌های قبلی) غیرفعال می‌شوند تا دو بار polling نکنند
+STALE_SQL="SELECT string_agg(id, ' ') FROM workflow_entity
+            WHERE name LIKE 'IEE1405%'
+              AND id <> ALL (ARRAY[$(printf "'%s'," $(echo "$FIXED_IDS" | cut -d'|' -f1) | sed 's/,$//')])"
+STALE="$(pgq "$N8N_DB" -c "$STALE_SQL" 2>/dev/null | tr -d '\r\n' | sed 's/[[:space:]]*$//')"
+if [[ -n "$STALE" && "$STALE" != "" ]]; then
+    pgq "$N8N_DB" -c "UPDATE workflow_entity SET active = false, \"activeVersionId\" = NULL
+                       WHERE name LIKE 'IEE1405%'
+                         AND id <> ALL (ARRAY[$(printf "'%s'," $(echo "$FIXED_IDS" | cut -d'|' -f1) | sed 's/,$//')])" >/dev/null 2>&1
+    c_warn "گردش‌کارهای تکراری غیرفعال شدند (از ایمپورت‌های قبلی): $STALE"
+    c_hint "پاک‌کردن نهایی: در n8n → Workflows → گردش‌کارهای IEE1405 بدون تیک Active را حذف کنید"
 fi
 
 COUNT=0
 while IFS='|' read -r wid wname; do
     [[ -z "${wid:-}" ]] && continue
-    case "$wname" in
-        *IEE1405*) ;;
-        *) continue ;;
-    esac
-    COUNT=$((COUNT + 1))
+    EXISTS="$(pgq "$N8N_DB" -c "SELECT count(*) FROM workflow_entity WHERE id = '$wid'" 2>/dev/null | tr -d '[:space:]')"
+    if [[ "$EXISTS" != "1" ]]; then
+        c_bad "$wname ($wid) در n8n نیست"
+        c_hint "bash 03_ops/import_workflows.sh import"
+        continue
+    fi
     printf '  → %s (%s) ' "$wname" "$wid"
     if n8n publish:workflow --id="$wid" >/tmp/iee_pub.log 2>&1; then
         echo "✅ منتشر شد"
+        COUNT=$((COUNT + 1))
     else
         echo "❌"
         tail -3 /tmp/iee_pub.log | sed 's/^/     /'
     fi
-done <<< "$LIST"
+done <<< "$FIXED_IDS"
 
 if [[ "$COUNT" == "0" ]]; then
-    c_bad "هیچ گردش‌کاری با پیشوند IEE1405 پیدا نشد"
+    c_bad "هیچ گردش‌کاری منتشر نشد"
     exit 1
 fi
 c_ok "$COUNT گردش‌کار منتشر شد"
@@ -188,7 +236,9 @@ sleep 5
 c_ok "n8n پاسخ می‌دهد"
 
 c_head "۴) تأیید فعال بودن"
-ACTIVE="$(n8n list:workflow --active=true 2>/dev/null | grep "IEE1405" | sort -u | grep -c . || true)"
+ACTIVE="$(pgq "$N8N_DB" -c "SELECT count(*) FROM workflow_entity
+                               WHERE name LIKE 'IEE1405%'
+                                 AND active AND \"activeVersionId\" IS NOT NULL" 2>/dev/null | tr -d '[:space:]')"
 printf '  گردش‌کارهای فعال IEE1405: %s (انتظار: %s)\n' "${ACTIVE:-0}" "$COUNT"
 if [[ "${ACTIVE:-0}" -ge "$COUNT" ]]; then
     c_ok "همه گردش‌کارها فعال هستند"
