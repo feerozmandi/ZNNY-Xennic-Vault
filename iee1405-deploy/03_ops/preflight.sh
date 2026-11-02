@@ -6,224 +6,252 @@
 #   bash 03_ops/preflight.sh
 #
 # چه می‌کند؟
-#   • تأیید می‌کند روی خودِ سرور هستید (نه روی لپ‌تاپ)
-#   • مسیر درست فایل‌ها را بررسی می‌کند (خطای «No such file» را ریشه‌یابی می‌کند)
-#   • دسترسی Docker و فایل docker-compose را پیدا می‌کند
-#   • نام واقعی کانتینرها، نام دیتابیس و نسخه n8n را چاپ می‌کند
-#   • در پایان، دستور دقیق بعدی را با مقادیر واقعی آماده می‌کند
+#   • تأیید می‌کند روی خودِ سرور هستید و فایل‌ها سرِ جایشان هستند
+#   • کانتینرهای واقعی را از «docker ps» می‌خواند (نه از compose ps که در
+#     نسخه‌های مختلف compose رفتار متفاوت دارد)
+#   • کانتینر PostgreSQL را پیدا می‌کند، حتی اگر نام سرویس «postgres» نباشد
+#   • اگر PostgreSQL بالا نیست، لاگ خطای آن را نشان می‌دهد
+#   • نام واقعی دیتابیس، نسخه n8n و وضعیت متغیرهای لازم را چاپ می‌کند
+#   • در پایان، دستور بعدی را با مقادیر واقعی آماده می‌کند
 #
-# هیچ چیزی تغییر نمی‌دهد: فقط SELECT، docker ps و خواندن فایل.
+# هیچ چیزی تغییر نمی‌دهد: فقط SELECT، docker ps/logs و خواندن فایل.
+# گزینه‌های دستی:
+#   PG_CONTAINER=<name> N8N_CONTAINER=<name> bash 03_ops/preflight.sh
 # ═══════════════════════════════════════════════════════════════════════
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INFRA_DIR="${INFRA_DIR:-$HOME/xennic-infra}"
 COMPOSE_FILE="${COMPOSE_FILE:-$INFRA_DIR/docker-compose.yml}"
-PG_SERVICE="${PG_SERVICE:-postgres}"
-N8N_SERVICE="${N8N_SERVICE:-n8n}"
 
 C_OK=0; C_WARN=0; C_FAIL=0
 ok()   { printf '  \033[32m✅\033[0m %s\n' "$*"; C_OK=$((C_OK+1)); }
 warn() { printf '  \033[33m⚠️ \033[0m %s\n' "$*"; C_WARN=$((C_WARN+1)); }
 bad()  { printf '  \033[31m❌\033[0m %s\n' "$*"; C_FAIL=$((C_FAIL+1)); }
-head_() { printf '\n\033[1m%s\033[0m\n' "$*"; }
+head_(){ printf '\n\033[1m%s\033[0m\n' "$*"; }
+hint() { printf '     %s\n' "$*"; }
 
-step() { printf '\n▸ %s\n' "$*"; }
-
+DK=""
 DB_FOUND=""
-NEXT_CMD=""
-
-# ── ۱) کجا هستیم؟ ──────────────────────────────────────────────────────
-head_ "۱) محل اجرا"
-printf '  میزبان: %s · کاربر: %s\n' "$(hostname)" "$(whoami)"
-printf '  مسیر:   %s\n' "$HERE"
-if [[ -f "$HERE/01_sql/04_bot_logic.sql" && -f "$HERE/00_audit/audit.sql" ]]; then
-    ok "فایل‌های بسته کامل است (01_sql، 00_audit موجودند)"
-else
-    bad "این پوشه بسته استقرار نیست — فایل 01_sql/04_bot_logic.sql پیدا نشد"
-    printf '     احتمالاً git clone انجام نشده یا از پوشه اشتباه اجرا شده است.\n'
-    printf '     مسیر درست: ~/ZNNY-Xennic-Vault/iee1405-deploy\n'
-fi
-if [[ -f "$HERE/02_n8n/wf-01-bale-ingest.json" ]]; then
-    ok "گردش‌کارهای n8n موجودند (۴ فایل)"
-else
-    bad "فایل‌های گردش‌کار n8n موجود نیستند"
-fi
-
-# آیا روی سرور هستیم؟ (وجود docker + پوشه infra نشانه سرور است)
-ON_SERVER=0
-command -v docker >/dev/null 2>&1 && ON_SERVER=1
+PG_CT=""
+N8N_CT=""
+PG_USER_OK=""
 
 # ── ۲) Docker ──────────────────────────────────────────────────────────
-head_ "۲) Docker"
+head_ "۱) Docker"
 if ! command -v docker >/dev/null 2>&1; then
     bad "docker نصب نیست یا در PATH نیست"
-    printf '     اگر روی لپ‌تاپ هستید: اول ssh بزنید به سرور، بعد این اسکریپت را اجرا کنید.\n'
-    printf '     ssh -p 33878 xennic@185.192.113.199\n'
+    hint "اگر روی لپ‌تاپ هستید، اول وارد سرور شوید؛ این اسکریپت باید روی سرور اجرا شود."
 else
     if docker info >/dev/null 2>&1; then
-        ok "دِمون Docker در دسترس است"
+        DK="docker"; ok "دِمون Docker در دسترس است"
     elif sudo -n docker info >/dev/null 2>&1; then
-        warn "Docker فقط با sudo کار می‌کند"
-        printf '     راه‌حل: sudo usermod -aG docker %s  سپس خروج و ورود مجدد\n' "$(whoami)"
+        DK="sudo docker"; warn "Docker فقط با sudo کار می‌کند"
+        hint "راه‌حل: sudo usermod -aG docker $(whoami) سپس خروج و ورود مجدد"
     else
-        bad "به دِمون Docker دسترسی نیست (کاربر در گروه docker نیست؟)"
-        printf '     بررسی: groups  →  باید docker داشته باشد\n'
+        bad "به دِمون Docker دسترسی نیست"
+        hint "بررسی: groups  →  باید docker داشته باشد"
     fi
 fi
 
-# ── ۳) فایل compose و کانتینرها ────────────────────────────────────────
-head_ "۳) پشته Docker"
-if [[ -f "$COMPOSE_FILE" ]]; then
-    ok "docker-compose یافت شد: $COMPOSE_FILE"
-else
-    warn "docker-compose در مسیر پیش‌فرض نیست: $COMPOSE_FILE"
-    found_compose="$(ls -1 "$HOME"/*/docker-compose.yml /opt/*/docker-compose.yml 2>/dev/null | head -3)"
-    if [[ -n "$found_compose" ]]; then
-        printf '     گزینه‌های یافت‌شده:\n'
-        printf '       %s\n' $found_compose
-        COMPOSE_FILE="$(printf '%s\n' $found_compose | head -1)"
-        printf '     استفاده از: %s\n' "$COMPOSE_FILE"
-        printf '     برای انتخاب دستی: COMPOSE_FILE=/path/docker-compose.yml bash 03_ops/preflight.sh\n'
-    fi
-fi
-
-if [[ -f "$COMPOSE_FILE" ]] && command -v docker >/dev/null 2>&1; then
-    # از پوشه infra اجرا می‌شود تا docker-compose.override.yml و .env هم خوانده شوند
-    dc() { ( cd "$INFRA_DIR" && docker compose "$@" ); }
-    if "${COMPOSE[@]}" ps >/dev/null 2>&1; then
-        running="$("${COMPOSE[@]}" ps --services --filter status=running 2>/dev/null | sort | tr '\n' ' ')"
-        if [[ -n "${running// /}" ]]; then
-            ok "سرویس‌های در حال اجرا: $running"
-        else
-            bad "هیچ سرویسی در حال اجرا نیست — docker compose up -d"
+# ── ۲) کانتینرها: منبع حقیقت = docker ps ───────────────────────────────
+head_ "۲) کانتینرهای واقعی"
+if [[ -n "$DK" ]]; then
+    fmt='{{.Names}}\t{{.Image}}\t{{.State}}\t{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.service"}}'
+    ALL="$($DK ps -a --format "$fmt" 2>/dev/null)"
+    RUNNING="$($DK ps --format "$fmt" 2>/dev/null)"
+    if [[ -z "$RUNNING" ]]; then
+        bad "هیچ کانتینری در حال اجرا نیست"
+        if [[ -n "$ALL" ]]; then
+            hint "کانتینرهای متوقف‌شده:"
+            printf '%s\n' "$ALL" | while IFS=$'\t' read -r n i s p sv; do
+                hint "  $n ($i) — $s"
+            done
         fi
-        for svc in "$PG_SERVICE" "$N8N_SERVICE"; do
-            if printf '%s\n' "$running" | grep -qw "$svc"; then
-                ok "سرویس «$svc» بالاست"
-            else
-                warn "سرویس «$svc» در حال اجرا نیست"
-            fi
-        done
+        hint "راه‌اندازی:  cd $INFRA_DIR && docker compose up -d"
     else
-        bad "docker compose با این فایل کار نمی‌کند (خطای compose را ببینید)"
+        ok "کانتینرهای در حال اجرا:"
+        printf '%s\n' "$RUNNING" | while IFS=$'\t' read -r n i s p sv; do
+            hint "  $n  ·  $i  ·  سرویس: ${sv:-—}  ·  پروژه: ${p:-—}"
+        done
     fi
 fi
 
-# ── ۴) PostgreSQL ──────────────────────────────────────────────────────
-head_ "۴) PostgreSQL"
-pgq() { ( cd "$INFRA_DIR" && docker compose exec -T "$PG_SERVICE" psql -U postgres -X -t -A "$@" ); }
+# ── انتخاب کانتینر PostgreSQL ──────────────────────────────────────────
+if [[ -n "$DK" ]]; then
+    if [[ -n "${PG_CONTAINER:-}" ]]; then
+        PG_CT="$PG_CONTAINER"
+    else
+        # اول از روی برچسب سرویس، بعد از روی تصویر
+        PG_CT="$($DK ps --format '{{.Names}}\t{{.Image}}\t{{.Label "com.docker.compose.service"}}' 2>/dev/null |
+                awk -F'\t' 'tolower($3)=="postgres"||tolower($3)=="postgresql"||tolower($3)=="db"{print $1; exit}')"
+        if [[ -z "$PG_CT" ]]; then
+            PG_CT="$($DK ps --format '{{.Names}}\t{{.Image}}' 2>/dev/null |
+                    awk -F'\t' 'tolower($2) ~ /postgres/ {print $1; exit}')"
+        fi
+    fi
+    if [[ -n "$PG_CT" ]]; then
+        ok "کانتینر PostgreSQL: $PG_CT"
+    else
+        bad "هیچ کانتینر PostgreSQL در حال اجرایی پیدا نشد"
+        hint "اگر نامش را می‌دانید:  PG_CONTAINER=<name> bash 03_ops/preflight.sh"
+    fi
+fi
 
-if [[ -f "$COMPOSE_FILE" ]] && command -v docker >/dev/null 2>&1; then
-    if ver="$(pgq -c 'SHOW server_version' 2>/dev/null)"; then
-        ok "اتصال به PostgreSQL برقرار است (نسخه $ver)"
-        dbs="$(pgq -c "SELECT datname FROM pg_database WHERE NOT datistemplate ORDER BY 1" 2>/dev/null)"
-        printf '     دیتابیس‌ها: %s\n' "$(printf '%s' "$dbs" | tr '\n' ' ')"
-        # دیتابیس پیشنهادی
+# ── انتخاب کانتینر n8n ─────────────────────────────────────────────────
+if [[ -n "$DK" ]]; then
+    if [[ -n "${N8N_CONTAINER:-}" ]]; then
+        N8N_CT="$N8N_CONTAINER"
+    else
+        N8N_CT="$($DK ps --format '{{.Names}}\t{{.Image}}\t{{.Label "com.docker.compose.service"}}' 2>/dev/null |
+                 awk -F'\t' 'tolower($3)=="n8n"||tolower($2) ~ /n8n/ {print $1; exit}')"
+    fi
+    [[ -n "$N8N_CT" ]] && ok "کانتینر n8n: $N8N_CT" || warn "کانتینر n8n در حال اجرا نیست"
+fi
+
+# ── ۳) PostgreSQL ──────────────────────────────────────────────────────
+head_ "۳) PostgreSQL"
+pgq() { $DK exec -i "$PG_CT" psql -U "$PG_USER_OK" -X -t -A "$@" 2>&1; }
+
+if [[ -n "$PG_CT" ]]; then
+    # کاربر دیتابیس: postgres یا مقدار POSTGRES_USER داخل کانتینر
+    for u in postgres "$($DK exec -i "$PG_CT" printenv POSTGRES_USER 2>/dev/null | tr -d '\r')"; do
+        [[ -z "$u" ]] && continue
+        if $DK exec -i "$PG_CT" psql -U "$u" -X -t -A -c 'SELECT 1' >/dev/null 2>&1; then
+            PG_USER_OK="$u"; break
+        fi
+    done
+    if [[ -z "$PG_USER_OK" ]]; then
+        bad "psql با کاربر postgres داخل «$PG_CT» جواب نداد"
+        hint "۲۰ خط آخر لاگ کانتینر:"
+        $DK logs --tail 20 "$PG_CT" 2>&1 | sed 's/^/       /' | tail -20
+        hint "اگر در لاگ «database system is starting up» یا خطای دیسک بود، صبر کنید/فضا را بررسی کنید."
+    else
+        ver="$(pgq -c 'SHOW server_version' | tr -d '[:space:]')"
+        ok "PostgreSQL $ver · کاربر «$PG_USER_OK» · کانتینر «$PG_CT»"
+        dbs="$(pgq -c "SELECT datname FROM pg_database WHERE NOT datistemplate ORDER BY 1")"
+        hint "دیتابیس‌ها: $(printf '%s' "$dbs" | tr '\n' ' ')"
         if printf '%s\n' "$dbs" | grep -qx 'xennic'; then
             DB_FOUND="xennic"
         else
-            cand="$(printf '%s\n' "$dbs" | grep -vxE 'postgres|n8n|n8n_data' | head -1)"
+            cand="$(printf '%s\n' "$dbs" | grep -vxE 'postgres|n8n' | head -1)"
             DB_FOUND="${cand:-postgres}"
-            if [[ -n "$cand" ]]; then
-                warn "دیتابیس «xennic» نیست؛ پیشنهاد استفاده از «$cand»"
-            fi
+            [[ -n "$cand" ]] && warn "دیتابیس «xennic» وجود ندارد؛ پیشنهاد: «$cand»"
         fi
-        # آیا ساختار از قبل هست؟
+        # ساختار از قبل؟
         for db in $dbs; do
-            n="$(pgq -d "$db" -c "SELECT count(*) FROM pg_tables WHERE schemaname IN ('crm','iee1405')" 2>/dev/null)"
+            n="$($DK exec -i "$PG_CT" psql -U "$PG_USER_OK" -d "$db" -X -t -A \
+                 -c "SELECT count(*) FROM pg_tables WHERE schemaname IN ('crm','iee1405')" 2>/dev/null | tr -d '[:space:]')"
             if [[ -n "$n" && "$n" != "0" ]]; then
-                warn "در دیتابیس «$db» تعداد $n جدول crm/iee1405 از قبل وجود دارد (استقرار مجدد آن‌ها را بازنویسی نمی‌کند)"
+                warn "در «$db» تعداد $n جدول crm/iee1405 از قبل هست (استقرار مجدد بی‌خطر است)"
             fi
         done
-        # پورت عمومی؟
-        if dc ps 2>/dev/null | grep -q '0\.0\.0\.0:5432'; then
-            bad "پورت ۵۴۳۲ روی همه اینترفیس‌ها باز است — باید فقط 127.0.0.1 باشد (PRJ-IEE-007)"
+        # پورت عمومی
+        if $DK ps --format '{{.Ports}}' 2>/dev/null | grep -q '0\.0\.0\.0:5432'; then
+            bad "پورت ۵۴۳۲ روی همه اینترفیس‌ها باز است — باید فقط 127.0.0.1 باشد"
         else
             ok "پورت PostgreSQL روی اینترنت باز نیست"
         fi
-    else
-        bad "psql داخل کانتینر «$PG_SERVICE» جواب نداد"
-        printf '     نام سرویس را بررسی کنید: docker compose ps\n'
-        printf '     سپس: PG_SERVICE=<name> bash 03_ops/preflight.sh\n'
+        # وضعیت پروژه/دیتابیس از داخل خود دیتابیس
+        if [[ "$DB_FOUND" == "xennic" ]] && [[ -n "$n" && "$n" != "0" ]]; then
+            :
+        fi
     fi
 else
-    warn "اتصال PostgreSQL آزمایش نشد (compose یا Docker در دسترس نبود)"
+    warn "اتصال PostgreSQL آزمایش نشد"
 fi
 
-# ── ۵) n8n ─────────────────────────────────────────────────────────────
-head_ "۵) n8n"
-if [[ -f "$COMPOSE_FILE" ]] && command -v docker >/dev/null 2>&1; then
-    if n8nv="$(dc exec -T "$N8N_SERVICE" n8n --version 2>/dev/null | tail -1)"; then
+# ── ۴) n8n ─────────────────────────────────────────────────────────────
+head_ "۴) n8n"
+if [[ -n "$N8N_CT" ]]; then
+    n8nv="$($DK exec -i "$N8N_CT" n8n --version 2>/dev/null | tr -d '\r' | tail -1)"
+    if [[ -n "$n8nv" ]]; then
         ok "نسخه n8n: $n8nv"
-        printf '     گردش‌کارها با typeVersion های 2.6 (postgres) و 1.3 (schedule) ساخته شده‌اند.\n'
-        printf '     اگر n8n قدیمی‌تر از 1.90 بود، قبل از ایمپورت به‌روزرسانی لازم است.\n'
+        major_minor="$(printf '%s' "$n8nv" | grep -oE '^[0-9]+\.[0-9]+' || true)"
+        if [[ -n "$major_minor" ]]; then
+            mm_major="${major_minor%%.*}"; mm_minor="${major_minor##*.}"
+            if (( mm_major > 1 )) || (( mm_major == 1 && mm_minor >= 60 )); then
+                ok "نسخه برای typeVersion های گردش‌کارها کافی است (postgres 2.6 · schedule 1.3 · splitOut 1 · http 4.2)"
+            else
+                warn "n8n قدیمی است؛ گره‌های گردش‌کار ممکن است ایمپورت نشوند"
+                hint "به‌روزرسانی: cd $INFRA_DIR && docker compose pull n8n && docker compose up -d n8n"
+            fi
+        fi
     else
-        warn "نسخه n8n خوانده نشد (سرویس بالاست؟)"
+        warn "نسخه n8n خوانده نشد"
+        $DK logs --tail 10 "$N8N_CT" 2>&1 | sed 's/^/       /'
     fi
-    # متغیرهای محیطی لازم
-    envs="$(dc exec -T "$N8N_SERVICE" printenv 2>/dev/null |
-            grep -E '^(BALE_API_URL|N8N_BLOCK_ENV_ACCESS_IN_NODE|GENERIC_TIMEZONE)=' || true)"
+
+    envs="$($DK exec -i "$N8N_CT" printenv 2>/dev/null | grep -E '^(BALE_API_URL|N8N_BLOCK_ENV_ACCESS_IN_NODE|GENERIC_TIMEZONE|TZ)=' || true)"
     if printf '%s' "$envs" | grep -q '^BALE_API_URL='; then
-        # مقدار توکن هرگز چاپ نمی‌شود
         u="$(printf '%s\n' "$envs" | grep '^BALE_API_URL=' | cut -d= -f2-)"
         if printf '%s' "$u" | grep -q '^https://tapi\.bale\.ai/bot'; then
-            ok "BALE_API_URL تنظیم شده است (مقدار محرمانه، چاپ نمی‌شود)"
+            ok "BALE_API_URL تنظیم شده است (محرمانه، چاپ نمی‌شود)"
         else
-            warn "BALE_API_URL تنظیم شده اما قالب درست نیست — باید با https://tapi.bale.ai/bot شروع شود"
+            warn "BALE_API_URL هست اما قالب درست نیست (باید با https://tapi.bale.ai/bot شروع شود)"
         fi
     else
         bad "BALE_API_URL در سرویس n8n تعریف نشده — ارسال پیام بله کار نمی‌کند"
-        printf '     مأخذ: 03_ops/env.example و 03_ops/docker-compose.override.yml\n'
+        hint "راه‌حل خودکار:  bash 03_ops/setup_env.sh"
     fi
-    if printf '%s' "$envs" | grep -q '^N8N_BLOCK_ENV_ACCESS_IN_NODE=false'; then
-        ok "N8N_BLOCK_ENV_ACCESS_IN_NODE=false"
-    else
-        bad "N8N_BLOCK_ENV_ACCESS_IN_NODE=false نیست — گره‌ها به \$env دسترسی ندارند و ارسال شکست می‌خورد"
-    fi
-    if printf '%s' "$envs" | grep -q '^GENERIC_TIMEZONE=Asia/Tehran'; then
+    printf '%s' "$envs" | grep -q '^N8N_BLOCK_ENV_ACCESS_IN_NODE=false' \
+        && ok "N8N_BLOCK_ENV_ACCESS_IN_NODE=false" \
+        || { bad "N8N_BLOCK_ENV_ACCESS_IN_NODE=false نیست — \$env در دسترس نیست"; hint "راه‌حل خودکار:  bash 03_ops/setup_env.sh"; }
+    if printf '%s\n' "$envs" | grep -qE '^(GENERIC_TIMEZONE|TZ)=Asia/Tehran'; then
         ok "منطقه زمانی تهران تنظیم است"
     else
-        warn "GENERIC_TIMEZONE=Asia/Tehran نیست — ساعت اجرای گزارش‌ها جابه‌جا می‌شود"
+        warn "GENERIC_TIMEZONE=Asia/Tehran نیست — ساعت گزارش‌ها جابه‌جا می‌شود"
     fi
+else
+    warn "n8n بالا نیست؛ بخش متغیرها آزمایش نشد"
 fi
 
-# ── ۶) فضای دیسک ───────────────────────────────────────────────────────
-head_ "۶) فضای دیسک"
-avail="$(df -h --output=avail / 2>/dev/null | tail -1 | tr -d ' ')"
+# ── ۵) فضای دیسک ───────────────────────────────────────────────────────
+head_ "۵) فضای دیسک"
+avail="$(df -h / 2>/dev/null | awk 'NR==2{print $4}')"
 printf '  فضای آزاد ریشه: %s\n' "${avail:-نامشخص}"
-if [[ -n "${avail:-}" ]] && [[ "${avail%G}" =~ ^[0-9]+$ ]] && (( ${avail%G} < 5 )); then
-    warn "فضای دیسک کم است (زیر ۵ گیگابایت) — پشتیبان‌گیری و لاگ‌ها را پایش کنید"
+free_g="$(printf '%s' "${avail:-}" | sed 's/[^0-9.]//g')"
+if [[ -n "$free_g" ]] && awk -v g="$free_g" 'BEGIN{exit !(g < 5)}'; then
+    warn "فضای دیسک کم است (زیر ۵ گیگابایت)"
 else
     ok "فضای دیسک کافی است"
 fi
 
-# ── ۷) نتیجه ───────────────────────────────────────────────────────────
+# ── ۶) نتیجه ───────────────────────────────────────────────────────────
 head_ "نتیجه"
 printf '  موفق: %d · هشدار: %d · خطا: %d\n' "$C_OK" "$C_WARN" "$C_FAIL"
 echo ""
 
-if [[ "$C_FAIL" -gt 0 ]]; then
-    printf '  \033[33mقبل از ادامه، خطاهای بالا را رفع کنید.\033[0m\n'
+if [[ -z "$PG_USER_OK" ]]; then
+    printf '  \033[33mاول PostgreSQL را بالا بیاورید، بعد دوباره این اسکریپت را اجرا کنید:\033[0m\n\n'
+    cat <<EOF
+     cd $INFRA_DIR
+     docker compose up -d
+     docker compose ps
+     cd ~/ZNNY-Xennic-Vault/iee1405-deploy && bash 03_ops/preflight.sh
+EOF
     exit 1
 fi
 
 DB_ARG="${DB_FOUND:-xennic}"
 cat <<EOF
-  همه پیش‌نیازها آماده است. دستورهای بعدی (به همین ترتیب):
+  دستورهای بعدی (به همین ترتیب):
 
-  ۱) بازرسی کامل و ثبت گزارش:
+  ۱) اگر BALE_API_URL یا N8N_BLOCK_ENV_ACCESS_IN_NODE خطا داشت:
+     bash 03_ops/setup_env.sh
+
+  ۲) بازرسی کامل و ثبت گزارش:
      bash 00_audit/audit_postgres.sh
 
-  ۲) استقرار ساختار و منطق در دیتابیس «$DB_ARG»:
+  ۳) استقرار ساختار و منطق در دیتابیس «$DB_ARG»:
      PG_DB=$DB_ARG APP_PASSWORD='<یک-رمز-قوی-بسازید>' bash 03_ops/deploy_sql.sh
 
-  ۳) ایمپورت گردش‌کارها:
+  ۴) ایمپورت گردش‌کارها:
      bash 03_ops/import_workflows.sh import
 
-  ۴) در رابط n8n: کارت «Xennic PostgreSQL» بسازید
+  ۵) در رابط n8n: کارت «Xennic PostgreSQL» بسازید
      (میزبان: postgres · دیتابیس: $DB_ARG · کاربر: iee_app)
 
-  ۵) فعال‌سازی:
+  ۶) فعال‌سازی:
      bash 03_ops/import_workflows.sh activate
 EOF

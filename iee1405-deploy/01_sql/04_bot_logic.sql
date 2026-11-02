@@ -733,3 +733,86 @@ END $$;
 
 COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb) IS
 'پردازش یک آپدیت بله: احراز هویت، idempotency، مسیریابی دستور، ثبت در پایگاه‌داده، تولید پاسخ';
+
+-- ─────────────────────────────────────────────────────────────────────
+-- ۵.۸) پوشش امن یک آپدیت خام بله
+--
+-- چرا؟ گردش‌کار n8n فقط یک پارامتر می‌فرستد (کل آپدیت به‌صورت JSON)،
+-- چون دسترسی به $json.message.chat.id در سمت n8n برای آپدیت‌های بدون
+-- پیام متنی (عکس، فایل، پست کانال، callback) خطا می‌دهد و آن خطا
+-- می‌تواند کل دسته آپدیت‌ها را از بین ببرد. اینجا همه چیز امن استخراج
+-- می‌شود و آپدیت‌های غیرقابل‌پردازش فقط «نادیده» ثبت می‌شوند.
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION iee1405.bot_dispatch_json(p_update jsonb)
+RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_update_id bigint;
+    v_chat_id   bigint;
+    v_text      text;
+    v_kind      text;
+    v_msg       jsonb;
+BEGIN
+    IF p_update IS NULL OR jsonb_typeof(p_update) <> 'object' THEN
+        RETURN QUERY SELECT NULL::bigint, 'invalid'::text, NULL::text, NULL::text;
+        RETURN;
+    END IF;
+
+    v_update_id := nullif(p_update ->> 'update_id', '')::bigint;
+
+    IF v_update_id IS NULL THEN
+        RETURN QUERY SELECT NULL::bigint, 'invalid'::text, NULL::text, NULL::text;
+        RETURN;
+    END IF;
+
+    -- پیام عادی، پست کانال، یا ویرایش پیام
+    v_msg  := COALESCE(p_update -> 'message',
+                       p_update -> 'channel_post',
+                       p_update -> 'edited_message');
+    v_kind := CASE
+                WHEN p_update ? 'message'        THEN 'message'
+                WHEN p_update ? 'channel_post'   THEN 'channel_post'
+                WHEN p_update ? 'edited_message' THEN 'edited_message'
+                WHEN p_update ? 'callback_query' THEN 'callback_query'
+                ELSE 'other'
+              END;
+
+    -- callback_query ساختار متفاوتی دارد
+    IF v_kind = 'callback_query' THEN
+        v_chat_id := nullif(p_update #>> '{callback_query,message,chat,id}', '')::bigint;
+        v_text    := COALESCE(p_update #>> '{callback_query,data}', '');
+    ELSIF v_msg IS NOT NULL THEN
+        v_chat_id := nullif(v_msg #>> '{chat,id}', '')::bigint;
+        v_text    := COALESCE(v_msg ->> 'text', v_msg ->> 'caption', '');
+    END IF;
+
+    -- آپدیت بدون گفت‌وگو (مثلاً poll یا inline) → نادیده، بدون پاسخ
+    IF v_chat_id IS NULL THEN
+        INSERT INTO iee1405.bot_updates (update_id, chat_id, raw, command, status, processed_at)
+        VALUES (v_update_id, NULL, p_update, v_kind, 'skipped', now())
+        ON CONFLICT (update_id) DO NOTHING;
+        RETURN QUERY SELECT NULL::bigint, 'ignored'::text, NULL::text, NULL::text;
+        RETURN;
+    END IF;
+
+    -- پیام بدون متن (عکس/فایل/صوت): ثبت می‌شود و پاسخ راهنما در صف قرار می‌گیرد
+    IF btrim(v_text) = '' THEN
+        v_text := 'فعلاً فقط متن ثبت می‌شود.' || E'\n' ||
+                  'عکس/فایل را بعد از ثبت متن شرکت بفرستید تا به پرونده وصل شود.' || E'\n' ||
+                  'راهنما: /help';
+
+        INSERT INTO iee1405.bot_updates (update_id, chat_id, raw, command, status, reply_text)
+        VALUES (v_update_id, v_chat_id, p_update, v_kind, 'received', v_text)
+        ON CONFLICT (update_id) DO NOTHING;
+
+        RETURN QUERY SELECT v_chat_id, 'media'::text, v_text, NULL::text;
+        RETURN;
+    END IF;
+
+    RETURN QUERY
+    SELECT d.chat_id, d.status, d.reply_text, d.org_code
+      FROM iee1405.bot_dispatch(v_update_id, v_chat_id, v_text, p_update) d;
+END $$;
+
+COMMENT ON FUNCTION iee1405.bot_dispatch_json(jsonb) IS
+'پوشش امن یک آپدیت خام بله؛ ورودی واحد گردش‌کار n8n ($1::jsonb)';

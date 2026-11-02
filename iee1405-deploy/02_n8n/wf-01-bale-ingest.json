@@ -53,6 +53,7 @@
         "url": "=https://tapi.bale.ai/bot{{ $env.BALE_BOT_TOKEN }}/getUpdates",
         "options": {},
         "sendQuery": true,
+        "specifyQuery": "keypair",
         "queryParameters": {
           "parameters": [
             {
@@ -104,9 +105,9 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT chat_id, status, reply_text, org_code\n  FROM iee1405.bot_dispatch($1::bigint, $2::bigint, $3::text, $4::jsonb);",
+        "query": "SELECT chat_id, status, reply_text, org_code\n  FROM iee1405.bot_dispatch_json($1::jsonb);",
         "options": {
-          "queryReplacement": "={{ [$json.update_id,\n  $json.message.chat.id,\n  ($json.message.text || ''),\n  JSON.stringify($json)] }}"
+          "queryReplacement": "={{ JSON.stringify($json) }}"
         }
       },
       "id": "d128a80c-d9f9-59fd-82f1-58a921c49ccb",
@@ -123,7 +124,7 @@
           "name": "Xennic PostgreSQL"
         }
       },
-      "notes": "کل منطق ربات داخل تابع SQL است؛ این گره فقط لوله است",
+      "notes": "کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد",
       "notesInFlow": true
     },
     {
@@ -158,6 +159,7 @@
         "options": {},
         "sendBody": true,
         "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
         "bodyParameters": {
           "parameters": [
             {

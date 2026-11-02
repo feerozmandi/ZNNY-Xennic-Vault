@@ -54,6 +54,7 @@
         "options": {},
         "sendBody": true,
         "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
         "bodyParameters": {
           "parameters": [
             {

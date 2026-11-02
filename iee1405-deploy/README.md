@@ -30,12 +30,18 @@ bash 03_ops/preflight.sh
 پیش‌نیازها آماده است» بود، ادامه دهید:
 
 ```bash
+bash 03_ops/setup_env.sh          # افزودن BALE_API_URL و متغیرهای لازم (اگر خطا داشت)
 bash 00_audit/audit_postgres.sh                                  # فقط خواندن
 PG_DB=xennic APP_PASSWORD='<رمز-قوی>' bash 03_ops/deploy_sql.sh   # ساختار + منطق
 bash 03_ops/import_workflows.sh import                            # گردش‌کارها
 # در رابط n8n: کارت «Xennic PostgreSQL» بسازید و در ۴ گردش‌کار انتخاب کنید
 bash 03_ops/import_workflows.sh activate
 ```
+
+> [!tip] اگر `preflight.sh` گفت «هیچ سرویس در حال اجرا نیست»
+> این یعنی PostgreSQL واقعاً بالاست یا نه — نه اینکه اسکریپت اشتباه کرده باشد.
+> `docker ps` را ببینید؛ اگر کانتینر `postgres` هست ولی `exited` است، لاگش را بخوانید:
+> `docker logs --tail 30 <container>`. سپس `cd ~/xennic-infra && docker compose up -d`.
 
 `PG_DB` را با مقداری که `preflight.sh` پیشنهاد می‌دهد عوض کنید.
 

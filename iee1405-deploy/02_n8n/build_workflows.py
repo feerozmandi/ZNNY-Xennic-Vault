@@ -104,12 +104,17 @@ def bale_call(name, position, method, *, query_params=None, body_params=None,
     }
     if query_params:
         params["sendQuery"] = True
+        # specifyQuery پیش‌فرض کد 'keypair' است؛ صریح می‌نویسیم تا به نسخه وابسته نباشیم
+        params["specifyQuery"] = "keypair"
         params["queryParameters"] = {
             "parameters": [{"name": k, "value": v} for k, v in query_params.items()]
         }
     if body_params:
         params["sendBody"] = True
         params["contentType"] = "form-urlencoded"
+        # ⚠️ حیاتی: در کد گره، specifyBody با پیش‌فرض '' خوانده می‌شود؛
+        # اگر غایب باشد هیچ شاخه‌ای اجرا نمی‌شود و بدنه خالی ارسال می‌شود
+        params["specifyBody"] = "keypair"
         params["bodyParameters"] = {
             "parameters": [{"name": k, "value": v} for k, v in body_params.items()]
         }
@@ -182,17 +187,16 @@ def wf_inbound():
 
     n_split = split_node("✂️ تفکیک آپدیت‌ها", [660, 0], "result")
 
+    # فقط یک پارامتر: کل آپدیت به‌صورت JSON.
+    # چرا نه چهار پارامتر؟ چون $json.message.chat.id برای آپدیت‌های بدون
+    # پیام متنی (عکس، پست کانال، callback) خطا می‌دهد و در n8n یک خطای گره،
+    # پردازش بقیه آپدیت‌های همان دسته را متوقف می‌کند. استخراج در SQL امن است.
     n_dispatch = pg_node(
         "🧠 پردازش در PostgreSQL", [880, 0],
         "SELECT chat_id, status, reply_text, org_code\n"
-        "  FROM iee1405.bot_dispatch($1::bigint, $2::bigint, $3::text, $4::jsonb);",
-        params_expr=(
-            "[$json.update_id,\n"
-            "  $json.message.chat.id,\n"
-            "  ($json.message.text || ''),\n"
-            "  JSON.stringify($json)]"
-        ),
-        notes="کل منطق ربات داخل تابع SQL است؛ این گره فقط لوله است",
+        "  FROM iee1405.bot_dispatch_json($1::jsonb);",
+        params_expr="JSON.stringify($json)",
+        notes="کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد",
     )
 
     n_pending = pg_node(

@@ -82,14 +82,29 @@ def main():
     psql("UPDATE iee1405.bot_state SET value = '0' WHERE key = 'bale_offset';")
     psql("UPDATE crm.users SET bale_chat_id = $1 WHERE username = 'ahmad';", [OWNER_CHAT])
 
+    def msg(uid, chat, text):
+        """شکل واقعی آپدیت بله: message.chat.id و message.text"""
+        return {"update_id": uid,
+                "message": {"message_id": uid, "chat": {"id": chat, "type": "private"},
+                            "from": {"id": chat}, "date": 1762000000, "text": text}}
+
     updates = [
-        {"update_id": 7001, "message": {"chat_id": OWNER_CHAT, "text": "/start"}},
-        {"update_id": 7002, "message": {"chat_id": UNKNOWN_CHAT, "text": "/start"}},
-        {"update_id": 7003, "message": {"chat_id": OWNER_CHAT, "text": "/new"}},
-        {"update_id": 7004, "message": {"chat_id": OWNER_CHAT, "text": "شرکت برق‌آوران پارس"}},
-        {"update_id": 7005, "message": {"chat_id": OWNER_CHAT, "text": "1"}},
-        {"update_id": 7006, "message": {"chat_id": OWNER_CHAT, "text": "38-12"}},
-        {"update_id": 7007, "message": {"chat_id": OWNER_CHAT, "text": "/today"}},
+        msg(7001, OWNER_CHAT, "/start"),
+        msg(7002, UNKNOWN_CHAT, "/start"),
+        msg(7003, OWNER_CHAT, "/new"),
+        msg(7004, OWNER_CHAT, "شرکت برق‌آوران پارس"),
+        msg(7005, OWNER_CHAT, "1"),
+        msg(7006, OWNER_CHAT, "38-12"),
+        msg(7007, OWNER_CHAT, "/today"),
+        # پیام بدون متن (عکس) — نباید خطا بدهد و نباید چیزی را از دست بدهد
+        {"update_id": 7008,
+         "message": {"message_id": 7008, "chat": {"id": OWNER_CHAT, "type": "private"},
+                     "from": {"id": OWNER_CHAT}, "date": 1762000100,
+                     "photo": [{"file_id": "abc", "width": 1280, "height": 720}]}},
+        # پست کانال — ساختار متفاوت، نباید کل دسته را از بین ببرد
+        {"update_id": 7009,
+         "channel_post": {"message_id": 1, "chat": {"id": -1001234567890, "type": "channel"},
+                          "date": 1762000200, "text": "اطلاعیه"}},
     ]
 
     # ── اجرای گردش‌کار ──
@@ -102,8 +117,7 @@ def main():
     dispatched = 0
     for u in incoming:                                  # splitOut → یک آیتم per update
         rows = psql(query_of("🧠 پردازش در PostgreSQL", wf),
-                    [u["update_id"], u["message"]["chat_id"],
-                     u["message"].get("text", ""), json.dumps(u, ensure_ascii=False)])
+                    [json.dumps(u, ensure_ascii=False)])
         dispatched += len(rows)
 
     # گره «پاسخ‌های آماده ارسال» executeOnce = فقط یک بار
@@ -127,7 +141,12 @@ def main():
     owner_msgs = [m for m in OUTBOX if m["chat_id"] == OWNER_CHAT]
     unknown_msgs = [m for m in OUTBOX if m["chat_id"] == UNKNOWN_CHAT]
 
-    check("کاربر مجاز ۶ پاسخ گرفت", len(owner_msgs) == 6, str(len(owner_msgs)))
+    check("کاربر مجاز ۷ پاسخ گرفت (۶ متن + ۱ راهنمای رسانه)", len(owner_msgs) == 7,
+          str(len(owner_msgs)))
+    check("پیام عکس خطا نداد و راهنما داد",
+          any("فقط متن ثبت می‌شود" in m["text"] for m in owner_msgs))
+    check("پست کانال پردازش شد (بدون گم شدن بقیه)",
+          any(m["chat_id"] == -1001234567890 for m in OUTBOX))
     check("کاربر ناشناس فقط پیام عدم دسترسی گرفت",
           len(unknown_msgs) == 1 and "مجاز نیست" in unknown_msgs[0]["text"],
           unknown_msgs[0]["text"][:60] if unknown_msgs else "—")
@@ -152,7 +171,7 @@ def main():
     # ── idempotency: همان آپدیت دوباره ──
     before = len(psql("SELECT update_id FROM iee1405.bot_updates"))
     psql(query_of("🧠 پردازش در PostgreSQL", wf),
-         [7004, OWNER_CHAT, "شرکت برق‌آوران پارس", "{}"])
+         [json.dumps(msg(7004, OWNER_CHAT, "شرکت برق‌آوران پارس"), ensure_ascii=False)])
     after = len(psql("SELECT update_id FROM iee1405.bot_updates"))
     dup_org = psql("SELECT count(*) FROM crm.organizations WHERE legal_name = 'شرکت برق‌آوران پارس'")
     check("آپدیت تکراری دوباره پردازش نشد", before == after, f"{before}→{after}")
@@ -169,7 +188,8 @@ def main():
         (8006, f"/org {code}"),
     ]
     for uid, txt in flows:
-        psql(query_of("🧠 پردازش در PostgreSQL", wf), [uid, OWNER_CHAT, txt, "{}"])
+        psql(query_of("🧠 پردازش در PostgreSQL", wf),
+             [json.dumps(msg(uid, OWNER_CHAT, txt), ensure_ascii=False)])
 
     replies = [r[2] for r in psql(query_of("📤 پاسخ‌های آماده ارسال", wf))]
     check("مذاکره ثبت شد", any("مذاکره ثبت شد" in r for r in replies))

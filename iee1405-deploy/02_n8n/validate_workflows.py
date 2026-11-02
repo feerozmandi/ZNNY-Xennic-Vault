@@ -38,7 +38,10 @@ SUPPORTED = {
 
 # پارامترهای نمونه برای اجرای هر گره SQL (به ترتیب $1..$n)
 SAMPLE_PARAMS = {
-    "🧠 پردازش در PostgreSQL": ["7001", "900001", "/help", '{"update_id":7001,"message":{"chat_id":900001,"text":"/help"}}'],
+    # آپدیت کامل بله؛ همان چیزی که ${JSON.stringify($json)} تولید می‌کند
+    "🧠 پردازش در PostgreSQL": [
+        '{"update_id":7001,"message":{"chat_id":900001,"from":{"id":1},"text":"/help"}}'
+    ],
     "✅ ثبت ارسال": ["7001"],
 }
 
@@ -160,6 +163,9 @@ def run_sql(wf_name, node, sql):
     binds = SAMPLE_PARAMS.get(node["name"], [])
     if n_params and len(binds) < n_params:
         err(wf_name, f"{node['name']}: {n_params} پارامتر دارد اما نمونه تعریف نشده")
+        return
+    if n_params and len(binds) > n_params:
+        err(wf_name, f"{node['name']}: {len(binds)} نمونه برای {n_params} پارامتر — زیاد است")
         return
 
     def q(s):
