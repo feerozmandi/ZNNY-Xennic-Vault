@@ -6,7 +6,7 @@ domain: IEE
 status: draft
 owner: احمد فیروزمندی بندپی
 created: 2026-11-01
-version: 0.1.1
+version: 0.1.2
 dependencies: [PRJ-IEE-003, PRJ-IEE-004, PRJ-IEE-005, PRJ-IEE-007, PRJ-IEE-008, PRJ-IEE-010, PRJ-IEE-013]
 tags: [project, iee-1405, n8n, postgresql, automation, bale, bot, deployment, sql]
 ---
@@ -259,5 +259,6 @@ n8n هیچ داده‌ای را در حافظه خود نگه نمی‌دارد:
 
 ## ۱۳. Changelog
 
+- **v0.1.2 (۱۴۰۵-۰۸-۱۰):** کشف خودکار کانتینر/کاربر دیتابیس از `docker ps` و `POSTGRES_USER` (روی این سرور: `xennic-infra-postgres-1` و کاربر `n8n`)؛ ساخت خودکار دیتابیس اختصاصی `xennic` بدون دست زدن به دیتابیس `n8n`؛ خواندن توکن از کلید موجود `BALE_TOKEN_BOT` و ساخت `BALE_API_URL` در override؛ افزودن `restore_test.sh` (آزمون واقعی بازگردانی) و `lib_common.sh` مشترک.
 - **v0.1.1 (۱۴۰۵-۰۸-۱۰):** افزودن `preflight.sh` و `setup_env.sh` بر پایه اجرای واقعی روی VPS؛ تصمیم D-15-03 (ارسال کل آپدیت به‌صورت یک JSON)؛ تأیید نسخه گره‌ها در برابر بسته واقعی n8n 2.44.x؛ پوشش آپدیت‌های غیرمتنی در آزمون‌ها.
 - **v0.1.0 (۱۴۰۵-۰۸-۱۰):** ایجاد اولیه؛ ساختار پایگاه‌داده، منطق ربات در SQL، تحویل تضمین‌شده پاسخ، چهار گردش‌کار n8n، نقش‌ها و دسترسی‌ها، گزارش آزمون‌ها، دستورالعمل استقرار و ریسک‌ها.

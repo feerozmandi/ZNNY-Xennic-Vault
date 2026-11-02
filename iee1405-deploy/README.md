@@ -24,15 +24,22 @@ cd ZNNY-Xennic-Vault/iee1405-deploy
 bash 03_ops/preflight.sh
 ```
 
-`preflight.sh` نام واقعی کانتینرها، نام دیتابیس، نسخه n8n، وضعیت متغیرهای
-`BALE_API_URL` و `N8N_BLOCK_ENV_ACCESS_IN_NODE` و فضای دیسک را بررسی می‌کند و
-در پایان **دستور بعدی را با مقادیر واقعی** چاپ می‌کند. اگر خروجی آن «همه
-پیش‌نیازها آماده است» بود، ادامه دهید:
+> [!note] کشف خودکار محیط
+> روی این سرور، هیچ‌کدام از پیش‌فرض‌های معمول درست نیستند و لازم نیست دستی تنظیم شوند:
+> کانتینر `xennic-infra-postgres-1` · کاربر دیتابیس `n8n` (نه `postgres`) ·
+> دیتابیس برنامه وجود ندارد و **در گام استقرار ساخته می‌شود** (`xennic`).
+> دیتابیس `n8n` هیچ‌وقت دست نمی‌خورد.
+
+`preflight.sh` نام واقعی کانتینرها، نام دیتابیس، نسخه n8n، وضعیت متغیرها و
+فضای دیسک را بررسی می‌کند و در پایان **دستور بعدی را با مقادیر واقعی** چاپ می‌کند:
+
+توکن بله در `.env` با کلید `BALE_TOKEN_BOT` نگه داشته می‌شود و `BALE_API_URL`
+در فایل override از همان ساخته می‌شود — توکن در هیچ فایل مخزن یا JSON نیست.
 
 ```bash
-bash 03_ops/setup_env.sh          # افزودن BALE_API_URL و متغیرهای لازم (اگر خطا داشت)
+bash 03_ops/setup_env.sh          # پر کردن BALE_TOKEN_BOT و متغیرهای لازم
 bash 00_audit/audit_postgres.sh                                  # فقط خواندن
-PG_DB=xennic APP_PASSWORD='<رمز-قوی>' bash 03_ops/deploy_sql.sh   # ساختار + منطق
+APP_PASSWORD="$(openssl rand -base64 18)" bash 03_ops/deploy_sql.sh  # ساختار + منطق
 bash 03_ops/import_workflows.sh import                            # گردش‌کارها
 # در رابط n8n: کارت «Xennic PostgreSQL» بسازید و در ۴ گردش‌کار انتخاب کنید
 bash 03_ops/import_workflows.sh activate
@@ -43,7 +50,7 @@ bash 03_ops/import_workflows.sh activate
 > `docker ps` را ببینید؛ اگر کانتینر `postgres` هست ولی `exited` است، لاگش را بخوانید:
 > `docker logs --tail 30 <container>`. سپس `cd ~/xennic-infra && docker compose up -d`.
 
-`PG_DB` را با مقداری که `preflight.sh` پیشنهاد می‌دهد عوض کنید.
+رمز ساخته‌شده در `~/.iee1405-app-password` ذخیره می‌شود تا کارت اعتبارنامه n8n را با آن بسازید.
 
 > [!note] چرا `--branch`
 > این بسته فعلاً روی شاخه `arena/011e185b-znny-xennic-vault` است (PR #75).
@@ -289,7 +296,7 @@ COMMIT;
 | چه چیزی | چگونه |
 |---|---|
 | گردش‌کار n8n | در رابط n8n غیرفعال کنید؛ یا `bash 03_ops/import_workflows.sh activate` روی نسخه قبلی |
-| داده | `bash 03_ops/backup_now.sh` قبل از هر تغییر؛ بازگردانی با `pg_restore` در دیتابیس آزمایشی، سپس تصمیم |
+| داده | `bash 03_ops/backup_now.sh` قبل از هر تغییر؛ آزمون بازگردانی با `bash 03_ops/restore_test.sh` |
 | ساختار | ساختار additive است؛ برای حذف کامل فقط در محیط آزمایشی: `DROP SCHEMA iee1405 CASCADE;` — `crm` را حذف نکنید |
 
 بازگردانی آزمایشی (هرگز مستقیم روی تولید):

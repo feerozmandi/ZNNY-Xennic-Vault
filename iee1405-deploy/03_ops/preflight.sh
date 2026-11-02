@@ -21,6 +21,8 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=/dev/null
+source "$HERE/03_ops/lib_common.sh"
 INFRA_DIR="${INFRA_DIR:-$HOME/xennic-infra}"
 COMPOSE_FILE="${COMPOSE_FILE:-$INFRA_DIR/docker-compose.yml}"
 
@@ -133,15 +135,17 @@ if [[ -n "$PG_CT" ]]; then
         hint "دیتابیس‌ها: $(printf '%s' "$dbs" | tr '\n' ' ')"
         if printf '%s\n' "$dbs" | grep -qx 'xennic'; then
             DB_FOUND="xennic"
+            ok "دیتابیس اختصاصی «xennic» موجود است"
         else
-            cand="$(printf '%s\n' "$dbs" | grep -vxE 'postgres|n8n' | head -1)"
-            DB_FOUND="${cand:-postgres}"
-            [[ -n "$cand" ]] && warn "دیتابیس «xennic» وجود ندارد؛ پیشنهاد: «$cand»"
+            DB_FOUND="xennic"
+            warn "دیتابیس اختصاصی «xennic» وجود ندارد — در گام استقرار ساخته می‌شود"
+            hint "دیتابیس «n8n» دست نمی‌خورد؛ هیچ دیتابیس موقت نمایشگاهی ساخته نمی‌شود."
         fi
         # ساختار از قبل؟
         for db in $dbs; do
             n="$($DK exec -i "$PG_CT" psql -U "$PG_USER_OK" -d "$db" -X -t -A \
                  -c "SELECT count(*) FROM pg_tables WHERE schemaname IN ('crm','iee1405')" 2>/dev/null | tr -d '[:space:]')"
+            n="${n:-0}"
             if [[ -n "$n" && "$n" != "0" ]]; then
                 warn "در «$db» تعداد $n جدول crm/iee1405 از قبل هست (استقرار مجدد بی‌خطر است)"
             fi
@@ -151,10 +155,6 @@ if [[ -n "$PG_CT" ]]; then
             bad "پورت ۵۴۳۲ روی همه اینترفیس‌ها باز است — باید فقط 127.0.0.1 باشد"
         else
             ok "پورت PostgreSQL روی اینترنت باز نیست"
-        fi
-        # وضعیت پروژه/دیتابیس از داخل خود دیتابیس
-        if [[ "$DB_FOUND" == "xennic" ]] && [[ -n "$n" && "$n" != "0" ]]; then
-            :
         fi
     fi
 else
@@ -183,17 +183,19 @@ if [[ -n "$N8N_CT" ]]; then
     fi
 
     envs="$($DK exec -i "$N8N_CT" printenv 2>/dev/null | grep -E '^(BALE_API_URL|N8N_BLOCK_ENV_ACCESS_IN_NODE|GENERIC_TIMEZONE|TZ)=' || true)"
-    if printf '%s' "$envs" | grep -q '^BALE_API_URL='; then
-        u="$(printf '%s\n' "$envs" | grep '^BALE_API_URL=' | cut -d= -f2-)"
-        if printf '%s' "$u" | grep -q '^https://tapi\.bale\.ai/bot'; then
-            ok "BALE_API_URL تنظیم شده است (محرمانه، چاپ نمی‌شود)"
-        else
-            warn "BALE_API_URL هست اما قالب درست نیست (باید با https://tapi.bale.ai/bot شروع شود)"
-        fi
+    u="$(printf '%s\n' "$envs" | grep '^BALE_API_URL=' | cut -d= -f2- || true)"
+    if printf '%s' "$u" | grep -qE '^https://tapi\.bale\.ai/bot[0-9]{5,}:'; then
+        ok "BALE_API_URL با توکن معتبر تنظیم شده است (محرمانه، چاپ نمی‌شود)"
+    elif [[ -n "$u" ]]; then
+        bad "BALE_API_URL هست اما توکن ندارد (احتمالاً BALE_TOKEN_BOT در .env خالی است)"
+        hint "راه‌حل:  bash 03_ops/setup_env.sh"
     else
         bad "BALE_API_URL در سرویس n8n تعریف نشده — ارسال پیام بله کار نمی‌کند"
         hint "راه‌حل خودکار:  bash 03_ops/setup_env.sh"
     fi
+    tk="$(env_get BALE_TOKEN_BOT || true)"
+    [[ -z "$tk" ]] && bad "BALE_TOKEN_BOT در .env خالی است (منبع توکن همین کلید است)" \
+                   || ok "BALE_TOKEN_BOT در .env پر است"
     printf '%s' "$envs" | grep -q '^N8N_BLOCK_ENV_ACCESS_IN_NODE=false' \
         && ok "N8N_BLOCK_ENV_ACCESS_IN_NODE=false" \
         || { bad "N8N_BLOCK_ENV_ACCESS_IN_NODE=false نیست — \$env در دسترس نیست"; hint "راه‌حل خودکار:  bash 03_ops/setup_env.sh"; }
@@ -235,6 +237,8 @@ fi
 
 DB_ARG="${DB_FOUND:-xennic}"
 cat <<EOF
+  کانتینر: ${PG_CT:-?} · کاربر دیتابیس: ${PG_USER_OK:-${PG_USER:-?}}
+
   دستورهای بعدی (به همین ترتیب):
 
   ۱) اگر BALE_API_URL یا N8N_BLOCK_ENV_ACCESS_IN_NODE خطا داشت:
@@ -243,8 +247,8 @@ cat <<EOF
   ۲) بازرسی کامل و ثبت گزارش:
      bash 00_audit/audit_postgres.sh
 
-  ۳) استقرار ساختار و منطق در دیتابیس «$DB_ARG»:
-     PG_DB=$DB_ARG APP_PASSWORD='<یک-رمز-قوی-بسازید>' bash 03_ops/deploy_sql.sh
+  ۳) استقرار ساختار و منطق (دیتابیس «$DB_ARG» در صورت نبود ساخته می‌شود):
+     APP_PASSWORD="\$(openssl rand -base64 18)" bash 03_ops/deploy_sql.sh
 
   ۴) ایمپورت گردش‌کارها:
      bash 03_ops/import_workflows.sh import

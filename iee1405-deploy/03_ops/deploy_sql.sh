@@ -3,116 +3,164 @@
 # IEE 1405 — استقرار ساختار و منطق در PostgreSQL
 #
 # اجرا روی VPS (از مسیر iee1405-deploy):
-#   bash 03_ops/deploy_sql.sh                 # استقرار کامل
+#   bash 03_ops/deploy_sql.sh                 # ساختار + منطق + نقش‌ها
 #   bash 03_ops/deploy_sql.sh --verify-only   # فقط بررسی، بدون تغییر
+#   bash 03_ops/deploy_sql.sh --no-backup     # بدون پشتیبان (نه پیشنهاد می‌شود)
 #
-# ویژگی‌ها:
-#   • همه فایل‌ها idempotent هستند؛ اجرای دوباره بی‌خطر است
-#   • هر فایل در یک تراکنش جدا اجرا می‌شود (ON_ERROR_STOP=1)
-#   • قبل از تغییر، نسخه پشتیبان گرفته می‌شود (اگر --no-backup ندهید)
-#   • رمز نقش‌ها فقط از متغیر محیطی می‌آید و در فایل ذخیره نمی‌شود
+# کانتینر، کاربر دیتابیس و نام دیتابیس خودکار کشف می‌شوند
+# (روی این سرور: xennic-infra-postgres-1 · n8n · دیتابیس اختصاصی xennic).
+# اگر دیتابیس وجود نداشته باشد ساخته می‌شود؛ دیتابیس n8n دست نمی‌خورد.
 # ═══════════════════════════════════════════════════════════════════════
-set -euo pipefail
+set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SQL_DIR="$HERE/01_sql"
-INFRA_DIR="${INFRA_DIR:-$HOME/xennic-infra}"
-PG_SERVICE="${PG_SERVICE:-postgres}"
-PG_USER="${PG_USER:-postgres}"
-PG_DB="${PG_DB:-xennic}"
+# shellcheck source=/dev/null
+source "$HERE/03_ops/lib_common.sh"
+
 MODE="${1:-deploy}"
+[[ "$MODE" == "--verify-only" || "$MODE" == "--no-backup" ]] || MODE="deploy"
 
-# از پوشه infra اجرا می‌شود تا docker-compose.override.yml و .env هم اثر کنند
-if [[ -n "${PSQL_CMD:-}" ]]; then
-    read -r -a PSQL <<< "$PSQL_CMD"
-    pgq() { "${PSQL[@]}" "$@"; }
-    dc()  { docker compose -f "$INFRA_DIR/docker-compose.yml" "$@"; }
-else
-    dc()  { ( cd "$INFRA_DIR" && docker compose "$@" ); }
-    pgq() { dc exec -T "$PG_SERVICE" psql -U "$PG_USER" -d "$PG_DB" -v ON_ERROR_STOP=1 -X "$@"; }
-fi
-
-run_file() {
-    local f="$1"
-    echo "→ $f"
-    if ! pgq -f - < "$f" >/tmp/iee_deploy_out.txt 2>/tmp/iee_deploy_err.txt; then
-        echo "❌ خطا در $f"
-        tail -30 /tmp/iee_deploy_err.txt
-        tail -10 /tmp/iee_deploy_out.txt
-        exit 1
-    fi
-    grep -c "NOTICE" /tmp/iee_deploy_err.txt >/dev/null 2>&1 && \
-        echo "  (اعلان‌های طبیعی: $(grep -c NOTICE /tmp/iee_deploy_err.txt 2>/dev/null || echo 0))"
-    echo "  ✅"
-}
-
-echo "════════════════════════════════════════════════"
-echo " استقرار IEE 1405 در دیتابیس «$PG_DB»"
-echo " حالت: $MODE"
-echo "════════════════════════════════════════════════"
-
-# ── بررسی اتصال ──
-if ! pgq -c 'SELECT 1' >/dev/null 2>&1; then
-    echo "❌ اتصال برقرار نشد. بررسی کنید:"
-    echo "   1) docker compose -f $INFRA_DIR/docker-compose.yml ps"
-    echo "   2) نام دیتابیس: PG_DB=$PG_DB (پیش‌فرض xennic)"
+if ! dk_detect; then
+    c_bad "Docker یا دسترسی به آن موجود نیست"
+    c_hint "این اسکریپت باید روی سرور و با دسترسی docker اجرا شود."
     exit 1
 fi
 
-# ── بررسی وضعیت فعلی ──
-EXISTING=$(pgq -t -A -c \
-  "SELECT count(*) FROM pg_tables WHERE schemaname IN ('crm','iee1405');")
-echo "جدول‌های موجود در schemaهای crm/iee1405: $EXISTING"
+if ! ct_detect; then
+    c_bad "کانتینر PostgreSQL پیدا نشد"
+    c_hint "docker ps  را ببینید؛ یا PG_CONTAINER=<name> bash 03_ops/deploy_sql.sh"
+    exit 1
+fi
+
+if ! pg_user_detect; then
+    c_bad "اتصال به PostgreSQL با کاربر «$PG_USER» برقرار نشد"
+    c_hint "docker logs --tail 20 $PG_CT"
+    exit 1
+fi
+
+echo "════════════════════════════════════════════════"
+echo " استقرار IEE 1405"
+echo " کانتینر: $PG_CT · کاربر: $PG_USER · دیتابیس: $PG_DB"
+echo " حالت: $MODE"
+echo "════════════════════════════════════════════════"
+
+# ── دیتابیس مقصد ──────────────────────────────────────────────────────
+if ! pg_db_exists "$PG_DB"; then
+    if [[ "$MODE" == "--verify-only" ]]; then
+        c_warn "دیتابیس «$PG_DB» وجود ندارد (در حالت استقرار ساخته می‌شود)"
+        c_hint "دیتابیس‌های موجود: $(pgq postgres -c "SELECT string_agg(datname, ' ' ORDER BY datname) FROM pg_database" | tr -d '\n')"
+        exit 0
+    fi
+    echo "→ ساخت دیتابیس اختصاصی «$PG_DB»"
+    if pg_db_create "$PG_DB"; then
+        c_ok "دیتابیس «$PG_DB» ساخته شد (دیتابیس n8n دست‌نخورده ماند)"
+    else
+        c_bad "ساخت دیتابیس ناموفق بود"
+        c_hint "کاربر «$PG_USER» اجازه CREATEDB ندارد؛ با کاربر سوپریوزر امتحان کنید:"
+        c_hint "  PG_USER=postgres bash 03_ops/deploy_sql.sh"
+        exit 1
+    fi
+fi
+
+pgfile() { pgq "$PG_DB" -v ON_ERROR_STOP=1 "$@" 2>/tmp/iee_err.txt; }
+
+run_file() {
+    local f="$1"
+    echo "→ $(basename "$f")"
+    if ! pgq "$PG_DB" -v ON_ERROR_STOP=1 -f - < "$f" >/tmp/iee_out.txt 2>/tmp/iee_err.txt; then
+        c_bad "خطا در $(basename "$f")"
+        grep -E "ERROR|FATAL" /tmp/iee_err.txt | head -10 | sed 's/^/     /'
+        exit 1
+    fi
+    local notices
+    notices="$(grep -c "NOTICE" /tmp/iee_err.txt 2>/dev/null)"
+    notices="${notices:-0}"
+    if [[ "$notices" == "0" ]]; then
+        c_ok "اجرا شد"
+    else
+        c_ok "اجرا شد ($notices اعلان طبیعی — اشیای موجود بازنویسی نشدند)"
+    fi
+}
 
 if [[ "$MODE" == "--verify-only" ]]; then
     echo ""
-    echo "وضعیت:"
-    pgq -c "SELECT schemaname, count(*) AS tables FROM pg_tables
-                      WHERE schemaname IN ('crm','iee1405') GROUP BY 1 ORDER BY 1;"
+    c_head "وضعیت فعلی"
+    pgq_pretty "$PG_DB" -c "SELECT schemaname AS schema, count(*) AS tables
+                             FROM pg_tables WHERE schemaname IN ('crm','iee1405')
+                            GROUP BY 1 ORDER BY 1" | sed 's/^/  /'
+    echo ""
+    c_head "توابع"
+    printf '  %s تابع\n' "$(pgq "$PG_DB" -c "SELECT count(*) FROM information_schema.routines WHERE routine_schema IN ('crm','iee1405')")"
+    if [[ "$(pgq "$PG_DB" -c "SELECT count(*) FROM pg_tables WHERE schemaname IN ('crm','iee1405')")" != "0" ]]; then
+        echo ""
+        c_head "سلامت"
+        pgq_pretty "$PG_DB" -c "SELECT iee1405.health_text()" | sed 's/^/  /'
+    fi
     exit 0
 fi
 
-# ── پشتیبان قبل از تغییر ──
-if [[ "$MODE" != "--no-backup" && "$EXISTING" != "0" ]]; then
-    echo "→ گرفتن نسخه پشتیبان قبل از تغییر"
-    bash "$HERE/03_ops/backup_now.sh" predeploy || {
-        echo "❌ پشتیبان‌گیری ناموفق بود؛ برای ادامه عمداً متوقف شد."
-        echo "   اگر مطمئن هستید: bash 03_ops/deploy_sql.sh --no-backup"
+# ── پشتیبان قبل از تغییر ──────────────────────────────────────────────
+EXISTING="$(pgq "$PG_DB" -c "SELECT count(*) FROM pg_tables WHERE schemaname IN ('crm','iee1405')" 2>/dev/null | tr -d '[:space:]')"
+echo "جدول‌های موجود در crm/iee1405: ${EXISTING:-0}"
+
+if [[ "$MODE" != "--no-backup" && "${EXISTING:-0}" != "0" ]]; then
+    echo "→ پشتیبان قبل از تغییر"
+    if ! BACKUP_DIR="${BACKUP_DIR:-$HOME/xennic-backups}" \
+         PG_DB="$PG_DB" PG_CONTAINER="$PG_CT" PG_USER="$PG_USER" \
+         bash "$HERE/03_ops/backup_now.sh" predeploy; then
+        c_bad "پشتیبان‌گیری ناموفق بود؛ برای ادامه عمداً متوقف شد"
+        c_hint "اگر مطمئن هستید: bash 03_ops/deploy_sql.sh --no-backup"
         exit 1
-    }
+    fi
 fi
 
-# ── ترتیب اجرا مهم است ──
-run_file "$SQL_DIR/01_schema_core.sql"
-run_file "$SQL_DIR/02_seed_reference.sql"
-run_file "$SQL_DIR/03_views.sql"
-run_file "$SQL_DIR/04_bot_logic.sql"
-run_file "$SQL_DIR/05_ops_helpers.sql"
+# ── اجرای فایل‌ها (ترتیب مهم است) ─────────────────────────────────────
+for f in 01_schema_core.sql 02_seed_reference.sql 03_views.sql 04_bot_logic.sql 05_ops_helpers.sql; do
+    run_file "$SQL_DIR/$f"
+done
 
-# ── نقش‌ها: رمز فقط اگر APP_PASSWORD داده شده باشد ──
+# ── نقش‌ها ────────────────────────────────────────────────────────────
+echo "→ نقش‌ها و دسترسی‌ها"
 if [[ -n "${APP_PASSWORD:-}" ]]; then
-    echo "→ ساخت نقش‌ها با رمز از متغیر محیطی"
-    pgq -v app_password="$APP_PASSWORD" -f - < "$SQL_DIR/06_roles.sql"
-    echo "  ✅"
+    pgq "$PG_DB" -v ON_ERROR_STOP=1 -v app_password="$APP_PASSWORD" \
+        -f - < "$SQL_DIR/06_roles.sql" >/dev/null 2>/tmp/iee_err.txt \
+        && c_ok "نقش iee_app با رمز ساخته/به‌روز شد" \
+        || { c_bad "ساخت نقش‌ها ناموفق"; grep ERROR /tmp/iee_err.txt | head -5 | sed 's/^/     /'; exit 1; }
+    echo "$APP_PASSWORD" > "$HOME/.iee1405-app-password"
+    chmod 600 "$HOME/.iee1405-app-password"
+    c_hint "رمز در ~/.iee1405-app-password ذخیره شد (فقط برای ساخت کارت اعتبارنامه در n8n)"
 else
-    echo "→ نقش‌ها بدون رمز (APP_PASSWORD تنظیم نشده)"
-    pgq -c "SELECT 'برای ساخت نقش‌ها: APP_PASSWORD=... bash 03_ops/deploy_sql.sh'" >/dev/null
-    pgq -f - < "$SQL_DIR/06_roles.sql" || true
+    pgq "$PG_DB" -v ON_ERROR_STOP=1 -f - < "$SQL_DIR/06_roles.sql" >/dev/null 2>&1 \
+        && c_warn "نقش‌ها بدون رمز ساخته شدند — قبل از استفاده رمز بگذارید:" \
+        || c_warn "نقش‌ها ساخته نشدند"
+    c_hint "APP_PASSWORD='رمز-قوی' bash 03_ops/deploy_sql.sh"
 fi
 
-# ── تأیید نهایی ──
+# ── اتصال گوشی اصلی، اگر شناسه گفت‌وگو در .env باشد ──────────────────
+CHAT_ID="$(env_get BALE_CHAT_ID || true)"
+if [[ -n "$CHAT_ID" ]]; then
+    pgq "$PG_DB" -c "UPDATE crm.users SET bale_chat_id = $CHAT_ID WHERE username = 'ahmad'" >/dev/null 2>&1 \
+        && c_ok "شناسه گفت‌وگوی مدیر از .env ثبت شد (BALE_CHAT_ID=$CHAT_ID)" \
+        || c_warn "ثبت BALE_CHAT_ID ناموفق (مقدار عددی است؟)"
+else
+    c_hint "BALE_CHAT_ID در .env خالی است — بعد از /start در بله آن را پر کنید"
+fi
+
+# ── تأیید نهایی ───────────────────────────────────────────────────────
+c_head "تأیید"
+pgq_pretty "$PG_DB" -c "
+SELECT 'جدول' AS مورد, count(*)::text AS تعداد FROM pg_tables WHERE schemaname IN ('crm','iee1405')
+UNION ALL SELECT 'نما', count(*)::text FROM pg_views WHERE schemaname IN ('crm','iee1405')
+UNION ALL SELECT 'تابع', count(*)::text FROM information_schema.routines WHERE routine_schema IN ('crm','iee1405')
+UNION ALL SELECT 'دسته محصول', count(*)::text FROM crm.product_categories
+UNION ALL SELECT 'نمایشگاه', count(*)::text FROM iee1405.exhibitions
+UNION ALL SELECT 'کاربر', count(*)::text FROM crm.users" | sed 's/^/  /'
+
 echo ""
-echo "── تأیید ──"
-pgq -c "
-SELECT 'table' AS kind, count(*) AS n FROM pg_tables WHERE schemaname IN ('crm','iee1405')
-UNION ALL SELECT 'view', count(*) FROM pg_views WHERE schemaname IN ('crm','iee1405')
-UNION ALL SELECT 'function', count(*) FROM information_schema.routines
-           WHERE routine_schema IN ('crm','iee1405')
-UNION ALL SELECT 'orgs', count(*) FROM crm.organizations
-UNION ALL SELECT 'categories', count(*) FROM crm.product_categories
-UNION ALL SELECT 'exhibition', count(*) FROM iee1405.exhibitions;"
-pgq -c "SELECT iee1405.health_text();"
+pgq_pretty "$PG_DB" -c "SELECT iee1405.health_text()" | sed 's/^/  /'
 
 echo ""
 echo "✅ استقرار تمام شد"
-echo "   گام بعدی: bash 03_ops/import_workflows.sh"
+echo "   گام بعدی: bash 03_ops/import_workflows.sh import"
+echo "   در n8n کارت اعتبارنامه: میزبان postgres · دیتابیس $PG_DB · کاربر iee_app"

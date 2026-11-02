@@ -6,7 +6,7 @@
 # سپس: docker compose up -d n8n
 #
 # چرا؟
-#   • BALE_API_URL  → توکن بله در فایل گردش‌کار نوشته نمی‌شود
+#   • BALE_API_URL  → از BALE_TOKEN_BOT ساخته می‌شود؛ توکن در فایل گردش‌کار نیست
 #   • N8N_BLOCK_ENV_ACCESS_IN_NODE=false → n8n اجازه خواندن $env را داشته باشد
 #   • TZ تهران → زمان‌بندی cron درست کار کند
 #   • n8n روی 127.0.0.1 بماند (دسترسی فقط از داخل سرور/تانل)
@@ -14,7 +14,8 @@
 services:
   n8n:
     environment:
-      - BALE_API_URL=${BALE_API_URL}
+      # توکن فقط یک جا در .env است (BALE_TOKEN_BOT)؛ آدرس اینجا ساخته می‌شود
+      - BALE_API_URL=https://tapi.bale.ai/bot${BALE_TOKEN_BOT}
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - GENERIC_TIMEZONE=Asia/Tehran
       - TZ=Asia/Tehran

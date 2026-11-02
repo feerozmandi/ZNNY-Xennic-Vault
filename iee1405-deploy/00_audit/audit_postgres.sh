@@ -26,19 +26,29 @@ LOG="$OUT/audit-raw.txt"
 MD="$OUT/audit-report.md"
 HOSTINFO="$OUT/host-info.txt"
 
-# ── پیکربندی اتصال ────────────────────────────────────────────────────
-# روی VPS: پیش‌فرض همان کانتینر postgres در docker compose است.
-# برای اجرای محلی/آزمایشی: PSQL_CMD را override کنید.
-INFRA_DIR="${INFRA_DIR:-$HOME/xennic-infra}"
-PG_SERVICE="${PG_SERVICE:-postgres}"
-PG_USER="${PG_USER:-postgres}"
-PG_DB="${PG_DB:-postgres}"
-PGPASSWORD_ONLY="${PGPASSWORD_ONLY:-0}"
+# ── پیکربندی اتصال (خودکار از docker کشف می‌شود) ──────────────────────
+# روی این سرور: کانتینر xennic-infra-postgres-1 · کاربر n8n
+# برای اجرای محلی:  PSQL_CMD="psql -h ... -U ... -d ..." bash 00_audit/audit_postgres.sh
+# shellcheck source=/dev/null
+source "$HERE/../03_ops/lib_common.sh"
 
 if [[ -n "${PSQL_CMD:-}" ]]; then
     read -r -a PSQL <<< "$PSQL_CMD"
+    psql_file() { "${PSQL[@]}" -P pager=off -f -; }
+    psql_cmd()  { "${PSQL[@]}" "$@"; }
 else
-    PSQL=(docker compose -f "$INFRA_DIR/docker-compose.yml" exec -T -u "$PG_USER" "$PG_SERVICE" psql -U "$PG_USER" -d "$PG_DB")
+    if ! dk_detect || ! ct_detect; then
+        echo "❌ Docker یا کانتینر PostgreSQL پیدا نشد."
+        echo "   docker ps  را ببینید؛ یا PG_CONTAINER=<name> این اسکریپت را اجرا کنید."
+        exit 1
+    fi
+    pg_user_detect || { echo "❌ اتصال به PostgreSQL برقرار نشد (کاربر $PG_USER)"; exit 1; }
+    AUDIT_DB="${AUDIT_DB:-$PG_DB}"
+    pg_db_exists "$AUDIT_DB" || AUDIT_DB="postgres"
+    # بدون -t -A: سرستون‌ها لازم‌اند چون گزارش JSON از همین جدول‌ها ساخته می‌شود
+    psql_file() { $DK exec -i "$PG_CT" psql -U "$PG_USER" -d "$AUDIT_DB" -X -P pager=off -f -; }
+    psql_cmd()  { $DK exec -i "$PG_CT" psql -U "$PG_USER" -d "$AUDIT_DB" -X -t -A "$@"; }
+    echo "کانتینر: $PG_CT · کاربر: $PG_USER · دیتابیس: $AUDIT_DB"
 fi
 
 say() { printf '%s\n' "$*" | tee -a "$MD"; }
@@ -47,21 +57,21 @@ say "# گزارش بازرسی PostgreSQL — $(date -u '+%Y-%m-%d %H:%M UTC')"
 say ""
 say "- میزبان: \`$(hostname)\`"
 say "- تاریخ شمسی: $(TZ=Asia/Tehran date '+%Y-%m-%d')"
-say "- حالت اجرا: \`${PSQL[*]}\`"
+say "- حالت اجرا: \`${PG_CT:-${PSQL[*]}} / ${PG_USER:-?} / ${AUDIT_DB:-?}\`"
 say ""
 
 # ── ۱) دسترسی و نسخه ─────────────────────────────────────────────────
-if ! "${PSQL[@]}" -w -X -c 'SELECT 1' >/dev/null 2>>"$LOG"; then
+if ! psql_cmd -c 'SELECT 1' >/dev/null 2>>"$LOG"; then
     say "## ❌ اتصال برقرار نشد"
     say ""
     say "خروجی خطا در \`audit-raw.txt\` ثبت شد. موارد بررسی:"
     say "1. آیا کانتینر \`postgres\` بالاست؟ \`docker compose ps\`"
-    say "2. مسیر \`docker-compose.yml\` درست است؟ (\`INFRA_DIR\`)"
+    say "2. کانتینر PostgreSQL بالاست؟ \`docker ps\`"
     say "3. کاربر/دیتابیس درست است؟ (\`PG_USER\` / \`PG_DB\`)"
     exit 1
 fi
 
-"${PSQL[@]}" -w -X -P pager=off -f "$HERE/audit.sql" >>"$LOG" 2>&1
+psql_file < "$HERE/audit.sql" >>"$LOG" 2>&1
 RC=$?
 say "## نتیجه اجرا"
 say ""
@@ -75,10 +85,10 @@ say ""
     echo; echo "### UPTIME";  uptime
     echo; echo "### DISK";    df -h /
     echo; echo "### MEMORY";  free -h
-    echo; echo "### DOCKER";  docker compose -f "$INFRA_DIR/docker-compose.yml" ps 2>&1
+    echo; echo "### DOCKER";  $DK ps -a --format '{{.Names}}\t{{.Image}}\t{{.Status}}' 2>&1
     echo; echo "### DOCKER_IMAGES"; docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' 2>&1 | head -20
     echo; echo "### N8N_VERSION"
-    docker compose -f "$INFRA_DIR/docker-compose.yml" exec -T n8n n8n --version 2>&1 | tail -3
+    if [[ -n "${N8N_CT:-}" ]]; then $DK exec -i "$N8N_CT" n8n --version 2>&1 | tail -3; fi
     echo; echo "### FIREWALL"; ufw status 2>&1 | head -20
     echo; echo "### LISTEN";  ss -tlnp 2>/dev/null | head -25
     echo; echo "### POSTGRES_VOLUME"; docker volume ls 2>&1 | head -20
