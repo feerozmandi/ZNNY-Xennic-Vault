@@ -78,7 +78,8 @@ LAST_POLL="$(pgq "$PG_DB" -c "SELECT value FROM iee1405.bot_state WHERE key='las
 OFFSET="$(pgq "$PG_DB" -c "SELECT value FROM iee1405.bot_state WHERE key='bale_offset'" 2>/dev/null | tr -d '[:space:]')"
 if [[ -z "$LAST_POLL" || "$LAST_POLL" == "" ]]; then
     fail "last_poll_at خالی است — گردش‌کار ۰۱ هنوز اجرا نشده"
-    info "در n8n → Executions آخرین خطا را ببینید"
+    info "bash 03_ops/diagnose_n8n.sh   # آیا اجرا می‌شود و چه خطایی دارد"
+    info "bash 03_ops/activate_all.sh   # اعتبارنامه + انتشار + ری‌استارت"
 else
     # فاصله زمانی تا الان — محاسبه در SQL تا برش رشته، timestamp را خراب نکند
     AGE="$(pgq "$PG_DB" -c "

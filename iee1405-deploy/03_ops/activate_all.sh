@@ -41,18 +41,41 @@ n8n() { $DK exec -i "$N8N_CT" n8n "$@"; }
 
 c_head "۱) اعتبارنامه PostgreSQL"
 
-if [[ ! -f "$PASS_FILE" ]]; then
-    c_bad "فایل رمز پیدا نشد: $PASS_FILE"
-    c_hint "این فایل را اسکریپت استقرار می‌سازد. اگر ندارید، دوباره با رمز اجرا کنید:"
-    c_hint "  APP_PASSWORD='<رمز>' bash 03_ops/deploy_sql.sh"
-    exit 1
+FORCE_CRED=0
+if [[ -f "$PASS_FILE" ]]; then
+    APP_PASS="$(tr -d '\r\n' < "$PASS_FILE")"
 fi
-APP_PASS="$(tr -d '\r\n' < "$PASS_FILE")"
-[[ -z "$APP_PASS" ]] && { c_bad "فایل رمز خالی است"; exit 1; }
+
+# خودترمیمی: اگر فایل رمز نیست، رمز تازه ساخته و در دیتابیس تنظیم می‌شود.
+# (بی‌این‌که این کار انجام شود، هر گره PostgreSQL با «password authentication
+#  failed» شکست می‌خورد و هیچ پیامی در bot_state نوشته نمی‌شود.)
+if [[ -z "${APP_PASS:-}" || ! -f "$PASS_FILE" ]]; then
+    c_warn "فایل رمز برنامه پیدا نشد — رمز تازه ساخته می‌شود"
+    APP_PASS="$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 24)"
+    if pgq "$PG_DB" -v ON_ERROR_STOP=1 -v app_password="$APP_PASS" -f - \
+            < "$HERE/../01_sql/06_roles.sql" >/dev/null 2>/tmp/iee_roles.err; then
+        mkdir -p "$(dirname "$PASS_FILE")"
+        if printf '%s' "$APP_PASS" > "$PASS_FILE" 2>/dev/null && chmod 600 "$PASS_FILE"; then
+            c_ok "رمز تازه تنظیم شد و در $PASS_FILE ذخیره شد"
+            FORCE_CRED=1
+        else
+            c_bad "نوشتن فایل رمز ناموفق بود: $PASS_FILE"
+            c_hint "دسترسی پوشه خانه را بررسی کنید؛ رمز در دیتابیس تنظیم شد اما ذخیره نشد"
+            exit 1
+        fi
+    else
+        c_bad "تنظیم رمز نقش ناموفق بود"
+        grep -m3 ERROR /tmp/iee_roles.err | sed 's/^/     /'
+        exit 1
+    fi
+else
+    c_ok "رمز برنامه از $PASS_FILE خوانده شد"
+fi
+[[ -z "${APP_PASS:-}" ]] && { c_bad "رمز خالی است"; exit 1; }
 
 # بررسی وجود اعتبارنامه (export بدون رمز، فقط برای دیدن نام‌ها)
 HAVE_CRED=0
-if n8n export:credentials --all --output=/tmp/cred-check.json --decrypted=false >/dev/null 2>&1; then
+if [[ "$FORCE_CRED" == "0" ]] && n8n export:credentials --all --output=/tmp/cred-check.json --decrypted=false >/dev/null 2>&1; then
     if $DK exec -i "$N8N_CT" sh -c 'cat /tmp/cred-check.json' 2>/dev/null | grep -q "\"$CRED_NAME\""; then
         HAVE_CRED=1
     fi
@@ -96,6 +119,17 @@ print(json.dumps(cred, ensure_ascii=False))
     fi
     $DK exec -i "$N8N_CT" sh -c 'rm -f /tmp/iee-cred.json'
     c_ok "فایل موقت اعتبارنامه پاک شد"
+fi
+
+# تأیید از خود دیتابیس n8n (خروجی CLI تنها سند نیست)
+N8N_DB="$($DK exec -i "$N8N_CT" printenv DB_POSTGRESDB_DATABASE 2>/dev/null | tr -d '\r\n')"
+N8N_DB="${N8N_DB:-n8n}"
+CRED_IN_DB="$(pgq "$N8N_DB" -c "SELECT count(*) FROM credentials_entity WHERE id = '$CRED_ID'" 2>/dev/null | tr -d '[:space:]')"
+if [[ "$CRED_IN_DB" == "1" ]]; then
+    c_ok "تأیید از دیتابیس n8n: کارت اعتبارنامه موجود است"
+elif [[ -n "$CRED_IN_DB" ]]; then
+    c_warn "کارت اعتبارنامه در دیتابیس n8n دیده نشد (خروجی: $CRED_IN_DB)"
+    c_hint "اگر گردش‌کار خطای credential داد: bash 03_ops/diagnose_n8n.sh"
 fi
 
 c_head "۲) انتشار گردش‌کارها"
@@ -170,7 +204,8 @@ elif [[ "$AFTER" != "-" ]]; then
     c_hint "bash 03_ops/smoke_test.sh   # جزئیات خطاها"
 else
     c_warn "هنوز هیچ دور اجرایی ثبت نشده"
-    c_hint "در رابط n8n → Executions ببینید؛ یا ۳۰ ثانیه بعد دوباره: bash 03_ops/smoke_test.sh"
+    c_hint "bash 03_ops/diagnose_n8n.sh   # نشان می‌دهد گردش‌کار اجرا می‌شود یا نه و چه خطایی دارد"
+    c_hint "یا ۳۰ ثانیه بعد: bash 03_ops/smoke_test.sh"
 fi
 
 echo ""
