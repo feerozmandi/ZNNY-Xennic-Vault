@@ -340,6 +340,28 @@ def check_continuation(wf_name, wf):
             err(wf_name, f"گره «{name}» باید alwaysOutputData داشته باشد: {why}")
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# قاعده «کات هرس‌شده»: در PostgreSQL، CTE بدون ارجاع اجرا نمی‌شود (PG 12+).
+# باگ واقعی ۰.۱.۱۶: WF-04 با «WITH rec AS (SELECT recover_if_dead()) ...»
+# نوشته شده بود و خودترمیمی هرگز اجرا نمی‌شد — بی‌صدا و بدون هیچ خطایی.
+# ═══════════════════════════════════════════════════════════════════════
+NAMED_CTE = re.compile(r"\bWITH\s+(?:RECURSIVE\s+)?([A-Za-z_][A-Za-z0-9_]*)\s+AS\s*\(", re.I)
+
+
+def check_unused_cte(wf_name, wf):
+    for n in wf["nodes"]:
+        if n.get("type") != "n8n-nodes-base.postgres":
+            continue
+        sql = n.get("parameters", {}).get("query", "")
+        for name in NAMED_CTE.findall(sql):
+            # تعداد ارجاع: یک بار در تعریف + هر بار استفاده
+            if len(re.findall(rf"\b{re.escape(name)}\b", sql)) < 2:
+                err(
+                    wf_name,
+                    f"گره «{n['name']}»: کات «{name}» هیچ‌جا استفاده نشده — "
+                    f"PostgreSQL آن را اجرا نمی‌کند (کار بی‌اثر و بی‌صدا)",
+                )
+
 def check_cron(wf_name, wf):
     for n in wf["nodes"]:
         rule = n.get("parameters", {}).get("rule", {})
@@ -423,6 +445,7 @@ def main():
         check_http_inputs(wf_name, wf)
         check_order(wf_name, wf)
         check_continuation(wf_name, wf)
+        check_unused_cte(wf_name, wf)
         for n in wf["nodes"]:
             if n.get("type") == "n8n-nodes-base.postgres":
                 sql = n["parameters"]["query"]

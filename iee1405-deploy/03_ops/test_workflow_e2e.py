@@ -459,6 +459,37 @@ def main():
     sent = psql("SELECT count(*) FROM iee1405.bot_updates WHERE reply_text IS NOT NULL;")[0][0]
     check("بازخوانی پیام تکراری نمی‌فرستد", sent == "1", sent)
 
+    # ── نگهبان سلامت: خودترمیمی واقعی + سکوت ──
+    # باگ واقعی ۰.۱.۱۶: «WITH rec AS (SELECT recover_if_dead())» هرگز اجرا
+    # نمی‌شد (هرس CTE) و هشدار هم فاصله نداشت → ۴۸ پیام در روز.
+    # پیش‌شرط روشن: بدون خطا، پیمایش تازه، بدون قبضه قبلی
+    psql("DELETE FROM iee1405.bot_errors;")
+    psql("SELECT iee1405.health_alert_reset();")
+    psql("UPDATE iee1405.bot_state SET value = clock_timestamp()::text WHERE key = 'last_poll_at';")
+    health = psql("SELECT count(*) FROM iee1405.health_watch();")[0][0]
+    check("در حالت سالم هیچ هشدار سلامتی نمی‌آید", health == "0", health)
+
+    psql("INSERT INTO iee1405.bot_errors (stage, message) VALUES ('e2e-health', 'x');")
+    psql("SELECT iee1405.health_alert_reset();")   # بازه سکوت را صفر می‌کنیم
+    h1 = psql("SELECT count(*) FROM iee1405.health_watch();")[0][0]
+    h2 = psql("SELECT count(*) FROM iee1405.health_watch();")[0][0]
+    check("با وجود خطا یک هشدار می‌آید", h1 == "1", h1)
+    check("اجرای بعدی همان هشدار را تکرار نمی‌کند (بازه ۳ ساعت)", h2 == "0", h2)
+    h3 = psql("SELECT count(*) FROM iee1405.health_watch('0 seconds');")[0][0]
+    check("پس از پایان بازه، هشدار دوباره مجاز است", h3 == "1", h3)
+
+    # خودترمیمی باید حتی در حالت سالم هم اجرا شود
+    psql("DELETE FROM iee1405.bot_errors;")
+    psql("SELECT iee1405.health_alert_reset();")
+    psql("UPDATE iee1405.bot_state SET value = "
+         "(clock_timestamp() - interval '40 minutes')::text WHERE key = 'last_poll_at';")
+    psql("SELECT count(*) FROM iee1405.health_watch();")
+    rec = psql("SELECT count(*) FROM iee1405.bot_errors WHERE stage = 'self_recovery';")[0][0]
+    check("خودترمیمی واقعاً اجرا می‌شود (نه در کات هرس‌شده)", rec == "1", rec)
+    fresh = psql("SELECT value::timestamptz > clock_timestamp() - interval '1 minute' "
+                 "FROM iee1405.bot_state WHERE key = 'last_poll_at';")[0][0]
+    check("خودترمیمی زمان پیمایش را جلو می‌برد", fresh == "t", fresh)
+
     print(f"\n{len(PASS)} موفق · {len(FAIL)} ناموفق")
     if FAIL:
         print("ناموفق‌ها:", ", ".join(FAIL))

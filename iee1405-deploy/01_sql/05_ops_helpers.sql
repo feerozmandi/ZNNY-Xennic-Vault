@@ -20,7 +20,8 @@ INSERT INTO iee1405.bot_state (key, value) VALUES
     ('last_poll_at', NULL),
     ('last_error', NULL),
     ('bale_seen_max', NULL),      -- بزرگ‌ترین update_id که بله در آخرین دریافت داد
-    ('bale_batch_ids', NULL)      -- فهرست update_idهای همان دریافت (برای بررسی گم‌شدن)
+    ('bale_batch_ids', NULL),     -- فهرست update_idهای همان دریافت (برای بررسی گم‌شدن)
+    ('health_alert_last_at', NULL) -- آخرین هشدار سلامت (بازه سکوت WF-04)
 ON CONFLICT (key) DO NOTHING;
 
 COMMENT ON TABLE iee1405.bot_state IS 'وضعیت پایدار سرویس؛ با ری‌استارت n8n از دست نمی‌رود';
@@ -367,6 +368,69 @@ $$;
 -- 8) هشدار سلامت (WF-04) — فقط وقتی مشکل هست ردیف برمی‌گرداند
 --    (اگر سالم باشد هیچ ردیفی نیست → پیامی ارسال نمی‌شود)
 -- ─────────────────────────────────────────────────────────────────────
+-- ─────────────────────────────────────────────────────────────────────
+-- نگهبان واحد WF-04: خودترمیمی + هشدار با فاصله اجباری
+--
+-- دو باگ واقعی که این تابع می‌بندد:
+--  ۱) WF-04 قبلاً «WITH rec AS (SELECT recover_if_dead()) SELECT ...» بود.
+--     PostgreSQL کات‌های بدون ارجاع را هرس می‌کند (آزمون‌شده روی ۱۶.۲)، پس
+--     recover_if_dead هرگز اجرا نمی‌شد و خودترمیمی مرده بود. حالا فراخوانی
+--     داخل همین تابع و صریح است، نه در کات بی‌استفاده.
+--  ۲) هشدار فاصله نداشت: هر ۳۰ دقیقه همان پیام تکرار می‌شد (۴۸ پیام در روز).
+--     حالا یک claim اتمی روی bot_state، حداکثر یک هشدار در هر بازه.
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION iee1405.health_watch(
+    p_min_interval interval DEFAULT '3 hours'
+) RETURNS TABLE (chat_id bigint, text_body text)
+LANGUAGE plpgsql VOLATILE AS $$
+DECLARE
+    v_recovered boolean;
+    v_claimed   boolean;
+    v_errors    int;
+BEGIN
+    -- گام ۱: خودترمیمی (همیشه، حتی اگر هشدار در کار نباشد)
+    v_recovered := iee1405.recover_if_dead();
+    IF v_recovered THEN
+        RAISE NOTICE 'iee1405.health_watch: گردش‌کار دریافت خودترمیمی شد';
+    END IF;
+
+    -- گام ۲: آیا اصلاً مشکلی هست؟
+    SELECT iee1405.recent_error_count(interval '1 hour') INTO v_errors;
+    IF NOT (v_errors > 0
+            OR iee1405.poll_is_stale(interval '2 hours')
+            OR (SELECT count(*) FROM crm.tasks
+                 WHERE status = 'open' AND due_date < current_date) > 10) THEN
+        RETURN;   -- سالم است: هیچ پیامی
+    END IF;
+
+    -- گام ۳: claim اتمی فاصله. INSERT..ON CONFLICT..WHERE در یک دستور، پس دو
+    -- اجرای هم‌زمان نمی‌توانند هر دو claim کنند.
+    INSERT INTO iee1405.bot_state (key, value, updated_at)
+    VALUES ('health_alert_last_at', clock_timestamp()::text, clock_timestamp())
+    ON CONFLICT (key) DO UPDATE
+       SET value = clock_timestamp()::text, updated_at = clock_timestamp()
+     WHERE iee1405.bot_state.value IS NULL
+        OR iee1405.bot_state.value::timestamptz < clock_timestamp() - p_min_interval
+    RETURNING true INTO v_claimed;
+
+    IF v_claimed IS NULL THEN
+        RETURN;   -- هنوز در بازه سکوت هستیم
+    END IF;
+
+    RETURN QUERY
+    SELECT o.chat_id, iee1405.health_text() FROM iee1405.owner_chat_ids() o;
+END $$;
+
+COMMENT ON FUNCTION iee1405.health_watch IS
+'خودترمیمی + هشدار سلامت با فاصله حداقل ۳ ساعت؛ جای health_alert_rows در WF-04';
+
+-- بازنشانی بازه سکوت (برای آزمون یا وقتی می‌خواهید هشدار بعدی فوری بیاید)
+CREATE OR REPLACE FUNCTION iee1405.health_alert_reset()
+RETURNS void LANGUAGE sql AS $$
+    UPDATE iee1405.bot_state SET value = NULL, updated_at = clock_timestamp()
+     WHERE key = 'health_alert_last_at';
+$$;
+
 CREATE OR REPLACE FUNCTION iee1405.health_alert_rows()
 RETURNS TABLE (chat_id bigint, text_body text)
 LANGUAGE sql STABLE AS $$
