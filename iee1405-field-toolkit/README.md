@@ -35,7 +35,9 @@
 └── imports/    # فایل JSON تعامل‌های گوشی
 ```
 
-کد در `~/ZNNY-Xennic-Vault/iee1405-field-toolkit/` است و از همان‌جا اجرا می‌شود.
+کد در `~/xennic-data/barghpa-26-iee1405/tools/` است (بیرون از مخزن Vault،
+طبق R6) و از همان‌جا اجرا می‌شود. نسخهٔ مخزن `iee1405-field-toolkit/` منبع
+همین فایل‌هاست؛ پس از ادغام PR می‌توانید از همان مسیر هم اجرا کنید.
 
 ---
 
@@ -44,7 +46,7 @@
 پیش‌نیاز: `python3` (۳.۸+). هیچ بستهٔ بیرونی لازم نیست.
 
 ```bash
-python3 ~/ZNNY-Xennic-Vault/iee1405-field-toolkit/audit_barghpa.py \
+python3 ~/xennic-data/barghpa-26-iee1405/tools/audit_barghpa.py \
   --json ~/xennic-data/barghpa-26-iee1405/exports/audit-$(date +%F).json
 ```
 
@@ -59,7 +61,7 @@ python3 ~/ZNNY-Xennic-Vault/iee1405-field-toolkit/audit_barghpa.py \
 ## ۴. مرحلهٔ B — پایگاه‌داده و ابزار میدانی
 
 ```bash
-T=~/ZNNY-Xennic-Vault/iee1405-field-toolkit
+T=~/xennic-data/barghpa-26-iee1405/tools
 D=~/xennic-data/barghpa-26-iee1405
 
 # ۱) آزمایشی — هیچ نوشتنی
@@ -121,7 +123,7 @@ python3 $T/log_interaction.py --db $D/db/barghpa_iee1405.sqlite --export $D/expo
 - پیش از **هر** ایمپورت: `backups/barghpa_iee1405.<UTC>.pre-import.sqlite`
   با `sqlite3.Connection.backup()` — نه `cp` (کپی از پایگاه باز فایل خراب می‌دهد).
 - روزانه (پیشنهاد کرون، ۷ نسخه):
-  `0 2 * * * python3 ~/ZNNY-Xennic-Vault/iee1405-field-toolkit/backup_daily.py`
+  `0 2 * * * python3 ~/xennic-data/barghpa-26-iee1405/tools/backup_daily.py`
   — یا دستی با `log_interaction.py` بدون نیاز؛ جزئیات در `PRJ-IEE-015 §ابزار`.
 - بازگردانی: فایل پشتیبان را روی `db/barghpa_iee1405.sqlite` کپی کنید و
   `integrity_check` بگیرید. آزمون D5.4 همین مسیر را پوشش می‌دهد.
@@ -156,7 +158,7 @@ python3 $T/log_interaction.py --db $D/db/barghpa_iee1405.sqlite --export $D/expo
 ## ۹. اجرای آزمون در محیط بدون داده
 
 ```bash
-cd ~/ZNNY-Xennic-Vault/iee1405-field-toolkit
+cd ~/xennic-data/barghpa-26-iee1405/tools
 python3 test_toolkit.py          # دادهٔ ساختگی می‌سازد و پاک می‌کند
 python3 test_toolkit.py --keep   # پوشهٔ آزمون برای بررسی می‌ماند
 ```
