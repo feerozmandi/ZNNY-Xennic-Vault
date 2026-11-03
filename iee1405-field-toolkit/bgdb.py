@@ -279,3 +279,17 @@ def classify_provenance(text: str | None) -> str:
     if "جستجو" in n or "گوگل" in n or "وب" in n:
         return "web_search"
     return "other"
+
+
+STOP_TOKENS = {"شرکت", "گروه", "صنایع", "صنعتی", "بازرگانی", "خدمات", "توسعه",
+               "مهندسی", "پس", "از", "فروش", "های", "ها", "و"}
+
+
+def name_tokens(name: str | None) -> set[str]:
+    """واژه‌های معنادار نام شرکت، برای تشخیص «خانواده» (مثل ایران ترانسفو)."""
+    s = re.sub(r"[()\[\]«»]", " ", str(name or ""))
+    return {w for w in norm_text(s).split() if len(w) > 2 and w not in STOP_TOKENS}
+
+
+def same_family(a: str | None, b: str | None, min_shared: int = 2) -> bool:
+    return len(name_tokens(a) & name_tokens(b)) >= min_shared

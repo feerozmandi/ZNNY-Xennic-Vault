@@ -367,6 +367,28 @@ def main() -> int:
         check("D7.1 اجرای نمایشی هیچ چیزی نمی‌نویسد", before == after == 0, f"{before}→{after}")
         check("D7.2 سقف تعداد و تنوع سالن رعایت می‌شود",
               out1.count("شرکت نمونه") == 8, str(out1.count("شرکت نمونه")))
+        check("D7.7 تشخیص خانوادهٔ نام (ایران ترانسفو) و رد نام بی‌ربط",
+              bgdb.same_family("توسعه پست‌های ایران ترانسفو",
+                               "خدمات پس از فروش ایران ترانسفو")
+              and not bgdb.same_family("الکترونیک افزار آزما", "زرسیم")
+              and "شرکت" not in bgdb.name_tokens("شرکت بازرگانی ایران ترانسفو"))
+        out_g = sh("pick_pilot.py", "--db", str(db), "--n", "8", "--per-hall", "2",
+                   "--max-group", "1")
+        picked_g = [ln for ln in out_g.splitlines() if "شرکت نمونه" in ln]
+        check("D7.8 سقف هم‌خانواده تعداد انتخاب را کم می‌کند",
+              0 < len(picked_g) < 8, f"{len(picked_g)} شرکت با --max-group 1")
+        check("D7.9 کوتاه‌آمدن فهرست صریح گزارش می‌شود",
+              "اجازهٔ بیشتر نداد" in out_g and "فقط" in out_g)
+        out_c = sh("pick_pilot.py", "--db", str(db), "--n", "12", "--per-hall", "4",
+                   "--cover-halls")
+        con = bgdb.connect(db)
+        pool = {h.strip() for r in con.execute(
+            "SELECT halls FROM v_company_card WHERE priority IS NOT NULL AND contact_count>0")
+            for h in (r[0] or "").split("·") if h.strip()}
+        con.close()
+        check("D7.10 --cover-halls هر سالن واجدشرط را پوشش می‌دهد",
+              f"پوشش سالن: {len(pool)} از {len(pool)} سالن" in out_c,
+              f"{len(pool)} سالن در استخر")
         refused = sh("pick_pilot.py", "--db", str(db), "--n", "8", "--write", expect=2)
         check("D7.3 نوشتن بدون تأیید مالک رد می‌شود", "approve" in refused)
         sh("pick_pilot.py", "--db", str(db), "--n", "8", "--per-hall", "2", "--write",
@@ -386,6 +408,29 @@ def main() -> int:
         pilot_html = (exp / "pilot.html")
         check("D7.6 صفحهٔ پایلوت با تأیید مالک ساخته می‌شود",
               pilot_html.exists() and "فهرست پایلوت" in pilot_html.read_text(encoding="utf-8"))
+
+        # ── D8: برنامهٔ روز ────────────────────────────────────────
+        print("\nD8 — برنامهٔ روزهای بازدید")
+        plan_dir = root / "exports" / "plan"
+        out3 = sh("build_plan.py", "--db", str(db), "--days", "3", "--out", str(plan_dir))
+        con = bgdb.connect(db)
+        n_pilot = con.execute("SELECT count(*) FROM visit_pilot").fetchone()[0]
+        con.close()
+        plan_html = (plan_dir / "plan.html")
+        txt = plan_html.read_text(encoding="utf-8") if plan_html.exists() else ""
+        check("D8.1 برنامه ساخته می‌شود و هر نامزد یک‌بار می‌آید",
+              txt.count("<tr><td>") == n_pilot, f"{txt.count('<tr><td>')} از {n_pilot}")
+        check("D8.2 تعداد روزها از سقف درخواستی بیشتر نیست",
+              txt.count("روز ") <= 6 and "روز 1" in txt and "روز 4" not in txt,
+              "روزها=%d" % txt.count("class='day'"))
+        check("D8.3 برنامه چیزی در پایگاه نمی‌نویسد",
+              con is not None and n_pilot == 8)
+        check("D8.4 هشدارها در صفحه آمده (خانواده/سالن/اطمینان)",
+              "سالن‌ها هیچ نامزدی" in txt and "اطمینان تماس" in txt)
+        csvp = plan_dir / "plan.csv"
+        rows_csv = list(csv.DictReader(csvp.open(encoding="utf-8-sig")))
+        check("D8.5 CSV برنامه با ستون‌های لازم", len(rows_csv) == n_pilot
+              and {"day", "rank", "company", "first_check"} <= set(rows_csv[0]))
 
     finally:
         if "--keep" in sys.argv:
