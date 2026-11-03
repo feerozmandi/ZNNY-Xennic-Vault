@@ -291,5 +291,24 @@ def name_tokens(name: str | None) -> set[str]:
     return {w for w in norm_text(s).split() if len(w) > 2 and w not in STOP_TOKENS}
 
 
-def same_family(a: str | None, b: str | None, min_shared: int = 2) -> bool:
-    return len(name_tokens(a) & name_tokens(b)) >= min_shared
+def same_family(a: str | None, b: str | None, min_shared: int = 2,
+                ignore: set[str] | None = None) -> bool:
+    """آیا دو نام از یک خانواده‌اند؟ `ignore` واژه‌هایی است که در استخر عمومی‌اند.
+
+    بدون `ignore`، دو شرکت بی‌ربط که هر دو «برق» و «صنعت» در نامشان دارند
+    هم‌خانواده شمرده می‌شوند و `--max-group` فهرست را بی‌دلیل کوتاه می‌کند.
+    """
+    shared = name_tokens(a) & name_tokens(b)
+    if ignore:
+        shared -= ignore
+    return len(shared) >= min_shared
+
+
+def common_tokens(names, share: float = 0.08, floor: int = 3) -> set[str]:
+    """واژه‌هایی که در بیش از `share` از نام‌ها تکرار شده‌اند (نه واژهٔ هویتی)."""
+    freq: dict[str, int] = {}
+    for n in names:
+        for w in name_tokens(n):
+            freq[w] = freq.get(w, 0) + 1
+    line = max(floor, int(len(list(names)) * share))
+    return {w for w, c in freq.items() if c >= line}

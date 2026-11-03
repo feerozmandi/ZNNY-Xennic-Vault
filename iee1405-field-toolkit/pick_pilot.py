@@ -90,6 +90,8 @@ def candidates(con, n: int, per_hall: int, include_empty: bool,
 
     scored.sort(key=lambda d: (-d["score"], -d["contacts"], d["name"]))
     picked, per = [], {}
+    # واژه‌های پرتکرارِ نام‌ها («برق» در نیمی از فهرست) هویت خانواده نیستند
+    generic = bgdb.common_tokens([c["name"] for c in scored])
 
     def halls_of(c):
         return [h.strip() for h in c["halls"].split("·") if h.strip()] or ["—"]
@@ -98,7 +100,8 @@ def candidates(con, n: int, per_hall: int, include_empty: bool,
         # سقف «خانواده»: چند شرکت با نام مشابه (مثل ایران ترانسفو) پشت‌سرهم نباشند
         if max_group <= 0:
             return True
-        return sum(1 for p_ in picked if bgdb.same_family(p_["name"], c["name"])) < max_group
+        return sum(1 for p_ in picked
+                   if bgdb.same_family(p_["name"], c["name"], ignore=generic)) < max_group
 
     def hall_room(c):
         return all(per.get(h, 0) < per_hall for h in halls_of(c))

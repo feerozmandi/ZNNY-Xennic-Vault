@@ -372,13 +372,36 @@ def main() -> int:
                                "خدمات پس از فروش ایران ترانسفو")
               and not bgdb.same_family("الکترونیک افزار آزما", "زرسیم")
               and "شرکت" not in bgdb.name_tokens("شرکت بازرگانی ایران ترانسفو"))
+        check("D7.8 واژه‌های عمومیِ استخر هویت خانواده نیستند",
+              bgdb.same_family("شرکت برق صنعت آلفا", "شرکت برق صنعت بتا")
+              and not bgdb.same_family("شرکت برق صنعت آلفا", "شرکت برق صنعت بتا",
+                                       ignore={"برق", "صنعت"})
+              and bgdb.common_tokens(["الف بتا", "الف گاما", "الف دلتا"]) == {"الف"}
+              and bgdb.common_tokens(["ایران ترانسفو", "زرسیم", "کابل پارس"]) == set())
+        # خانوادهٔ واقعی: سه شرکت با بالاترین اولویت را هم‌نام می‌کنیم
+        fam_db = root / "fam.sqlite"
+        shutil.copyfile(db, fam_db)
+        con = bgdb.connect(fam_db)
+        ids = [r[0] for r in con.execute("""SELECT c.id FROM company c
+                 JOIN v_company_card v ON v.company_id=c.id
+                WHERE v.contact_count > 0 ORDER BY v.priority DESC, c.id LIMIT 3""")]
+        for i in ids:
+            con.execute("UPDATE company SET name_fa=? WHERE id=?",
+                        (f"توسعه پست‌های ایران ترانسفو {i}", i))
+        con.commit()
+        con.close()
+        out_f0 = sh("pick_pilot.py", "--db", str(fam_db), "--n", "20", "--per-hall", "4")
+        out_f1 = sh("pick_pilot.py", "--db", str(fam_db), "--n", "20", "--per-hall", "4",
+                    "--max-group", "1")
+        n0 = out_f0.count("ایران ترانسفو")
+        n1 = out_f1.count("ایران ترانسفو")
+        check("D7.9 --max-group هم‌خانواده‌ها را به یکی محدود می‌کند",
+              n0 == 3 and n1 == 1, f"بدون سقف={n0} · با سقف ۱={n1}")
+
         out_g = sh("pick_pilot.py", "--db", str(db), "--n", "8", "--per-hall", "2",
                    "--max-group", "1")
-        picked_g = [ln for ln in out_g.splitlines() if "شرکت نمونه" in ln]
-        check("D7.8 سقف هم‌خانواده تعداد انتخاب را کم می‌کند",
-              0 < len(picked_g) < 8, f"{len(picked_g)} شرکت با --max-group 1")
-        check("D7.9 کوتاه‌آمدن فهرست صریح گزارش می‌شود",
-              "اجازهٔ بیشتر نداد" in out_g and "فقط" in out_g)
+        check("D7.10 فهرست با سقف خانواده وقتی دلیلی نیست کوتاه نمی‌شود",
+              out_g.count("شرکت نمونه") == 8, str(out_g.count("شرکت نمونه")))
         out_c = sh("pick_pilot.py", "--db", str(db), "--n", "12", "--per-hall", "4",
                    "--cover-halls")
         con = bgdb.connect(db)
@@ -386,7 +409,7 @@ def main() -> int:
             "SELECT halls FROM v_company_card WHERE priority IS NOT NULL AND contact_count>0")
             for h in (r[0] or "").split("·") if h.strip()}
         con.close()
-        check("D7.10 --cover-halls هر سالن واجدشرط را پوشش می‌دهد",
+        check("D7.11 --cover-halls هر سالن واجدشرط را پوشش می‌دهد",
               f"پوشش سالن: {len(pool)} از {len(pool)} سالن" in out_c,
               f"{len(pool)} سالن در استخر")
         refused = sh("pick_pilot.py", "--db", str(db), "--n", "8", "--write", expect=2)
