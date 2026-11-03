@@ -16,8 +16,7 @@
 ```bash
 # ۱) گرفتن فایل‌ها (مخزن عمومی است؛ نیازی به توکن نیست)
 cd ~
-git clone --branch arena/011e185b-znny-xennic-vault --single-branch \
-    https://github.com/feerozmandi/ZNNY-Xennic-Vault.git
+git clone https://github.com/feerozmandi/ZNNY-Xennic-Vault.git
 cd ZNNY-Xennic-Vault/iee1405-deploy
 
 # ۲) بررسی پیش‌نیازها — در یک نگاه می‌گوید چه چیزی کم است
@@ -52,18 +51,18 @@ bash 03_ops/smoke_test.sh                  # آزمون دود: توکن، گر�
 
 رمز ساخته‌شده در `~/.iee1405-app-password` ذخیره می‌شود تا کارت اعتبارنامه n8n را با آن بسازید.
 
-> [!note] چرا `--branch`
-> این بسته فعلاً روی شاخه `arena/011e185b-znny-xennic-vault` است (PR #75).
-> با `git clone` ساده، شاخه `dev` گرفته می‌شود و پوشه `iee1405-deploy` **وجود ندارد**.
-> پس از ادغام PR، دستور ساده `git clone` کافی خواهد بود.
+> [!note] چرا دیگر `--branch` لازم نیست
+> این بسته در PR #75 به `dev` ادغام شد؛ پس `git clone` ساده (که `dev` را
+> می‌گیرد) پوشه `iee1405-deploy` را هم می‌آورد. فقط اگر روی یک شاخه کاری
+> آزمایشی هستید، نام شاخه را با `--branch <name> --single-branch` بدهید.
 
 ### اگر قبلاً مخزن را روی سرور دارید
 
 ```bash
 cd ~/ZNNY-Xennic-Vault
-git fetch origin arena/011e185b-znny-xennic-vault
-git checkout arena/011e185b-znny-xennic-vault
-git pull --ff-only origin arena/011e185b-znny-xennic-vault
+git fetch origin dev
+git checkout dev
+git pull --ff-only origin dev
 cd iee1405-deploy && bash 03_ops/preflight.sh
 ```
 
@@ -100,14 +99,14 @@ cd iee1405-deploy && bash 03_ops/preflight.sh
 | `ssh: connect ... port 33878: Connection timed out` | از داخل سرور به خودش SSH زده‌اید (یا از شبکه‌ای که پورت بسته است) | اگر `whoami` = `xennic` و `hostname` = `server2085`، همین‌جا هستید؛ `ssh` را حذف کنید |
 | `fatal: repository '…' does not exist` | جای‌نگهدار `…` عیناً وارد شده | آدرس کامل را از بخش ۰ کپی کنید |
 | `bash: 00_audit/...: No such file or directory` | clone انجام نشده یا از پوشه اشتباه اجرا شده | `cd ~/ZNNY-Xennic-Vault/iee1405-deploy` سپس دوباره |
-| `iee1405-deploy` بعد از clone نیست | شاخه پیش‌فرض (`dev`) گرفته شده | `--branch arena/011e185b-znny-xennic-vault --single-branch` |
+| `iee1405-deploy` بعد از clone نیست | clone از شاخه‌ای قدیمی‌تر از ادغام PR #75 گرفته شده | `git fetch origin dev && git checkout dev && git pull --ff-only` |
 
 ---
 
-## ۱. بازرسی (بدون هیچ تغییری)## ۱. بازرسی (بدون هیچ تغییری)
+## ۱. بازرسی (بدون هیچ تغییری)
 
 ```bash
-cd ~/iee1405-deploy
+cd ~/ZNNY-Xennic-Vault/iee1405-deploy
 bash 00_audit/audit_postgres.sh
 ```
 
@@ -697,8 +696,7 @@ docker compose -f ~/xennic-infra/docker-compose.yml exec -T postgres \
 # ۱) بررسی ساختار و سلامت
 PG_DB=xennic bash 03_ops/deploy_sql.sh --verify-only
 
-# ۲) اجرای آزمون‌های محلی (نیاز به پایگاه‌داده آزمایشی ندارد اگر روی VPS اجرا شود)
-#    این آزمون‌ها تراکنشی هستند و همه‌چیز را ROLLBACK می‌کنند.
+# ۲) اجرای آزمون‌های محلی — روی یک کلاستر آزمایشی، نه تولید (بخش ۶.۱)
 
 # ۳) آزمون دستی از بله:
 /start
@@ -725,6 +723,75 @@ DELETE FROM crm.claims WHERE subject_id IN
 DELETE FROM crm.organizations WHERE legal_name LIKE '%آزمون%';
 COMMIT;
 ```
+
+### ۶.۱. آزمون‌های خودکار — کجا اجرا می‌شوند
+
+سه آزمون این بسته به یک کلاستر PostgreSQL **آزمایشی** نیاز دارند؛ روی تولید
+اجرا نمی‌شوند و به آن دست نمی‌زنند:
+
+| آزمون | چه چیزی را می‌سنجد | تعداد |
+|---|---|---|
+| `python3 02_n8n/validate_workflows.py` | ساختار چهار گردش‌کار + اجرای واقعی هر گره SQL | ۵ گردش‌کار · ۱۱ گره SQL |
+| `python3 03_ops/test_workflow_e2e.py` | کل مسیر ربات با پرس‌وجوهای برداشته‌شده از خود فایل گردش‌کار، با نقش `iee_app` | ۶۸ بررسی |
+| `python3 03_ops/test_import.py` | زنجیره xlsx → CSV → ایمپورت (تکرارپذیری، غرفه، نیم‌فاصله) | ۱۳ بررسی |
+
+> [!important] محیط آزمون دیگر سخت‌کد نیست
+> پیش‌تر مسیر باینری‌ها و URI اتصال داخل هر سه فایل نوشته شده بود
+> (`/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin`). نتیجه
+> این بود که آزمون‌ها فقط روی یک ماشین خاص اجرا می‌شدند و روی هر جای دیگر با
+> `ModuleNotFoundError` می‌افتادند. حالا `03_ops/testenv.py` هر دو مقدار را
+> کشف می‌کند و اگر پیدا نشد، **پیام قابل‌اقدام** می‌دهد، نه `Traceback`:
+
+```bash
+python3 03_ops/testenv.py          # آیا محیط آزمون آماده است؟
+
+# راه ۱ — سریع‌ترین (یک کلاستر موقت در /tmp/pgdata):
+pip install pgserver
+
+# راه ۲ — با PostgreSQL نصب‌شده روی سیستم:
+export IEE_TEST_PG_BIN="$(pg_config --bindir)"
+export IEE_TEST_PG_URI="postgresql://postgres:@/postgres?host=/tmp/pgdata"
+```
+
+آنگاه ساختار را یک بار روی همان کلاستر آزمایشی بسازید و آزمون‌ها را بزنید:
+
+```bash
+# فقط روی کلاستر آزمایشی — هرگز روی تولید
+for f in 01_sql/0*.sql; do psql "$IEE_TEST_PG_URI" -X -q -v ON_ERROR_STOP=1 -f "$f"; done
+
+python3 02_n8n/validate_workflows.py
+python3 03_ops/test_workflow_e2e.py
+python3 03_ops/test_import.py
+```
+
+> [!note] چرا ساختار باید از قبل باشد
+> آزمون‌ها **ساختار را نمی‌سازند** (تا هرگز با تولید اشتباه گرفته نشوند)؛ فقط
+> از آن می‌خوانند و همه نوشتن‌ها را در یک تراکنش با `ROLLBACK` برمی‌گردانند.
+> اگر ساختار نباشد، `test_workflow_e2e.py` می‌گوید «محیط آزمون آماده نیست» و
+> با کد خروج ۲ تمام می‌شود.
+
+---
+
+## ۶.۲. جست‌وجوی شرکت از خط فرمان
+
+هنگامی که گوشی در دست نیست، همان تابعی که ربات صدا می‌زند از ترمینال:
+
+```bash
+bash 03_ops/search_hint.sh ترانسفو
+bash 03_ops/search_hint.sh 38-12          # سالن-شماره غرفه
+bash 03_ops/search_hint.sh --limit 30 کابل
+```
+
+خروجی، کد `ORG-…` هر شرکت است؛ همان کدی که `/org` و `/log` می‌خواهند. چون
+تابع مشترک است، نتیجه دقیقاً همان چیزی است که `/find` در بله می‌دهد — دو مسیر
+با دو نتیجه متفاوت وجود ندارد. اسکریپت فقط می‌خواند.
+
+> [!note] باگ رفع‌شده: جست‌وجو با شماره غرفه کار نمی‌کرد
+> در دیتابیس غرفه دو ستون است (`hall` = `38`، `booth_number` = `12`)، ولی
+> نسخه پیشین `search_orgs` فقط `booth_number = '38-12'` را می‌سنجید — که هرگز
+> برابر نمی‌شد. حالا عبارت با `parse_booth` شکسته می‌شود و «38-12»، «12» و
+> «38/A5» همه کار می‌کنند. چهار آزمون تازه در `test_workflow_e2e.py` همین را
+> می‌سنجند (شماره ۶۸ بررسی).
 
 ---
 
@@ -762,6 +829,8 @@ docker compose -f ~/xennic-infra/docker-compose.yml exec -T postgres \
 | اجراها در `running` گیر می‌کنند | درخواست HTTP پاسخ نمی‌گیرد | `bash 03_ops/diagnose_n8n.sh` بخش ۳.۷ (تست زنده `getUpdates`) |
 | `/status` می‌گوید «آخرین دریافت خطا داد» | سرور به `tapi.bale.ai` نمی‌رسد (فیلتر/شبکه) | `bash 03_ops/smoke_test.sh` و سپس بررسی DNS/پروکسی |
 | `activate_all.sh`: «رمز یافت نشد» | `~/.iee1405-app-password` نیست | `bash 03_ops/deploy_sql.sh` را یک بار اجرا کنید |
+| `/find 38-12` نتیجه نمی‌دهد | ساختار قدیمی روی سرور مانده (تابع `search_orgs` پیش از رفع باگ غرفه) | `bash 03_ops/deploy_sql.sh` را دوباره اجرا کنید (بی‌خطر و تکرارپذیر) |
+| آزمون‌ها: `ModuleNotFoundError: pgserver` | محیط آزمون کشف نشده | `pip install pgserver` یا `export IEE_TEST_PG_BIN/URI` — بخش ۶.۱ |
 
 بررسی سریع سلامت:
 
@@ -783,6 +852,13 @@ iee1405-deploy/
 ├── 02_n8n/            سازنده و اعتبارسنج گردش‌کارها + ۴ فایل JSON
 └── 03_ops/            استقرار، پشتیبان، ایمپورت، آزمون‌ها، .env نمونه
 ```
+
+دو فایل که کارشان «کشف محیط» است، نه استقرار:
+
+| فایل | کار |
+|---|---|
+| `03_ops/lib_common.sh` | کشف کانتینر، کاربر و نام دیتابیس از `docker ps` و `.env` |
+| `03_ops/testenv.py` | کشف کلاستر آزمایشی و مسیر `psql` برای سه آزمون خودکار |
 
 ---
 

@@ -280,7 +280,7 @@ def main() -> int:
 
     if write:
         print("\n✅ نوشته شد. بازبینی:")
-        print("   bash 03_ops/search_hint.sh   # یا در بله: /find بخشی از نام شرکت")
+        print("   bash 03_ops/search_hint.sh <بخشی از نام>   # یا در بله: /find <بخشی از نام>")
     else:
         print("\n⚠️  این فقط پیش‌نمایش بود — چیزی نوشته نشد.")
         print("   برای اجرای واقعی، همان دستور را با --write بزنید.")
