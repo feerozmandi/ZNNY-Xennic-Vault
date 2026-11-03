@@ -87,12 +87,18 @@ LANGUAGE sql IMMUTABLE AS $$
     SELECT btrim(
              regexp_replace(
                translate(COALESCE(p, ''),
-                         E'\u064A\u0643\u0629\u0649\u06CC\u06A9',
-                         E'\u06CC\u06A9\u0647\u06CC\u06CC\u06A9'),
+                         E'\u064A\u0643\u0629\u0649\u06CC\u06A9\u200C\u200D\u0640',
+                         E'\u06CC\u06A9\u0647\u06CC\u06CC\u06A9   '),
                '\s+', ' ', 'g'))
 $$;
 
-COMMENT ON FUNCTION crm.norm_text(text) IS 'یکسان‌سازی ی/ک عربی-فارسی و فشرده‌سازی فاصله‌ها';
+COMMENT ON FUNCTION crm.norm_text(text) IS
+'یکسان‌سازی ی/ک عربی-فارسی، نیم‌فاصله و کشیده، و فشرده‌سازی فاصله‌ها.
+
+نیم‌فاصله (U+200C) به فاصله تبدیل می‌شود چون در کاتالوگ‌ها و فایل‌های اکسل،
+یک شرکت هم با نیم‌فاصله و هم با فاصله نوشته می‌شود («برق‌آوران» / «برق آوران»)
+و بدون این یکسان‌سازی، جست‌وجو و تطبیق نام، شرکت را پیدا نمی‌کند و ایمپورت
+نسخه تکراری می‌سازد.';
 
 -- تاریخ شمسی کوتاه برای متن پیام‌ها (فقط نمایش؛ مرجع ذخیره UTC است)
 CREATE OR REPLACE FUNCTION crm.fa_date(p_ts timestamptz) RETURNS text
