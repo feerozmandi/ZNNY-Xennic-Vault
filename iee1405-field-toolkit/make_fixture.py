@@ -69,7 +69,9 @@ def build(root: Path) -> None:
             "توییتر / X": f"@sample{i+1}" if i % 70 == 0 else "-",
             "صفحه شرکت در برق‌پا": (f"https://barghpa.com/company/{i+1}" if i % 3 == 0 else "-"),
             "منبع تکمیل اطلاعات": ("سایت رسمی شرکت" if i % 4 == 0 else
-                                    ("جستجوی وب (گوگل)" if i % 4 == 1 else "-")),
+                                    ("حدس دامنه" if i % 4 == 1 else
+                                     ("جستجوی وب (گوگل)" if i % 4 == 2 else
+                                      "فقط از پورتال‌ها (بدون سایت رسمی تأییدشده)"))),
             "منابع (URL)": (f"https://sample{i+1}.example · https://barghpa.com/c/{i+1}"
                             if i % 4 == 0 else
                             (f"https://www.google.com/search?q=sample{i+1}" if i % 4 == 1 else "-")),

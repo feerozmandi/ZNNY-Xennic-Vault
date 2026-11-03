@@ -246,3 +246,27 @@ def search(con: sqlite3.Connection, q: str, limit: int = 50) -> list[sqlite3.Row
                             LEFT JOIN v_company_card v ON v.company_id=c.id
                            WHERE s.name_norm LIKE ? OR s.text_norm LIKE ?
                            ORDER BY c.name_fa LIMIT ?""", (like, like, limit)).fetchall()
+
+
+def classify_provenance(text: str | None) -> str:
+    """طبقه‌بندی «منبع تکمیل اطلاعات» به یک برچسب قابل تصمیم.
+
+    official  : خودِ منبع می‌گوید از سایت رسمی شرکت آمده
+    guessed   : «حدس دامنه» — دامنه با نام شرکت تطبیق داده شده، تأیید نشده
+    portal    : فقط از پورتال برق‌پا
+    web_search: جست‌وجوی وب/گوگل
+    other/unknown
+    """
+    n = norm_text(text)
+    if not n:
+        return "unknown"
+    if "حدس" in n:
+        return "guessed"
+    # «فقط از پورتال‌ها (بدون سایت رسمی تأییدشده)» یعنی عکسِ «سایت رسمی»
+    if "پورتال" in n or "بدون سایت" in n:
+        return "portal"
+    if "سایت" in n or "رسمی" in n:
+        return "official"
+    if "جستجو" in n or "گوگل" in n or "وب" in n:
+        return "web_search"
+    return "other"

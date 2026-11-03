@@ -163,12 +163,21 @@ def trueish(v: str) -> bool:
     return bgdb.norm_text(v) in {"1", "true", "بله", "دارد", "yes", "y"}
 
 
-def score(ch: dict[str, int], flags: dict[str, bool]) -> tuple[int, str]:
-    """اولویت پیشنهادی با دلیل صریح — هیچ عاملی از غرفه ساخته نمی‌شود."""
+def score(ch: dict[str, int], flags: dict[str, bool],
+          confidence: str = "unknown") -> tuple[int, str]:
+    """اولویت پیشنهادی با دلیل صریح — هیچ عاملی از غرفه ساخته نمی‌شود.
+
+    اگر داده با «حدس دامنه» به دست آمده باشد، وزن کمتری می‌گیرد: تماس حدسی
+    با تماس تأییدشده یکی نیست.
+    """
     p, why = 0, []
     if ch.get("email") or ch.get("phone") or ch.get("mobile"):
-        p += 30
-        why.append("راه ارتباطی مستقیم دارد (+30)")
+        if confidence == "guessed":
+            p += 15
+            why.append("تماس از حدس دامنه، تأییدنشده (+15)")
+        else:
+            p += 30
+            why.append("راه ارتباطی مستقیم دارد (+30)")
     if flags.get("tavanir_vendor"):
         p += 20
         why.append("در فهرست تأمین‌کنندگان توانیر (+20)")
@@ -298,6 +307,16 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                     uniq.append((v, vn))
             chans[k] = uniq
 
+        # منشأ در سطح شرکت (برای --dry-run هم شمرده می‌شود)
+        website = (chans.get("website") or [(None, None)])[0][0]
+        prov_src = cell("provenance_source") if bgdb.is_real_cell(cell("provenance_source")) else None
+        prov_urls = cell("provenance_urls") if bgdb.is_real_cell(cell("provenance_urls")) else None
+        logo = cell("logo") if bgdb.is_real_cell(cell("logo")) else None
+        # «سایت رسمی» فقط اگر همان دامنه در منابع ذکرشدهٔ خودِ منبع آمده باشد
+        official = None
+        if website and prov_urls and bgdb.norm_url(website).split("/")[0] in prov_urls.lower():
+            official = website
+
         # پرچم‌ها: هر ستون عضویت/تأییدیه مستقل است؛ «خیر» پرچم نمی‌سازد
         flag_values: dict[str, str] = {}
         for fld, flag in FLAG_COLUMNS.items():
@@ -315,22 +334,14 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
         ai = mp.get("assoc")
         if ai is not None and ai < len(row) and bgdb.is_real_cell(row[ai]):
             flag_values["assoc_list"] = row[ai].strip()
+        prov_cls = bgdb.classify_provenance(prov_src)
         prio, why = score({k: len(v) for k, v in chans.items()},
                           {"tavanir_vendor": "tavanir_vendor" in flag_values,
-                           "daneshbonyan": "daneshbonyan" in flag_values})
+                           "daneshbonyan": "daneshbonyan" in flag_values},
+                          confidence=prov_cls)
 
         halls = halls_by_company.get(nm) or ([cell("hall")] if bgdb.is_real_cell(cell("hall")) else [])
         stats["halls"].update(halls)
-
-        # منشأ در سطح شرکت (برای --dry-run هم شمرده می‌شود)
-        website = (chans.get("website") or [(None, None)])[0][0]
-        prov_src = cell("provenance_source") if bgdb.is_real_cell(cell("provenance_source")) else None
-        prov_urls = cell("provenance_urls") if bgdb.is_real_cell(cell("provenance_urls")) else None
-        logo = cell("logo") if bgdb.is_real_cell(cell("logo")) else None
-        # «سایت رسمی» فقط اگر همان دامنه در منابع ذکرشدهٔ خودِ منبع آمده باشد
-        official = None
-        if website and prov_urls and bgdb.norm_url(website).split("/")[0] in prov_urls.lower():
-            official = website
 
         booth_raw = booth_by_company.get(nm) or (cell("booth") if bgdb.is_real_cell(cell("booth")) else "")
         booth_clean, _ = bgdb.norm_booth(booth_raw) if booth_raw else (None, "خالی")
@@ -362,19 +373,21 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                              provenance_urls=COALESCE(NULLIF(provenance_urls,''),?),
                              logo_url=COALESCE(NULLIF(logo_url,''),?),
                              official_site=COALESCE(NULLIF(official_site,''),?),
+                             provenance_class=COALESCE(NULLIF(provenance_class,''),?),
                              updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')
                            WHERE id=?""",
                         (cell("name_en"), cell("slug"), website, cell("about"),
-                         cell("province"), page, prov_src, prov_urls, logo, official, cid))
+                         cell("province"), page, prov_src, prov_urls, logo, official,
+                         prov_cls if prov_cls != "unknown" else None, cid))
         else:
             cid = con.execute("""INSERT INTO company
                 (name_fa, name_norm, name_en, slug, website, about_fa,
                  province_label, company_page, provenance_source, provenance_urls,
-                 logo_url, official_site, source_id, source_row)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 logo_url, official_site, provenance_class, source_id, source_row)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (name, nm, cell("name_en") or None, cell("slug") or None,
                  website, cell("about") or None, cell("province") or None,
-                 page, prov_src, prov_urls, logo, official, src_id, idx)).lastrowid
+                 page, prov_src, prov_urls, logo, official, prov_cls, src_id, idx)).lastrowid
             stats["companies_new"] += 1
 
         con.execute("INSERT OR IGNORE INTO company_alias(company_id, alias_norm) VALUES (?,?)",
@@ -391,10 +404,13 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                     stats["contacts_existing"] += 1
                 else:
                     ct_id = con.execute("""INSERT INTO contact
-                        (company_id, channel, value, value_norm, is_primary, source_id)
-                        VALUES (?,?,?,?,0,?)""",
-                        (cid, field, v, vn, src_id)).lastrowid
+                        (company_id, channel, value, value_norm, is_primary,
+                         source_id, confidence)
+                        VALUES (?,?,?,?,0,?,?)""",
+                        (cid, field, v, vn, src_id, prov_cls)).lastrowid
                     stats["contacts_new"] += 1
+                con.execute("UPDATE contact SET confidence=? WHERE id=? AND confidence='unknown'",
+                            (prov_cls, ct_id))
                 con.execute("""INSERT INTO contact_evidence
                     (contact_id, source_id, observed_on, method, value_seen)
                     SELECT ?,?,?,?,? WHERE NOT EXISTS (

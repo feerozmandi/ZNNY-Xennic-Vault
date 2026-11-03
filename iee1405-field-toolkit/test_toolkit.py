@@ -94,6 +94,10 @@ def main() -> int:
               str(bm.get("provenance_class")))
         check("D1.11c شمارش URLهای منبع گزارش می‌شود",
               bm.get("provenance_urls_companies", 0) > 0)
+        check("D1.11d «حدس دامنه» جدا از «سایت رسمی» شمرده می‌شود",
+              bm.get("provenance_class", {}).get("حدس دامنه (تأییدنشده)", 0) > 0
+              and bm.get("provenance_class", {}).get("پورتال برق‌پا", 0) > 0,
+              str(bm.get("provenance_class")))
         check("D1.11 ستون «موقعیت غرفه» در شیت دوم پیدا و شکل‌بندی می‌شود",
               bm.get("booth_column") == "موقعیت غرفه" and bm["booth_real_rows"] > 0,
               str(bm.get("booth_shapes")))
@@ -212,6 +216,19 @@ def main() -> int:
                               ).fetchone()[0] if False else 0
         check("D3.19 «سایت رسمی» فقط با شاهد دامنه در منابع ذخیره می‌شود",
               off > 0, f"{off} شرکت")
+        cls = dict(con.execute("""SELECT COALESCE(provenance_class,'(هیچ)'), count(*)
+                                   FROM company GROUP BY 1""").fetchall())
+        check("D3.21 طبقهٔ اطمینان شرکت ذخیره می‌شود",
+              cls.get("guessed", 0) > 0 and cls.get("official", 0) > 0, str(cls))
+        conf = dict(con.execute("""SELECT confidence, count(*) FROM contact
+                                    GROUP BY 1""").fetchall())
+        check("D3.22 اطمینان به هر تماس منتقل می‌شود",
+              conf.get("guessed", 0) > 0 and conf.get("official", 0) > 0, str(conf))
+        pr = con.execute("""SELECT priority_reason FROM participation p
+                              JOIN company c ON c.id=p.company_id
+                             WHERE c.provenance_class='guessed' LIMIT 1""").fetchone()
+        check("D3.23 اولویت تماس حدسی کمتر و با دلیل صریح است",
+              pr is not None and "حدس" in pr[0], pr[0][:60] if pr else "—")
         fl = {r[0] for r in con.execute("SELECT DISTINCT flag FROM company_flag")}
         check("D3.20 پرچم انجمن‌ها/تأییدیه‌ها از ستون‌های مستقل خوانده می‌شود",
               {"sindicat_barq", "satka", "satba", "avl_oil"} <= fl, str(sorted(fl)))
@@ -281,6 +298,9 @@ def main() -> int:
               shown <= real, f"نمایش={sorted(shown)[:3]} پایگاه={len(real)}")
         check("D6.6 اولویت با دلیل نوشته شده", "اولویت" in sample and "راه ارتباطی مستقیم" in sample)
         check("D6.7 چاپ A4 تعریف شده", "@page" in sample and "print" in sample)
+        check("D6.16 برچسب اطمینان منبع روی کارت دیده می‌شود",
+              "منبع: حدس دامنه" in sample and "تأییدنشده" in sample
+              and "منبع: سایت رسمی" in sample)
         check("D6.8 شرکت چندسالنه در هر دو سالن دیده می‌شود",
               "مپنا" in (exp / "hall-41.html").read_text(encoding="utf-8"))
 

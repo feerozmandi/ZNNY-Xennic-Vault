@@ -362,10 +362,10 @@ def samples(headers, body, mapping, fields, n=5) -> dict:
     return out
 
 
-def audit(show_samples: int = 0) -> dict:
+def audit(show_samples: int = 0, show_mapping: bool = False) -> dict:
     res = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "tool_version": "0.2",
+        "tool_version": "0.4",
         "python": sys.version.split()[0],
         "sqlite": None, "fts5": None,
         "source_dir": str(DATA_SRC), "source_exists": DATA_SRC.exists(),
@@ -456,6 +456,11 @@ def audit(show_samples: int = 0) -> dict:
                                     "company_page", "assoc", "type"], show_samples)
         tables[name] = (headers, body, t)
         res["sheets"][name] = t
+        if show_mapping:
+            rows = []
+            for fld, idx in sorted(mp.items(), key=lambda kv: kv[1]):
+                rows.append((fld, headers[idx], t["census"][headers[idx]]["real"]))
+            res.setdefault("mapping_table", {})[name] = rows
 
     m = res["metrics"]
     comp_name, part_name = "شرکت‌کنندگان.csv", "فهرست_کامل_۳۰۰_رکورد.csv"
@@ -562,11 +567,16 @@ def audit(show_samples: int = 0) -> dict:
                 if is_real_cell(v):
                     dist[v] = dist.get(v, 0) + 1
             m["provenance_distribution"] = dict(sorted(dist.items(), key=lambda kv: -kv[1]))
-            cls = {"سایت رسمی/شرکت": 0, "جست‌وجوی وب": 0, "منبع دیگر": 0}
+            cls = {"سایت رسمی (ادعای منبع)": 0, "حدس دامنه (تأییدنشده)": 0,
+                   "پورتال برق‌پا": 0, "جست‌وجوی وب": 0, "منبع دیگر": 0}
             for v, n in dist.items():
                 vn = norm_text(v)
-                if "سایت" in vn or "رسمی" in vn:
-                    cls["سایت رسمی/شرکت"] += n
+                if "حدس" in vn:
+                    cls["حدس دامنه (تأییدنشده)"] += n
+                elif "پورتال" in vn or "بدون سایت" in vn:
+                    cls["پورتال برق‌پا"] += n
+                elif "سایت" in vn or "رسمی" in vn:
+                    cls["سایت رسمی (ادعای منبع)"] += n
                 elif "جستجو" in vn or "گوگل" in vn or "وب" in vn or "اینترنت" in vn:
                     cls["جست‌وجوی وب"] += n
                 else:
@@ -812,6 +822,13 @@ def render(res: dict) -> str:
         v = rel.get(k) or []
         add(f"  {label}: {len(v)}" + ("" if not v else " → " + " · ".join(v[:3])))
 
+    if res.get("mapping_table"):
+        add("\n── ۷.۵) نگاشت کامل ستون‌ها ─────────────────────────────────")
+        for sheet, rows in res["mapping_table"].items():
+            add(f"  {sheet}")
+            for field, col, realc in rows:
+                add(f"     {field:20s} ← {col[:44]:44s} ({realc} سلول واقعی)")
+
     add("\n── ۸) اختلاف‌ها و موانع ───────────────────────────────────────")
     if not res["discrepancies"] and not res["blockers"]:
         add("  ✅ اختلافی با گزارش و مانعی نیست")
@@ -828,13 +845,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", metavar="PATH", help="خلاصهٔ ماشین‌خوان ('-' برای stdout)")
     ap.add_argument("--src", default=None, help="مسیر پوشهٔ داده")
+    ap.add_argument("--mapping", action="store_true",
+                    help="جدول کامل نگاشت: هر فیلد به کدام ستون وصل شده")
     ap.add_argument("--samples", type=int, default=0,
                     help="نمونهٔ مقادیر هر ستون کلیدی (برای بازبینی چشمی)")
     args = ap.parse_args()
     if args.src:
         DATA_SRC = Path(args.src).expanduser()
 
-    res = audit(show_samples=args.samples)
+    res = audit(show_samples=args.samples, show_mapping=args.mapping)
     print(render(res))
 
     if args.json:

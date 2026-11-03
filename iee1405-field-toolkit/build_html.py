@@ -43,6 +43,9 @@ main{padding:.7rem;max-width:60rem;margin:0 auto}
                 padding:.3rem .5rem;text-decoration:none;color:var(--ink)}
 .tel{border-color:#bfe3c6}.mail{border-color:#cfe0f0}
 .none{font-size:.8rem;color:var(--warn)}
+.conf-ok{font-size:.72rem;background:#e8f5ec;color:#1a7f37;border-radius:.35rem;padding:.15rem .4rem}
+.conf-warn{font-size:.72rem;background:#fff4e5;color:#9a6700;border-radius:.35rem;padding:.15rem .4rem}
+.conf-mid{font-size:.72rem;background:#eef1f4;color:#555;border-radius:.35rem;padding:.15rem .4rem}
 details{margin-top:.5rem}
 summary{font-size:.82rem;color:var(--acc);cursor:pointer}
 .acts{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.5rem}
@@ -141,6 +144,17 @@ def card(r, ix_lookup) -> str:
             (f' — {esc(reason)}' if reason else '') + '</span>'
     parts.append(f'<div class="meta">{badge}</div>')
 
+    # اطمینان منبع: «حدس دامنه» باید روی کارت دیده شود، نه در حافظهٔ بازدیدکننده
+    conf = (r["provenance_class"] or "unknown")
+    conf_map = {
+        "official": ("منبع: سایت رسمی (ادعای منبع)", "conf-ok"),
+        "guessed": ("منبع: حدس دامنه — تأییدنشده", "conf-warn"),
+        "portal": ("منبع: پورتال برق‌پا", "conf-mid"),
+        "web_search": ("منبع: جست‌وجوی وب", "conf-mid"),
+    }
+    label, cls = conf_map.get(conf, ("منبع: نامشخص", "conf-mid"))
+    parts.append(f'<div class="meta"><span class="{cls}">{esc(label)}</span></div>')
+
     buttons = []
     for p in phones[:3]:
         buttons.append(f'<a class="tel" href="{esc(tel_href(p))}">📞 {esc(p)}</a>')
@@ -215,7 +229,8 @@ def build(db: Path, out: Path, *, exhibition: str = "iee1405") -> dict:
         SELECT c.id AS company_id, c.name_fa, c.name_en, c.website,
                c.company_page, c.province_label,
                v.halls, v.booths, v.booths_raw, v.priority, v.priority_reason,
-               v.phones, v.emails, v.socials, v.address, v.contact_count, v.verified
+               v.phones, v.emails, v.socials, v.address, v.contact_count, v.verified,
+               v.provenance_class
           FROM company c JOIN v_company_card v ON v.company_id = c.id
          ORDER BY v.priority DESC, c.name_fa
     """).fetchall()
