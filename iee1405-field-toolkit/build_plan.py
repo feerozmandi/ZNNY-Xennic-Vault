@@ -42,6 +42,7 @@ td.notes{height:12mm}
 .meta{font-size:8.5pt;color:#555;margin:0 0 2mm}
 .warn{border:1px solid #d4a017;background:#fff8e6;padding:2mm;font-size:9pt;margin:0 0 3mm}
 .tag{font-size:8pt;background:#eef4f8;border-radius:3px;padding:0 2px}
+.tag.cov{background:#fff3d6;border:1px solid #d4a017}
 .check{font-size:9pt;margin:2mm 0 0;padding-right:5mm}
 .check li{margin:0.8mm 0}
 """
@@ -117,8 +118,10 @@ def warnings(rows) -> list[str]:
         out.append("اطمینان تماس در فهرست: " + " · ".join(
             f"{CONF_FA.get(k, k)}={fa(v)}" for k, v in sorted(conf.items(), key=lambda kv: -kv[1])))
     guessed = sum(1 for r in rows if "guessed" in (r["contact_confidence"] or ""))
-    if guessed:
-        out.append(f"{fa(guessed)} شرکت دادهٔ تماس حدسی دارند: شماره را قبل از هر پیشنهاد تأیید کنید.")
+    unknown = sum(1 for r in rows if "unknown" in (r["contact_confidence"] or ""))
+    if guessed or unknown:
+        out.append(f"{fa(guessed)} شرکت دادهٔ تماس حدسی و {fa(unknown)} شرکت منبع نامشخص دارند: "
+                   "شماره را پیش از هر پیشنهاد تأیید کنید.")
     return out
 
 
@@ -187,6 +190,8 @@ def render(rows, days: int, planned) -> str:
                  "<li>پیش از حرکت، خروجی JSON تعامل‌ها یک‌بار آزمایش شود.</li>"
                  "<li>برای هر شرکت، ستون «نتیجه» را همان‌جا پر کنید؛ بعد از نمایشگاه بازیابی سخت است.</li>"
                  "<li>شمارهٔ غرفه در منبع نبوده؛ غرفه را از راهنمای نمایشگاه یا تابلو بخوانید و ثبت کنید.</li>"
+                 "<li>برچسب <span class='tag cov'>پوشش سالن</span> یعنی این شرکت برای "
+                 "پوشش آن سالن آمده، نه برای امتیازش — سر میز کوتاه‌تر بایستید.</li>"
                  "</ul></div>")
 
     for d, b in enumerate(planned, 1):
@@ -200,9 +205,11 @@ def render(rows, days: int, planned) -> str:
         for r in b["rows"]:
             contact = (r["phones"] or "") + (" | " + r["emails"] if r["emails"] else "")
             conf = CONF_FA.get(r["provenance_class"] or "unknown", "—")
+            cov = ("<br><span class='tag cov'>پوشش سالن</span>"
+                   if "پوشش سالن" in (r["reason"] or "") else "")
             parts.append(
                 f"<tr><td>{fa(r['rank'])}</td>"
-                f"<td>{html.escape(r['name_fa'])}<br><span class='tag'>{html.escape(conf)}</span></td>"
+                f"<td>{html.escape(r['name_fa'])}<br><span class='tag'>{html.escape(conf)}</span>{cov}</td>"
                 f"<td>{html.escape(r['halls'] or '—')}</td>"
                 f"<td>{html.escape(contact or '—')}</td>"
                 f"<td>{html.escape(r['first_check'] or '—')}</td>"

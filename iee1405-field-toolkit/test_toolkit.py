@@ -409,6 +409,9 @@ def main() -> int:
             "SELECT halls FROM v_company_card WHERE priority IS NOT NULL AND contact_count>0")
             for h in (r[0] or "").split("·") if h.strip()}
         con.close()
+        tagged = out_c.count("فقط برای پوشش سالن")
+        check("D7.12 برچسب پوشش فقط به نامزدهای حاشیه‌ای می‌خورد",
+              0 < tagged < 10, f"{tagged} از ۱۲ نامزد برچسب پوشش دارند")
         check("D7.11 --cover-halls هر سالن واجدشرط را پوشش می‌دهد",
               f"پوشش سالن: {len(pool)} از {len(pool)} سالن" in out_c,
               f"{len(pool)} سالن در استخر")
@@ -450,6 +453,14 @@ def main() -> int:
               con is not None and n_pilot == 8)
         check("D8.4 هشدارها در صفحه آمده (خانواده/سالن/اطمینان)",
               "سالن‌ها هیچ نامزدی" in txt and "اطمینان تماس" in txt)
+        sh("pick_pilot.py", "--db", str(db), "--n", "12", "--per-hall", "2", "--cover-halls",
+           "--write", "--approve", "--approved-by", "آزمون پوشش")
+        plan2 = root / "exports" / "plan2"
+        sh("build_plan.py", "--db", str(db), "--days", "3", "--out", str(plan2))
+        t2 = (plan2 / "plan.html").read_text(encoding="utf-8")
+        check("D8.6 نامزدهایی که فقط برای پوشش سالن آمده‌اند روی برگه برچسب می‌خورند",
+              "پوشش سالن</span>" in t2 and "کوتاه‌تر بایستید" in t2)
+
         csvp = plan_dir / "plan.csv"
         rows_csv = list(csv.DictReader(csvp.open(encoding="utf-8-sig")))
         check("D8.5 CSV برنامه با ستون‌های لازم", len(rows_csv) == n_pilot

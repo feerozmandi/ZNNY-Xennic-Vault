@@ -39,6 +39,58 @@ CONF_LABEL = {
 }
 
 
+def _select(scored, n, per_hall, max_group, generic, cover_halls):
+    picked, per, tags = [], {}, {}
+
+    def halls_of(c):
+        return [h.strip() for h in c["halls"].split("·") if h.strip()] or ["—"]
+
+    def group_ok(c):
+        # سقف «خانواده»: چند شرکت با نام مشابه (مثل ایران ترانسفو) پشت‌سرهم نباشند
+        if max_group <= 0:
+            return True
+        return sum(1 for p_ in picked
+                   if bgdb.same_family(p_["name"], c["name"], ignore=generic)) < max_group
+
+    def hall_room(c):
+        return all(per.get(h, 0) < per_hall for h in halls_of(c))
+
+    def take(c):
+        for h in halls_of(c):
+            per[h] = per.get(h, 0) + 1
+        picked.append(c)
+
+    if cover_halls:
+        # سالن‌های کم‌جمعیت‌تر اول، تا جای کوچک با پرکردن جاهای بزرگ از دست نرود
+        pool: dict[str, int] = {}
+        for c in scored:
+            for h in halls_of(c):
+                pool[h] = pool.get(h, 0) + 1
+        for hall in sorted(pool, key=lambda h: (pool[h], h)):
+            if len(picked) >= n:
+                break
+            if per.get(hall, 0) > 0:
+                continue
+            for c in scored:
+                if c in picked or hall not in halls_of(c):
+                    continue
+                if not (group_ok(c) and hall_room(c)):
+                    continue
+                tags[c["id"]] = hall
+                take(c)
+                break
+
+    for c in scored:
+        if len(picked) >= n:
+            break
+        if c in picked:
+            continue
+        if not (group_ok(c) and hall_room(c)):
+            continue
+        take(c)
+    return picked, tags
+
+
 def candidates(con, n: int, per_hall: int, include_empty: bool,
                max_group: int = 0, cover_halls: bool = False) -> list[dict]:
     rows = con.execute("""
@@ -76,8 +128,10 @@ def candidates(con, n: int, per_hall: int, include_empty: bool,
         confs = {x for x in (r["contact_confidence"] or "").split(",") if x}
         if "official" in confs:
             first = "تأیید شماره/ایمیل با سایت رسمی و ثبت شاهد"
-        elif confs & {"guessed", "unknown"}:
+        elif "guessed" in confs:
             first = "تأیید شماره/ایمیل (دادهٔ حدسی) — قبل از هر پیشنهاد"
+        elif "unknown" in confs:
+            first = "تأیید شماره/ایمیل (منبع نامشخص) — قبل از هر پیشنهاد"
         else:
             first = "دریافت کارت ویزیت و ثبت شخص رابط"
 
@@ -89,56 +143,20 @@ def candidates(con, n: int, per_hall: int, include_empty: bool,
         })
 
     scored.sort(key=lambda d: (-d["score"], -d["contacts"], d["name"]))
-    picked, per = [], {}
     # واژه‌های پرتکرارِ نام‌ها («برق» در نیمی از فهرست) هویت خانواده نیستند
     generic = bgdb.common_tokens([c["name"] for c in scored])
 
-    def halls_of(c):
-        return [h.strip() for h in c["halls"].split("·") if h.strip()] or ["—"]
-
-    def group_ok(c):
-        # سقف «خانواده»: چند شرکت با نام مشابه (مثل ایران ترانسفو) پشت‌سرهم نباشند
-        if max_group <= 0:
-            return True
-        return sum(1 for p_ in picked
-                   if bgdb.same_family(p_["name"], c["name"], ignore=generic)) < max_group
-
-    def hall_room(c):
-        return all(per.get(h, 0) < per_hall for h in halls_of(c))
-
-    def take(c):
-        for h in halls_of(c):
-            per[h] = per.get(h, 0) + 1
-        picked.append(c)
-
+    picked, tags = _select(scored, n, per_hall, max_group, generic, cover_halls)
     if cover_halls:
-        # سالن‌های کم‌جمعیت‌تر اول، تا جای کوچک با پرکردن جاهای بزرگ از دست نرود
-        pool: dict[str, int] = {}
-        for c in scored:
-            for h in halls_of(c):
-                pool[h] = pool.get(h, 0) + 1
-        for hall in sorted(pool, key=lambda h: (pool[h], h)):
-            if len(picked) >= n:
-                break
-            if per.get(hall, 0) > 0:
+        # چه کسی فقط به‌خاطر پوشش سالن آمده؟ فقط آن‌که با رتبهٔ خالی هم نمی‌آمد.
+        base, _ = _select(scored, n, per_hall, max_group, generic, False)
+        base_ids = {c["id"] for c in base}
+        for c in picked:
+            if c["id"] in base_ids:
                 continue
-            for c in scored:
-                if c in picked or hall not in halls_of(c):
-                    continue
-                if not (group_ok(c) and hall_room(c)):
-                    continue
-                c["why"] = c["why"] + [f"پوشش سالن {hall}"]
-                take(c)
-                break
-
-    for c in scored:
-        if len(picked) >= n:
-            break
-        if c in picked:
-            continue
-        if not (group_ok(c) and hall_room(c)):
-            continue
-        take(c)
+            hall = tags.get(c["id"])
+            c["why"] = c["why"] + [f"فقط برای پوشش سالن {hall}" if hall
+                                   else "فقط برای پوشش سالن"]
     # رتبهٔ نمایش همیشه بر اساس امتیاز است؛ پوشش سالن فقط ترکیب فهرست را عوض می‌کند
     picked.sort(key=lambda d: (-d["score"], -d["contacts"], d["name"]))
     return picked
