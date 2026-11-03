@@ -30,6 +30,27 @@ credentials/
 _vps-bootstrap/
 
 # ═══════════════════════════════════════════
+# نمایشگاه برق ۱۴۰۵ — دادهٔ غرفه‌داران (خارج از Git عمومی)
+# مخزن عمومی است؛ ایمیل/تلفن/آدرس شرکت‌ها و دادهٔ خام استخراج
+# نباید در تاریخچهٔ Git بنشیند. محل داده: ~/xennic-data/barghpa-26-iee1405/
+# مستند L2-MKT-006 §4 (R6) و §5.2
+# ═══════════════════════════════════════════
+05_Knowledge/barghpa-26-iee1405/
+*.xlsx
+*.xls
+!**/_schema-notes/**.xlsx
+barghpa*.csv
+barghpa*.json
+barghpa*.tsv
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+csv/
+**/api/p*.json
+**/api/details/
+
+# ═══════════════════════════════════════════
 # OS Files
 # ═══════════════════════════════════════════
 .DS_Store
