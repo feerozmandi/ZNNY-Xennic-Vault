@@ -249,6 +249,12 @@ def build(db: Path, out: Path, *, exhibition: str = "iee1405") -> dict:
     halls = [r["code"] for r in con.execute(
         "SELECT h.code FROM hall h JOIN exhibition e ON e.id=h.exhibition_id "
         "WHERE e.code=? ORDER BY h.code", (exhibition,))]
+    try:
+        pilot = con.execute("""SELECT company_id, rank, reason, first_check,
+                                      approved, approved_by
+                                 FROM visit_pilot ORDER BY rank""").fetchall()
+    except Exception:                                     # noqa: BLE001
+        pilot = []
     con.close()
 
     out.mkdir(parents=True, exist_ok=True)
@@ -296,6 +302,27 @@ def build(db: Path, out: Path, *, exhibition: str = "iee1405") -> dict:
                  with_search=True, nav=nav2),
             encoding="utf-8")
         made[fname] = len(items)
+
+    # صفحهٔ پایلوت: فقط اگر مالک آن را تأیید و ثبت کرده باشد
+    if pilot:
+        by_id = {r["company_id"]: r for r in rows}
+        pbody = ['<div class="card"><h2>فهرست پایلوت بازدید</h2>'
+                 f'<div class="meta">{len(pilot)} شرکت · '
+                 f'تأییدشده توسط: {esc(pilot[0]["approved_by"] or "—")} · '
+                 f'هر کارت «اولین کاری که سر میز باید انجام شود» را می‌گوید.</div></div>']
+        for pr in pilot:
+            r = by_id.get(pr["company_id"])
+            if not r:
+                continue
+            pbody.append(f'<div class="card"><div class="meta">رتبهٔ {pr["rank"]} · '
+                         f'{esc(pr["reason"])}</div><div class="meta none">'
+                         f'اول: {esc(pr["first_check"] or "—")}</div></div>')
+            pbody.append(card(r, ix))
+        (out / "pilot.html").write_text(
+            page("پایلوت بازدید — ۲۰ شرکت اول", "".join(pbody), with_search=True,
+                 nav='<a class="btn" href="index.html">← همهٔ سالن‌ها</a>'),
+            encoding="utf-8")
+        made["pilot.html"] = len(pilot)
 
     (out / "interactions-README.txt").write_text(
         "در پایان هر روز بازدید، دکمهٔ «خروجی JSON تعامل‌ها» را بزنید و فایل را با دستور زیر وارد کنید:\n"

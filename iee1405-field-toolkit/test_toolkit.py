@@ -356,6 +356,37 @@ def main() -> int:
               f"halls={card['halls']} prio={card['priority']} ix={card['interaction_count']}")
         con.close()
 
+        # ── D7: پایلوت ────────────────────────────────────────────
+        print("\nD7 — فهرست پایلوت (پیشنهاد، نه تصمیم)")
+        con = bgdb.connect(db)
+        before = con.execute("SELECT count(*) FROM visit_pilot").fetchone()[0]
+        con.close()
+        out1 = sh("pick_pilot.py", "--db", str(db), "--n", "8", "--per-hall", "2")
+        con = bgdb.connect(db)
+        after = con.execute("SELECT count(*) FROM visit_pilot").fetchone()[0]
+        check("D7.1 اجرای نمایشی هیچ چیزی نمی‌نویسد", before == after == 0, f"{before}→{after}")
+        check("D7.2 سقف تعداد و تنوع سالن رعایت می‌شود",
+              out1.count("شرکت نمونه") == 8, str(out1.count("شرکت نمونه")))
+        refused = sh("pick_pilot.py", "--db", str(db), "--n", "8", "--write", expect=2)
+        check("D7.3 نوشتن بدون تأیید مالک رد می‌شود", "approve" in refused)
+        sh("pick_pilot.py", "--db", str(db), "--n", "8", "--per-hall", "2", "--write",
+           "--approve", "--approved-by", "آزمون")
+        con = bgdb.connect(db)
+        n_pilot = con.execute("SELECT count(*) FROM visit_pilot WHERE approved=1").fetchone()[0]
+        ranked = [r[0] for r in con.execute("SELECT rank FROM visit_pilot ORDER BY rank")]
+        check("D7.4 فهرست تأییدشده با رتبه ثبت می‌شود",
+              n_pilot == 8 and ranked == list(range(1, 9)), f"{n_pilot} · {ranked}")
+        empty = con.execute("""SELECT count(*) FROM visit_pilot p
+                                 JOIN company c ON c.id=p.company_id
+                                WHERE NOT EXISTS (SELECT 1 FROM contact ct
+                                                   WHERE ct.company_id=c.id)""").fetchone()[0]
+        check("D7.5 شرکت بدون هیچ تماس به‌طور پیش‌فرض وارد نمی‌شود", empty == 0)
+        con.close()
+        out2 = sh("build_html.py", "--db", str(db), "--out", str(exp))
+        pilot_html = (exp / "pilot.html")
+        check("D7.6 صفحهٔ پایلوت با تأیید مالک ساخته می‌شود",
+              pilot_html.exists() and "فهرست پایلوت" in pilot_html.read_text(encoding="utf-8"))
+
     finally:
         if "--keep" in sys.argv:
             print(f"\nپوشهٔ آزمون نگه داشته شد: {root}")
