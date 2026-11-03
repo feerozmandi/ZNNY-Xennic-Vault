@@ -1,0 +1,463 @@
+{
+  "id": "IEE1405-01",
+  "name": "IEE1405-01 — دریافت پیام‌های بله",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 20
+            }
+          ]
+        }
+      },
+      "id": "46fb1037-c664-566a-9c7a-897ed7819a36",
+      "name": "⏱ هر ۲۰ ثانیه",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "هر 20 ثانیه",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.poll_offset() AS \"offset\";",
+        "options": {}
+      },
+      "id": "86efd8b0-59b8-5926-9549-578adf7a7f0e",
+      "name": "📍 خواندن offset",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "notes": "offset پایدار در جدول bot_state؛ با ری‌استارت از دست نمی‌رود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.poll_offset() + 1 AS \"next_offset\",\n       iee1405.poll_heartbeat() AS \"at\";",
+        "options": {}
+      },
+      "id": "3f7c9a93-554c-50db-be06-619b09f652cb",
+      "name": "💓 ضربان دریافت",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "هر اجرا این را ثبت می‌کند؛ پس «سکوت بله» از «توقف گردش‌کار» جدا می‌شود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BALE_API_URL }}/getUpdates",
+        "options": {
+          "timeout": 20000
+        },
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "offset",
+              "value": "={{ $json.next_offset }}"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            },
+            {
+              "name": "timeout",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "id": "42f63564-8117-5831-9c30-1ffe515ba429",
+      "name": "📥 دریافت پیام‌ها",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "continueErrorOutput",
+      "notes": "long-poll = 0 تا اجرای زمان‌بند معطل نماند",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.poll_watch($1::jsonb) AS response;",
+        "options": {
+          "queryReplacement": "={{ [JSON.stringify($json)] }}"
+        }
+      },
+      "id": "9327807a-9bc6-59e1-8c36-0fa158a2a104",
+      "name": "🩺 بازرسی پاسخ بله",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "بله خطاها را با HTTP 200 و ok:false برمی‌گرداند؛ این‌جا ثبت می‌شود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "response.result",
+        "options": {},
+        "include": "noOtherFields"
+      },
+      "id": "6c5196a8-d20e-5c18-b478-5a332e678e23",
+      "name": "✂️ تفکیک آپدیت‌ها",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT chat_id, status, reply_text, org_code\n  FROM iee1405.bot_dispatch_json($1::jsonb);",
+        "options": {
+          "queryReplacement": "={{ JSON.stringify($json) }}"
+        }
+      },
+      "id": "d128a80c-d9f9-59fd-82f1-58a921c49ccb",
+      "name": "🧠 پردازش در PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1320,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "alwaysOutputData": true,
+      "notes": "کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد. alwaysOutputData لازم است: در پیمایش خالی صفر ردیف برمی‌گرداند و بدون آن، ارسال پاسخ‌های معوق هرگز دوباره تلاش نمی‌شد.",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.poll_advance() AS \"offset\";",
+        "options": {}
+      },
+      "id": "8da34a93-7d17-508f-8621-e7ae2ae4f775",
+      "name": "⏭ ثبت زمان دریافت",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1100,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "بعد از پردازش اجرا می‌شود تا max(update_id) واقعاً موجود باشد",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT update_id, chat_id, text_body\n  FROM iee1405.pending_replies(20);",
+        "options": {}
+      },
+      "id": "2fb96d13-281e-5156-ad5d-2c58f7560267",
+      "name": "📤 پاسخ‌های آماده ارسال",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1540,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BALE_API_URL }}/sendMessage",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text_body }}"
+            }
+          ]
+        }
+      },
+      "id": "f157ef87-fd8e-5691-b221-cf0d4610405d",
+      "name": "💬 ارسال پاسخ",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.mark_sent($1::bigint, $2::jsonb) AS result;",
+        "options": {
+          "queryReplacement": "={{ [$('📤 پاسخ‌های آماده ارسال').item.json.update_id, JSON.stringify($json)] }}"
+        }
+      },
+      "id": "14fe4ce9-534c-530e-8174-d4ed9b566aa8",
+      "name": "✅ ثبت ارسال",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1980,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.record_poll_error($1::text);",
+        "options": {
+          "queryReplacement": "={{ [JSON.stringify($json)] }}"
+        }
+      },
+      "id": "dd4f9a97-0dfb-51a4-bd73-82219360d2d4",
+      "name": "🛑 ثبت خطای دریافت",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        880,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "executeOnce": true,
+      "notes": "خروجی خطای گره HTTP به اینجا می‌آید؛ پیام در SQL استخراج می‌شود",
+      "notesInFlow": true,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "⏱ هر ۲۰ ثانیه": {
+      "main": [
+        [
+          {
+            "node": "📍 خواندن offset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📍 خواندن offset": {
+      "main": [
+        [
+          {
+            "node": "💓 ضربان دریافت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💓 ضربان دریافت": {
+      "main": [
+        [
+          {
+            "node": "📥 دریافت پیام‌ها",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 دریافت پیام‌ها": {
+      "main": [
+        [
+          {
+            "node": "🩺 بازرسی پاسخ بله",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🛑 ثبت خطای دریافت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🩺 بازرسی پاسخ بله": {
+      "main": [
+        [
+          {
+            "node": "✂️ تفکیک آپدیت‌ها",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✂️ تفکیک آپدیت‌ها": {
+      "main": [
+        [
+          {
+            "node": "🧠 پردازش در PostgreSQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 پردازش در PostgreSQL": {
+      "main": [
+        [
+          {
+            "node": "⏭ ثبت زمان دریافت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭ ثبت زمان دریافت": {
+      "main": [
+        [
+          {
+            "node": "📤 پاسخ‌های آماده ارسال",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📤 پاسخ‌های آماده ارسال": {
+      "main": [
+        [
+          {
+            "node": "💬 ارسال پاسخ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 ارسال پاسخ": {
+      "main": [
+        [
+          {
+            "node": "✅ ثبت ارسال",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Tehran",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "executionTimeout": 30,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "دریافت آپدیت‌های بله و ثبت شرکت/مذاکره/پیگیری در PostgreSQL"
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "IEE1405"
+    }
+  ],
+  "active": false
+}

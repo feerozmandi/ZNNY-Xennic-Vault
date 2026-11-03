@@ -1,0 +1,158 @@
+{
+  "id": "IEE1405-99",
+  "name": "IEE1405-99 — آزمون اتصال بله (تشخیصی)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b0f8629a-ec7d-d037-4fa0-afd187fc1ef9",
+      "name": "▶ اجرای دستی",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "در UI دکمه «Execute workflow» را بزنید؛ هیچ زمان‌بندی ندارد",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BALE_API_URL }}/getUpdates",
+        "options": {
+          "timeout": 20000
+        },
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "offset",
+              "value": "={{ (Number($json && $json.offset) || 0) + 1 }}"
+            },
+            {
+              "name": "limit",
+              "value": "50"
+            },
+            {
+              "name": "timeout",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "id": "a30261b5-aa34-83c8-c135-15d6a207e69b",
+      "name": "A) مثل wf-01",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        -160
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "notes": "دقیقاً تنظیمات تولید: sendQuery=keypair",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BALE_API_URL }}/getUpdates?offset=0&limit=50&timeout=0",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "740695c3-53be-e1bc-715c-73ffb5e22d16",
+      "name": "B) ساده",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "notes": "بدون sendQuery؛ پارامترها داخل خود آدرس",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $env.BALE_API_URL }}/getUpdates",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "4d2328ba-9784-d58c-08ff-5a715b298c2c",
+      "name": "C) بدون پارامتر",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        160
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "notes": "همان چیزی که تست ۳.۷ با موفقیت اجرا کرد",
+      "notesInFlow": true
+    }
+  ],
+  "connections": {
+    "▶ اجرای دستی": {
+      "main": [
+        [
+          {
+            "node": "A) مثل wf-01",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "B) ساده",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "C) بدون پارامتر",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A) مثل wf-01": {
+      "main": [
+        []
+      ]
+    },
+    "B) ساده": {
+      "main": [
+        []
+      ]
+    },
+    "C) بدون پارامتر": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Tehran",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "executionTimeout": 60
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "IEE1405"
+    }
+  ],
+  "active": false
+}

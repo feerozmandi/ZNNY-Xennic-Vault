@@ -82,6 +82,7 @@ GROUP_LABELS = {
     "03_Launch/L2-PLT": "💻 پلتفرم (Platform)",
     "03_Launch/L2-SEC": "🔒 امنیت (Security)",
     "03_Launch/L2-TEC": "🛠️ خدمات فنی (Technical Services)",
+    "04_Projects/IEE_1405": "🏭 نمایشگاه صنعت برق ۱۴۰۵ (IEE 1405)",
     "00_Meta/Integration": "🔌 یکپارچه‌سازی فنی (Integration)",
     "00_Meta/Governance": "🏛️ حاکمیت و نقش‌ها (Governance)",
     "05_Knowledge/L1-KNW": "📚 پایگاه دانش (Knowledge Base)",
@@ -92,12 +93,21 @@ TOP_SECTIONS = [
     ("01_Founder", "۱. بنیان‌گذار (Founder)"),
     ("02_PreLaunch", "۲. پیش از راه‌اندازی (PreLaunch)"),
     ("03_Launch", "۳. راه‌اندازی (Launch)"),
-    ("00_Meta/Integration", "۴. یکپارچه‌سازی فنی (Meta / Integration)"),
-    ("00_Meta/Governance", "۵. حاکمیت و نقش‌ها (Meta / Governance)"),
-    ("05_Knowledge", "۶. پایگاه دانش (Knowledge)"),
+    ("04_Projects", "۴. پروژه‌ها (Projects)"),
+    ("00_Meta/Integration", "۵. یکپارچه‌سازی فنی (Meta / Integration)"),
+    ("00_Meta/Governance", "۶. حاکمیت و نقش‌ها (Meta / Governance)"),
+    ("05_Knowledge", "۷. پایگاه دانش (Knowledge)"),
 ]
 
-NODE_DIRS = ["01_Founder", "02_PreLaunch", "03_Launch", "00_Meta/Integration", "00_Meta/Governance", "05_Knowledge"]
+NODE_DIRS = [
+    "01_Founder",
+    "02_PreLaunch",
+    "03_Launch",
+    "04_Projects",
+    "00_Meta/Integration",
+    "00_Meta/Governance",
+    "05_Knowledge",
+]
 
 
 def parse_node(path):

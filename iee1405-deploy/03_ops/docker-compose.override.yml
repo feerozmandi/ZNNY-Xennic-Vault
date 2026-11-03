@@ -1,0 +1,37 @@
+# ═══════════════════════════════════════════════════════════════════════
+# IEE 1405 — افزودنی به docker-compose موجود (~/xennic-infra)
+#
+# نصب: همین فایل را در ~/xennic-infra/docker-compose.override.yml کپی کنید
+#      (اگر از قبل override دارید، فقط بخش environment را اضافه کنید)
+# سپس: docker compose up -d n8n
+#
+# چرا؟
+#   • BALE_API_URL  → از BALE_TOKEN_BOT ساخته می‌شود؛ توکن در فایل گردش‌کار نیست
+#   • N8N_BLOCK_ENV_ACCESS_IN_NODE=false → n8n اجازه خواندن $env را داشته باشد
+#   • TZ تهران → زمان‌بندی cron درست کار کند
+#   • n8n روی 127.0.0.1 بماند (دسترسی فقط از داخل سرور/تانل)
+# ═══════════════════════════════════════════════════════════════════════
+services:
+  n8n:
+    environment:
+      # توکن فقط یک جا در .env است (BALE_TOKEN_BOT)؛ آدرس اینجا ساخته می‌شود
+      - BALE_API_URL=https://tapi.bale.ai/bot${BALE_TOKEN_BOT}
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - GENERIC_TIMEZONE=Asia/Tehran
+      - TZ=Asia/Tehran
+      - N8N_DIAGNOSTICS_ENABLED=false
+      # سقف سخت روی هر اجرا (ثانیه): حتی اگر گره‌ای timeout خودش را نادیده بگیرد،
+      # اجرا بسته می‌شود و صف روی هم نمی‌افتد. بازه گردش‌کار ۲۰ ثانیه است.
+      - EXECUTIONS_TIMEOUT=45
+      - EXECUTIONS_TIMEOUT_MAX=120
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+    ports:
+      - "127.0.0.1:5678:5678"
+    restart: unless-stopped
+
+  postgres:
+    # پورت فقط روی loopback؛ دسترسی عمومی ممنوع (PRJ-IEE-007)
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
