@@ -47,6 +47,11 @@ td.notes{height:12mm}
 """
 
 
+def fa(n) -> str:
+    """ارقام لاتین → فارسی، برای چاپ کاغذی (شمارهٔ سالن و تماس دست‌نخورده می‌مانند)."""
+    return str(n).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+
+
 def load(con):
     return con.execute("""
         SELECT p.rank, p.reason, p.first_check, c.id, c.name_fa,
@@ -92,7 +97,7 @@ def families(rows) -> list[list[str]]:
 def warnings(rows) -> list[str]:
     out = []
     for i, g in enumerate(families(rows), 1):
-        out.append(f"خانوادهٔ {i} (ممکن است یک گروه باشند، نه رقیب): "
+        out.append(f"خانوادهٔ {fa(i)} (ممکن است یک گروه باشند، نه رقیب): "
                    + "، ".join(f"«{n}»" for n in g))
     # پوشش سالن‌ها
     covered = {h.strip() for r in rows for h in (r["halls"] or "").split("·") if h.strip()}
@@ -110,10 +115,10 @@ def warnings(rows) -> list[str]:
                 conf[x] = conf.get(x, 0) + 1
     if conf:
         out.append("اطمینان تماس در فهرست: " + " · ".join(
-            f"{CONF_FA.get(k, k)}={v}" for k, v in sorted(conf.items(), key=lambda kv: -kv[1])))
+            f"{CONF_FA.get(k, k)}={fa(v)}" for k, v in sorted(conf.items(), key=lambda kv: -kv[1])))
     guessed = sum(1 for r in rows if "guessed" in (r["contact_confidence"] or ""))
     if guessed:
-        out.append(f"{guessed} شرکت دادهٔ تماس حدسی دارند: شماره را قبل از هر پیشنهاد تأیید کنید.")
+        out.append(f"{fa(guessed)} شرکت دادهٔ تماس حدسی دارند: شماره را قبل از هر پیشنهاد تأیید کنید.")
     return out
 
 
@@ -172,8 +177,8 @@ def render(rows, days: int, planned) -> str:
              f"<title>برنامهٔ بازدید — پایلوت {len(rows)} شرکت</title>"
              f"<style>{CSS}</style></head><body>"]
     parts.append("<div class='day'><h1>برنامهٔ بازدید نمایشگاه برق ۱۴۰۵ — پایلوت "
-                 f"{len(rows)} شرکت</h1>"
-                 f"<div class='meta'>۱۶–۱۹ آبان ۱۴۰۵ · {days} روز · ترتیب سالن‌ها قرارداد "
+                 f"{fa(len(rows))} شرکت</h1>"
+                 f"<div class='meta'>۱۶–۱۹ آبان ۱۴۰۵ · {fa(days)} روز · ترتیب سالن‌ها قرارداد "
                  "است، نه نقشهٔ تأییدشده؛ پیش از حرکت با نقشهٔ نمایشگاه تطبیق دهید.</div>")
     for i, x in enumerate(w, 1):
         parts.append(f"<div class='warn'>⚠️ {html.escape(x)}</div>")
@@ -185,8 +190,8 @@ def render(rows, days: int, planned) -> str:
                  "</ul></div>")
 
     for d, b in enumerate(planned, 1):
-        parts.append(f"<div class='day'><h2>روز {d} — سالن‌ها: "
-                     f"{html.escape(' · '.join(b['halls']))} ({len(b['rows'])} شرکت)</h2>")
+        parts.append(f"<div class='day'><h2>روز {fa(d)} — سالن‌ها: "
+                     f"{html.escape(' · '.join(b['halls']))} ({fa(len(b['rows']))} شرکت)</h2>")
         parts.append("<div class='meta'>در پایان روز: دکمهٔ «خروجی JSON تعامل‌ها» را بزنید.</div>")
         parts.append("<table><thead><tr><th style='width:6%'>#</th><th style='width:26%'>شرکت</th>"
                      "<th style='width:10%'>سالن</th><th style='width:20%'>تماس</th>"
@@ -196,7 +201,7 @@ def render(rows, days: int, planned) -> str:
             contact = (r["phones"] or "") + (" | " + r["emails"] if r["emails"] else "")
             conf = CONF_FA.get(r["provenance_class"] or "unknown", "—")
             parts.append(
-                f"<tr><td>{r['rank']}</td>"
+                f"<tr><td>{fa(r['rank'])}</td>"
                 f"<td>{html.escape(r['name_fa'])}<br><span class='tag'>{html.escape(conf)}</span></td>"
                 f"<td>{html.escape(r['halls'] or '—')}</td>"
                 f"<td>{html.escape(contact or '—')}</td>"

@@ -421,7 +421,7 @@ def main() -> int:
         check("D8.1 برنامه ساخته می‌شود و هر نامزد یک‌بار می‌آید",
               txt.count("<tr><td>") == n_pilot, f"{txt.count('<tr><td>')} از {n_pilot}")
         check("D8.2 تعداد روزها از سقف درخواستی بیشتر نیست",
-              txt.count("روز ") <= 6 and "روز 1" in txt and "روز 4" not in txt,
+              txt.count("روز ") <= 6 and "روز ۱" in txt and "روز ۴" not in txt,
               "روزها=%d" % txt.count("class='day'"))
         check("D8.3 برنامه چیزی در پایگاه نمی‌نویسد",
               con is not None and n_pilot == 8)
