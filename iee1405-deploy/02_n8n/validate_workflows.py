@@ -21,11 +21,17 @@ import re
 import subprocess
 import sys
 
-import pgserver
 from pathlib import Path as P
 
-BIN = P("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin")
 HERE = pathlib.Path(__file__).parent
+sys.path.insert(0, str(HERE.parent / "03_ops"))
+import testenv  # noqa: E402  (کشف محیط آزمون: URI و مسیر psql)
+
+try:
+    BIN = testenv.bin_dir()
+except testenv.TestEnvError as e:      # محیط آماده نیست → پیام روشن، نه Traceback
+    print(f"❌ محیط آزمون آماده نیست:\n{e}")
+    sys.exit(2)
 
 SUPPORTED = {
     "n8n-nodes-base.scheduleTrigger": {1, 1.1, 1.2, 1.3},
@@ -373,9 +379,8 @@ def check_cron(wf_name, wf):
                     err(wf_name, f"{n['name']}: عبارت cron باید ۵ یا ۶ بخش باشد: «{e}»")
 
 
-def _test_uri(srv):
+def _test_uri(base):
     """همان دیتابیس تولید (xennic) اگر ساختارش هست؛ وگرنه پیش‌فرض."""
-    base = srv.get_uri()
     for name in (os.environ.get("IEE_TEST_DB"), "xennic", "postgres"):
         if not name:
             continue
@@ -394,8 +399,11 @@ def _test_uri(srv):
 
 def run_sql(wf_name, node, sql):
     """اجرا با پارامترهای واقعی داخل تراکنش و ROLLBACK."""
-    srv = pgserver.get_server("/tmp/pgdata", cleanup_mode=None)
-    uri = _test_uri(srv)
+    try:
+        uri = _test_uri(testenv.uri())
+    except testenv.TestEnvError as e:
+        err(wf_name, f"پایگاه‌داده آزمون در دسترس نیست → {e}")
+        return
     n_params = len(set(re.findall(r"\$(\d+)", sql)))
     binds = SAMPLE_PARAMS.get(node["name"], [])
     if n_params and len(binds) < n_params:

@@ -24,7 +24,14 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-BIN = Path("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin")
+sys.path.insert(0, str(HERE))
+import testenv  # noqa: E402  (کشف محیط آزمون: URI و مسیر psql)
+
+try:
+    BIN = testenv.bin_dir()
+except testenv.TestEnvError as e:      # محیط آماده نیست → پیام روشن، نه Traceback
+    print(f"❌ محیط آزمون آماده نیست:\n{e}")
+    sys.exit(2)
 PASS, FAIL = [], []
 
 
@@ -34,9 +41,7 @@ def check(name, cond, detail=""):
 
 
 def psql(sql: str) -> str:
-    import pgserver
-    srv = pgserver.get_server("/tmp/pgdata", cleanup_mode=None)
-    base = srv.get_uri()
+    base = testenv.uri()
     uri = None
     for db in ("xennic", "postgres"):
         cand = base.replace("/postgres?", f"/{db}?")

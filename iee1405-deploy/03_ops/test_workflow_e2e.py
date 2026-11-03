@@ -19,24 +19,26 @@ import subprocess
 import sys
 import pathlib
 
-import pgserver
-from pathlib import Path as P
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import testenv  # noqa: E402  (کشف محیط آزمون: URI و مسیر psql)
 
-BIN = P("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin")
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WF = ROOT / "02_n8n"
 
-srv = pgserver.get_server("/tmp/pgdata", cleanup_mode=None)
+try:
+    BIN = testenv.bin_dir()
+except testenv.TestEnvError as e:      # محیط آماده نیست → پیام روشن، نه Traceback
+    print(f"❌ محیط آزمون آماده نیست:\n{e}")
+    sys.exit(2)
 
 
-def _pick_db(srv):
+def _pick_db(base):
     """همان دیتابیسی را انتخاب می‌کند که در تولید استفاده می‌شود.
 
     چرا؟ خوشه تست می‌تواند چند نسخه از ساختار داشته باشد (postgres و xennic).
     اگر آزمون روی «پیش‌فرض» اجرا شود، سبز بودنش به این بستگی دارد کدام نسخه
     سالم مانده باشد — و کمبود دسترسی نقش در نسخه دیگر پنهان می‌ماند.
     """
-    base = srv.get_uri()
     for name in (os.environ.get("IEE_TEST_DB"), "xennic", "postgres"):
         if not name:
             continue
@@ -53,7 +55,12 @@ def _pick_db(srv):
     return base
 
 
-URI = _pick_db(srv)
+try:
+    BASE_URI = testenv.uri()
+except testenv.TestEnvError as e:
+    print(f"❌ محیط آزمون آماده نیست:\n{e}")
+    sys.exit(2)
+URI = _pick_db(BASE_URI)
 
 PASS, FAIL = [], []
 print(f"پایگاه‌داده آزمون: {URI.rsplit('/', 1)[-1].split('?')[0]}")
@@ -269,6 +276,25 @@ def main():
     check("پیگیری ثبت شد", any("پیگیری ثبت شد" or "ثبت شد" in r for r in replies))
     check("جست‌وجو نتیجه داد", any("نتایج جست‌وجو" in r for r in replies))
     check("کارت شرکت ساخته شد", any("ORG-" in r and "غرفه" in r for r in replies))
+
+    # ── جست‌وجو با شماره غرفه (رفع باگ ۰.۱.۲۷) ──
+    # سر میز، غرفه به شکل «38-12» گفته و جست‌وجو می‌شود؛ در دیتابیس اما
+    # hall = '38' و booth_number = '12' دو ستون جدا هستند. نسخه پیشین فقط
+    # booth_number = '38-12' را می‌سنجید و هرگز برابر نمی‌شد.
+    # نتیجه با «کد همین شرکت» سنجیده می‌شود، نه با «تعداد»، تا داده‌های
+    # واقعیِ روی سرور (که ممکن است همان غرفه را داشته باشند) آزمون را نشکنند.
+    booth_hits = psql(f"SELECT count(*) FROM iee1405.search_orgs('38-12', 8) "
+                      f"WHERE code = $1", [code])
+    check("جست‌وجو با غرفه «سالن-شماره» همان شرکت را می‌دهد",
+          booth_hits[0][0] == "1", booth_hits[0][0])
+    num_hits = psql(f"SELECT count(*) FROM iee1405.search_orgs('12', 8) "
+                    f"WHERE code = $1", [code])
+    check("جست‌وجو با شماره غرفه تنها همان شرکت را می‌دهد",
+          num_hits[0][0] == "1", num_hits[0][0])
+    empty_hits = psql("SELECT count(*) FROM iee1405.search_orgs('   ', 8)")
+    check("جست‌وجوی خالی همه را برنمی‌گرداند", empty_hits[0][0] == "0", empty_hits[0][0])
+    nonsense = psql("SELECT count(*) FROM iee1405.search_orgs('zzzz', 8)")
+    check("جست‌وجوی بی‌ربط نتیجه‌ای نمی‌دهد", nonsense[0][0] == "0", nonsense[0][0])
 
     tasks = psql("SELECT count(*) FROM crm.tasks WHERE status = 'open'")
     inter = psql("SELECT count(*) FROM crm.interactions")

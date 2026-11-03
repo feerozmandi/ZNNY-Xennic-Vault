@@ -204,25 +204,49 @@ BEGIN
 END $$;
 
 -- جست‌وجوی شرکت (کد، نام، غرفه) — حداکثر ۸ نتیجه
+--
+-- چرا غرفه دو حالت دارد؟ در دیتابیس، غرفه به دو ستون شکسته است
+-- (`hall` = «38»، `booth_number` = «12»). سر میز، آدم‌ها غرفه را به شکل
+-- «38-12» می‌نویسند و همان را جست‌وجو می‌کنند. نسخه پیشین فقط
+-- `booth_number = '38-12'` را می‌سنجید که هرگز برابر نمی‌شد — یعنی جست‌وجو
+-- با شماره غرفه کار نمی‌کرد. حالا عبارت شکسته می‌شود و هر دو تکه سنجیده
+-- می‌شوند؛ ورودیِ تنها-شماره (مثل «A5») هم همان‌طور کار می‌کند.
 CREATE OR REPLACE FUNCTION iee1405.search_orgs(p_q text, p_limit int DEFAULT 8)
 RETURNS TABLE (code text, legal_name text, booth text) LANGUAGE sql STABLE AS $$
-    WITH ex AS (SELECT id FROM iee1405.exhibitions WHERE code = 'IEE1405')
+    WITH ex AS (SELECT id FROM iee1405.exhibitions WHERE code = 'IEE1405'),
+         v  AS (SELECT btrim(COALESCE(p_q, '')) AS raw),
+         q  AS (SELECT v.raw,
+                       crm.norm_text(v.raw) AS nrm,
+                       pb.hall              AS q_hall,
+                       pb.number            AS q_number
+                  FROM v, LATERAL iee1405.parse_booth(v.raw) AS pb)
     SELECT o.code, o.legal_name,
            coalesce(nullif(p.hall, '') || '-', '') || coalesce(p.booth_number, '')
     FROM crm.organizations o
+    CROSS JOIN q
     LEFT JOIN iee1405.participations p
            ON p.organization_id = o.id AND p.exhibition_id = (SELECT id FROM ex)
     WHERE o.deleted_at IS NULL
+      AND q.raw <> ''
       AND (
-            o.code ILIKE '%' || btrim(p_q) || '%'
-         OR crm.norm_text(o.legal_name) ILIKE '%' || crm.norm_text(p_q) || '%'
-         OR crm.norm_text(coalesce(o.display_name, '')) ILIKE '%' || crm.norm_text(p_q) || '%'
-         OR p.booth_number = btrim(p_q)
+            o.code ILIKE '%' || q.raw || '%'
+         OR crm.norm_text(o.legal_name) ILIKE '%' || q.nrm || '%'
+         OR crm.norm_text(coalesce(o.display_name, '')) ILIKE '%' || q.nrm || '%'
+         -- غرفه کامل به شکل «سالن-شماره»
+         OR (q.q_hall IS NOT NULL
+             AND crm.norm_text(p.hall) = crm.norm_text(q.q_hall)
+             AND crm.norm_text(p.booth_number) = crm.norm_text(q.q_number))
+         -- فقط شماره غرفه (بدون سالن)
+         OR crm.norm_text(p.booth_number) = q.nrm
+         OR crm.norm_text(coalesce(p.hall, '') || '-' || coalesce(p.booth_number, '')) = q.nrm
           )
     ORDER BY
-      CASE WHEN o.code ILIKE btrim(p_q) THEN 0
-           WHEN p.booth_number = btrim(p_q) THEN 1
-           WHEN crm.norm_text(o.legal_name) ILIKE crm.norm_text(p_q) || '%' THEN 2
+      CASE WHEN o.code ILIKE q.raw THEN 0
+           WHEN crm.norm_text(p.booth_number) = q.nrm THEN 1
+           WHEN q.q_hall IS NOT NULL
+                AND crm.norm_text(p.hall) = crm.norm_text(q.q_hall)
+                AND crm.norm_text(p.booth_number) = crm.norm_text(q.q_number) THEN 1
+           WHEN crm.norm_text(o.legal_name) ILIKE q.nrm || '%' THEN 2
            ELSE 3 END,
       o.updated_at DESC
     LIMIT p_limit
