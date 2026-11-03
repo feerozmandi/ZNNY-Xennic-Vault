@@ -120,8 +120,22 @@ ALIASES = {
     "about":    ["درباره", "توضیح", "معرفی", "description", "about"],
     "tavanir":  ["در فهرست توانیر", "توانیر", "tavanir"],
     "daneshbonyan": ["دانش‌بنیان", "دانش بنیان", "danesh"],
-    "assoc":    ["انجمن‌ها", "انجمن ها", "انجمن", "سندیکای صنعت برق",
-                 "انجمن سیم و کابل", "ساتکا", "ساتبا", "انجمن صنفی"],
+    # منشأ و تأییدیه‌ها — پیش از «assoc» عمومی تا ستون تخصصی‌تر برنده شود
+    "provenance_source": ["منبع تکمیل اطلاعات", "منبع اطلاعات"],
+    "provenance_urls": ["منابع (URL)", "منابع url"],
+    "google_search": ["لینک جستجوی گوگل (برای تکمیل دستی)", "لینک جستجوی گوگل"],
+    "logo": ["لوگو", "logo"],
+    "assoc_sindicat": ["سندیکای صنعت برق"],
+    "assoc_cable": ["انجمن سیم و کابل"],
+    "assoc_satka": ["ساتکا"],
+    "assoc_satba": ["ساتبا"],
+    "assoc_senfi": ["انجمن صنفی"],
+    "assoc_avl": ["لیست بلند نفت (AVL)", "لیست بلند نفت"],
+    "assoc_other": ["سایر انجمن‌ها", "سایر انجمن ها"],
+    "tavanir_products": ["تأییدیه‌های توانیر (محصولات)", "تأییدیه‌های توانیر"],
+    "tavanir_vendor_items": ["اقلام مورد تأیید در وندور لیست توزیع"],
+    "tavanir_provinces": ["تعداد استان‌های دارای تأییدیه توزیع"],
+    "assoc":    ["انجمن‌ها", "انجمن ها", "انجمن"],
 }
 CONTACT_FIELDS = ["email", "phone", "other_phones", "mobile", "whatsapp",
                   "instagram", "telegram", "linkedin", "twitter", "aparat",
@@ -180,24 +194,31 @@ def read_csv(path: Path):
 
 
 def detect(headers):
+    """نگاشت ستون: اولویت با ترتیب نام‌های جای‌گزین است، نه ترتیب ستون‌ها.
+
+    درس اجرای واقعی: شیت دوم هم «شماره غرفه» داشت (تماماً «—») و هم
+    «موقعیت غرفه» (پر). چون حلقه روی ستون‌ها می‌گشت، ستون خالی برنده می‌شد
+    و کل دادهٔ غرفه صفر گزارش می‌شد.
+    """
     mapping, used = {}, set()
+    hn = [norm_text(h) for h in headers]
     for field, keys in ALIASES.items():
         kn = [norm_text(k) for k in keys]
-        for i, h in enumerate(headers):
-            if i in used:
-                continue
-            if norm_text(h) in kn:
-                mapping[field] = i
-                used.add(i)
+        for key in kn:
+            hit = next((i for i, h in enumerate(hn) if h == key and i not in used), None)
+            if hit is not None:
+                mapping[field] = hit
+                used.add(hit)
                 break
         else:
-            for i, h in enumerate(headers):
-                if i in used:
+            for key in kn:
+                if len(key) <= 3:
                     continue
-                hn = norm_text(h)
-                if any(k in hn for k in kn if len(k) > 3):
-                    mapping[field] = i
-                    used.add(i)
+                hit = next((i for i, h in enumerate(hn)
+                            if key in h and i not in used), None)
+                if hit is not None:
+                    mapping[field] = hit
+                    used.add(hit)
                     break
     return mapping
 
@@ -414,6 +435,20 @@ def audit(show_samples: int = 0) -> dict:
                 f"{name}: {len(body)}×{len(headers)} ولی گزارش {rows_exp}×{cols_exp}")
         if exp and got != exp:
             res["discrepancies"].append(f"{name}: هش با مقدار ثبت‌شده یکسان نیست")
+        # نگهبان: ستون داده‌دارِ بی‌نگاشت، در حالی که هم‌نام خالی‌اش نگاشت شده
+        empty_fields = {v["field"] for v in t["census"].values()
+                        if v["field"] and v["real"] == 0}
+        for col, info in t["census"].items():
+            if info["field"] is not None or info["real"] == 0:
+                continue
+            toks = set(norm_text(col).split())
+            for fld in empty_fields:
+                mapped_col = next((c for c, v in t["census"].items() if v["field"] == fld), "")
+                if toks & set(norm_text(mapped_col).split()):
+                    res["discrepancies"].append(
+                        f"{name}: ستون «{col}» داده دارد ({info['real']} سلول) ولی "
+                        f"«{mapped_col}» خالی است و به {fld} نگاشت شده — نگاشت را بررسی کنید")
+
         if show_samples:
             t["samples"] = samples(headers, body, mp,
                                    ["name", "hall", "booth", "website", "email",
@@ -514,7 +549,40 @@ def audit(show_samples: int = 0) -> dict:
 
         i = mp.get("assoc")
         if i is not None:
-            m["assoc_examples"] = [r[i] for r in body[:3] if is_real_cell(r[i] if i < len(r) else "")][:3]
+            m["assoc_examples"] = [r[i] for r in body[:3]
+                                   if is_real_cell(r[i] if i < len(r) else "")][:3]
+
+        # ── منشأ: «منبع تکمیل اطلاعات» و «منابع (URL)» ──────────────
+        pi = mp.get("provenance_source")
+        ui = mp.get("provenance_urls")
+        if pi is not None:
+            dist: dict[str, int] = {}
+            for r in body:
+                v = r[pi].strip() if pi < len(r) else ""
+                if is_real_cell(v):
+                    dist[v] = dist.get(v, 0) + 1
+            m["provenance_distribution"] = dict(sorted(dist.items(), key=lambda kv: -kv[1]))
+            cls = {"سایت رسمی/شرکت": 0, "جست‌وجوی وب": 0, "منبع دیگر": 0}
+            for v, n in dist.items():
+                vn = norm_text(v)
+                if "سایت" in vn or "رسمی" in vn:
+                    cls["سایت رسمی/شرکت"] += n
+                elif "جستجو" in vn or "گوگل" in vn or "وب" in vn or "اینترنت" in vn:
+                    cls["جست‌وجوی وب"] += n
+                else:
+                    cls["منبع دیگر"] += n
+            m["provenance_class"] = cls
+        if ui is not None:
+            with_url = multi = 0
+            for r in body:
+                v = r[ui].strip() if ui < len(r) else ""
+                if not is_real_cell(v):
+                    continue
+                with_url += 1
+                if re.search(r"[\s,،;؛]+https?://|\|", v) or v.count("http") > 1:
+                    multi += 1
+            m["provenance_urls_companies"] = with_url
+            m["provenance_urls_multi"] = multi
 
     # ── شیت مشارکت‌ها ──────────────────────────────────────────────
     if part_name in tables:
@@ -713,6 +781,15 @@ def render(res: dict) -> str:
     if m.get("status_distribution"):
         add("\n  وضعیت اطلاعات (ستون منبع): " + " · ".join(
             f"{k}={v}" for k, v in m["status_distribution"].items()))
+    if m.get("provenance_distribution"):
+        add("\n  منبع تکمیل اطلاعات (ادعای خودِ فایل):")
+        for k, v in m["provenance_distribution"].items():
+            add(f"     {k:44s} {v}")
+        add("     دسته‌بندی: " + " · ".join(
+            f"{k}={v}" for k, v in m.get("provenance_class", {}).items()))
+        if "provenance_urls_companies" in m:
+            add(f"     شرکت‌های دارای URL منبع: {m['provenance_urls_companies']} "
+                f"(چند URL: {m['provenance_urls_multi']})")
 
     add("\n── ۵) ادعای گزارش در برابر بازشماری ──────────────────────────")
     for k, v in (res.get("claims_vs_actual") or {}).items():

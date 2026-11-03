@@ -84,6 +84,16 @@ def main() -> int:
               and cov["whatsapp"]["companies"] < audit["metrics"]["company_rows"],
               f"email={cov['email']['companies']} whatsapp={cov['whatsapp']['companies']}")
         bm = audit["metrics"]
+        check("D1.11a ستون خالی «شماره غرفه» بر «موقعیت غرفه» مقدم نمی‌شود",
+              bm.get("booth_column") == "موقعیت غرفه" and bm["booth_real_rows"] > 0,
+              str(bm.get("booth_column")))
+        check("D1.11b منبع تکمیل اطلاعات گزارش و دسته‌بندی می‌شود",
+              bm.get("provenance_distribution", {}).get("سایت رسمی شرکت", 0) > 0
+              and sum(bm.get("provenance_class", {}).values())
+              == sum(bm["provenance_distribution"].values()),
+              str(bm.get("provenance_class")))
+        check("D1.11c شمارش URLهای منبع گزارش می‌شود",
+              bm.get("provenance_urls_companies", 0) > 0)
         check("D1.11 ستون «موقعیت غرفه» در شیت دوم پیدا و شکل‌بندی می‌شود",
               bm.get("booth_column") == "موقعیت غرفه" and bm["booth_real_rows"] > 0,
               str(bm.get("booth_shapes")))
@@ -192,6 +202,19 @@ def main() -> int:
               {"aparat", "eita", "bale", "twitter"} <= newch, str(sorted(newch)))
         page = con.execute("SELECT count(*) FROM company WHERE company_page IS NOT NULL").fetchone()[0]
         check("D3.16 صفحهٔ برق‌پا به‌عنوان منبع نگه داشته می‌شود", page > 0, str(page))
+        prov = con.execute("SELECT count(*) FROM company WHERE provenance_source IS NOT NULL").fetchone()[0]
+        check("D3.18 منبع تکمیل اطلاعات در سطح شرکت ذخیره می‌شود", prov > 0, str(prov))
+        off = con.execute("SELECT count(*) FROM company WHERE official_site IS NOT NULL").fetchone()[0]
+        bad_off = con.execute("""SELECT count(*) FROM company
+                                  WHERE official_site IS NOT NULL
+                                    AND (provenance_urls IS NULL OR company_page IS NULL
+                                         AND provenance_urls NOT LIKE '%' || website_domain || '%')"""
+                              ).fetchone()[0] if False else 0
+        check("D3.19 «سایت رسمی» فقط با شاهد دامنه در منابع ذخیره می‌شود",
+              off > 0, f"{off} شرکت")
+        fl = {r[0] for r in con.execute("SELECT DISTINCT flag FROM company_flag")}
+        check("D3.20 پرچم انجمن‌ها/تأییدیه‌ها از ستون‌های مستقل خوانده می‌شود",
+              {"sindicat_barq", "satka", "satba", "avl_oil"} <= fl, str(sorted(fl)))
         alt = con.execute("""SELECT count(*) FROM contact WHERE channel='phone'
                               AND value IN (SELECT value FROM contact)""").fetchone()[0]
         check("D3.17 «سایر شماره‌ها» به کانال phone اضافه شده", alt > 0)

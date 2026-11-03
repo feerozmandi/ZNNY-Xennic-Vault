@@ -63,37 +63,58 @@ ALIASES = {
     "about": ["درباره", "توضیح", "معرفی", "about"],
     "tavanir": ["در فهرست توانیر", "توانیر"],
     "daneshbonyan": ["دانش‌بنیان", "دانش بنیان"],
-    "assoc": ["انجمن‌ها", "انجمن ها", "سندیکای صنعت برق", "انجمن سیم و کابل",
-              "ساتکا", "ساتبا", "انجمن صنفی"],
+    # منشأ و تأییدیه‌ها — پیش از «assoc» عمومی تا ستون تخصصی‌تر برنده شود
+    "provenance_source": ["منبع تکمیل اطلاعات", "منبع اطلاعات"],
+    "provenance_urls": ["منابع (URL)", "منابع url"],
+    "google_search": ["لینک جستجوی گوگل (برای تکمیل دستی)", "لینک جستجوی گوگل"],
+    "logo": ["لوگو", "logo"],
+    "assoc_sindicat": ["سندیکای صنعت برق"],
+    "assoc_cable": ["انجمن سیم و کابل"],
+    "assoc_satka": ["ساتکا"],
+    "assoc_satba": ["ساتبا"],
+    "assoc_senfi": ["انجمن صنفی"],
+    "assoc_avl": ["لیست بلند نفت (AVL)", "لیست بلند نفت"],
+    "assoc_other": ["سایر انجمن‌ها", "سایر انجمن ها"],
+    "tavanir_products": ["تأییدیه‌های توانیر (محصولات)", "تأییدیه‌های توانیر"],
+    "tavanir_vendor_items": ["اقلام مورد تأیید در وندور لیست توزیع"],
+    "tavanir_provinces": ["تعداد استان‌های دارای تأییدیه توزیع"],
+    "assoc": ["انجمن‌ها", "انجمن ها", "انجمن"],
 }
-ASSOC_FLAGS = {
-    "سندیکای صنعت برق": "sindicat_barq",
-    "انجمن سیم و کابل": "assoc_cable",
-    "ساتکا": "satka",
-    "ساتبا": "satba",
-    "انجمن صنفی": "assoc_senfi",
+# هر ستون عضویت/تأییدیهٔ مستقل → یک پرچم در company_flag
+FLAG_COLUMNS = {
+    "assoc_sindicat": "sindicat_barq",
+    "assoc_cable": "assoc_cable",
+    "assoc_satka": "satka",
+    "assoc_satba": "satba",
+    "assoc_senfi": "assoc_senfi",
+    "assoc_avl": "avl_oil",
+    "assoc_other": "assoc_other",
+    "tavanir_products": "tavanir_product_cert",
+    "tavanir_vendor_items": "tavanir_vendor_item",
+    "tavanir_provinces": "tavanir_province_cert",
 }
 
 
 def detect(headers: list[str]) -> dict[str, int]:
+    """نگاشت ستون: اولویت با ترتیب نام‌های جای‌گزین، نه ترتیب ستون‌ها."""
     mp, used = {}, set()
+    hn = [bgdb.norm_text(h) for h in headers]
     for field, keys in ALIASES.items():
         kn = [bgdb.norm_text(k) for k in keys]
-        for i, h in enumerate(headers):
-            if i in used:
-                continue
-            if bgdb.norm_text(h) in kn:
-                mp[field] = i
-                used.add(i)
+        for key in kn:
+            hit = next((i for i, h in enumerate(hn) if h == key and i not in used), None)
+            if hit is not None:
+                mp[field] = hit
+                used.add(hit)
                 break
         else:
-            for i, h in enumerate(headers):
-                if i in used:
+            for key in kn:
+                if len(key) < 4:
                     continue
-                hn = bgdb.norm_text(h)
-                if any(k in hn for k in kn if len(k) >= 4):
-                    mp[field] = i
-                    used.add(i)
+                hit = next((i for i, h in enumerate(hn) if key in h and i not in used), None)
+                if hit is not None:
+                    mp[field] = hit
+                    used.add(hit)
                     break
     return mp
 
@@ -220,7 +241,7 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
              "participations_new": 0, "participations_existing": 0,
              "skipped_empty_name": 0, "placeholders_skipped": 0,
              "booth_raw_rows": 0, "booth_clean_rows": 0, "halls": set(),
-             "channels": set()}
+             "channels": set(), "provenance_rows": 0, "official_site_rows": 0}
 
     con = bgdb.connect(db) if write else None
     if con:
@@ -277,17 +298,39 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                     uniq.append((v, vn))
             chans[k] = uniq
 
-        flags = {k: trueish(cell(k)) for k in ("tavanir", "daneshbonyan")}
-        for label, flag in ASSOC_FLAGS.items():
-            ai = mp.get("assoc")
-            if ai is not None and ai < len(row) and label in (row[ai] or ""):
-                flags[flag] = True
+        # پرچم‌ها: هر ستون عضویت/تأییدیه مستقل است؛ «خیر» پرچم نمی‌سازد
+        flag_values: dict[str, str] = {}
+        for fld, flag in FLAG_COLUMNS.items():
+            i = mp.get(fld)
+            if i is None or i >= len(row):
+                continue
+            v = (row[i] or "").strip()
+            if bgdb.is_real_cell(v) and bgdb.norm_text(v) not in {
+                    "خیر", "نه", "no", "0", "ندارد", "false"}:
+                flag_values[flag] = v
+        if trueish(cell("tavanir")):
+            flag_values["tavanir_vendor"] = "بله"
+        if trueish(cell("daneshbonyan")):
+            flag_values["daneshbonyan"] = "بله"
+        ai = mp.get("assoc")
+        if ai is not None and ai < len(row) and bgdb.is_real_cell(row[ai]):
+            flag_values["assoc_list"] = row[ai].strip()
         prio, why = score({k: len(v) for k, v in chans.items()},
-                          {"tavanir_vendor": flags.get("tavanir", False),
-                           "daneshbonyan": flags.get("daneshbonyan", False)})
+                          {"tavanir_vendor": "tavanir_vendor" in flag_values,
+                           "daneshbonyan": "daneshbonyan" in flag_values})
 
         halls = halls_by_company.get(nm) or ([cell("hall")] if bgdb.is_real_cell(cell("hall")) else [])
         stats["halls"].update(halls)
+
+        # منشأ در سطح شرکت (برای --dry-run هم شمرده می‌شود)
+        website = (chans.get("website") or [(None, None)])[0][0]
+        prov_src = cell("provenance_source") if bgdb.is_real_cell(cell("provenance_source")) else None
+        prov_urls = cell("provenance_urls") if bgdb.is_real_cell(cell("provenance_urls")) else None
+        logo = cell("logo") if bgdb.is_real_cell(cell("logo")) else None
+        # «سایت رسمی» فقط اگر همان دامنه در منابع ذکرشدهٔ خودِ منبع آمده باشد
+        official = None
+        if website and prov_urls and bgdb.norm_url(website).split("/")[0] in prov_urls.lower():
+            official = website
 
         booth_raw = booth_by_company.get(nm) or (cell("booth") if bgdb.is_real_cell(cell("booth")) else "")
         booth_clean, _ = bgdb.norm_booth(booth_raw) if booth_raw else (None, "خالی")
@@ -295,12 +338,15 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
             stats["booth_raw_rows"] += 1
         if booth_clean:
             stats["booth_clean_rows"] += 1
+        if prov_src:
+            stats["provenance_rows"] += 1
+        if official:
+            stats["official_site_rows"] += 1
 
         if not write:
             continue
 
         # ── شرکت ────────────────────────────────────────────────────
-        website = (chans.get("website") or [(None, None)])[0][0]
         page = cell("company_page") if bgdb.is_real_cell(cell("company_page")) else None
         row_ex = con.execute("SELECT id FROM company WHERE name_norm=?", (nm,)).fetchone()
         if row_ex:
@@ -312,18 +358,23 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                              about_fa=COALESCE(NULLIF(about_fa,''),?),
                              province_label=COALESCE(NULLIF(province_label,''),?),
                              company_page=COALESCE(NULLIF(company_page,''),?),
+                             provenance_source=COALESCE(NULLIF(provenance_source,''),?),
+                             provenance_urls=COALESCE(NULLIF(provenance_urls,''),?),
+                             logo_url=COALESCE(NULLIF(logo_url,''),?),
+                             official_site=COALESCE(NULLIF(official_site,''),?),
                              updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')
                            WHERE id=?""",
                         (cell("name_en"), cell("slug"), website, cell("about"),
-                         cell("province"), page, cid))
+                         cell("province"), page, prov_src, prov_urls, logo, official, cid))
         else:
             cid = con.execute("""INSERT INTO company
                 (name_fa, name_norm, name_en, slug, website, about_fa,
-                 province_label, company_page, source_id, source_row)
-                VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                 province_label, company_page, provenance_source, provenance_urls,
+                 logo_url, official_site, source_id, source_row)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (name, nm, cell("name_en") or None, cell("slug") or None,
                  website, cell("about") or None, cell("province") or None,
-                 page, src_id, idx)).lastrowid
+                 page, prov_src, prov_urls, logo, official, src_id, idx)).lastrowid
             stats["companies_new"] += 1
 
         con.execute("INSERT OR IGNORE INTO company_alias(company_id, alias_norm) VALUES (?,?)",
@@ -352,13 +403,12 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                     (ct_id, src_id, captured_on, "import", v, ct_id, src_id))
 
         # ── پرچم‌ها ─────────────────────────────────────────────────
-        for fname, on in flags.items():
-            if on:
-                con.execute("""INSERT INTO company_flag(company_id, flag, value, source_id)
-                               VALUES (?,?,?,?)
-                               ON CONFLICT(company_id, flag) DO NOTHING""",
-                            (cid, fname, "بله", src_id))
-                stats["flags"] += 1
+        for fname, val in flag_values.items():
+            con.execute("""INSERT INTO company_flag(company_id, flag, value, source_id)
+                           VALUES (?,?,?,?)
+                           ON CONFLICT(company_id, flag) DO NOTHING""",
+                        (cid, fname, val, src_id))
+            stats["flags"] += 1
 
         # ── مشارکت (یک ردیف برای هر سالن) ───────────────────────────
         for hcode in halls:
@@ -420,7 +470,8 @@ def main() -> int:
     for k in ("rows", "companies_new", "companies_existing", "contacts_new",
               "contacts_existing", "participations_new", "participations_existing",
               "flags", "placeholders_skipped", "skipped_empty_name",
-              "booth_raw_rows", "booth_clean_rows"):
+              "booth_raw_rows", "booth_clean_rows", "provenance_rows",
+              "official_site_rows"):
         print(f"  {k:24s} {stats[k]}")
     print(f"  {'halls':24s} {len(stats['halls'])} → {' · '.join(sorted(stats['halls']))}")
     print(f"  {'channels':24s} {len(stats['channels'])} → {' · '.join(sorted(stats['channels']))}")
