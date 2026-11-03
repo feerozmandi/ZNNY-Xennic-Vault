@@ -319,6 +319,27 @@ def check_order(wf_name, wf):
                 f"جدول bot_updates هنگام خواندن خالی است و offset جلو نمی‌رود",
             )
 
+# ═══════════════════════════════════════════════════════════════════════
+# قاعده «ادامه زنجیره»: گره‌ای که ممکن است صفر ردیف برگرداند و گره‌های
+# بعدی به آن وابسته‌اند، باید alwaysOutputData داشته باشد. باگ واقعی
+# ۰.۱.۱۵: در پیمایش خالی (result: []) گره پردازش صفر ردیف می‌داد و n8n
+# همه گره‌های بعدی را رد می‌کرد — یعنی پاسخ‌های ارسال‌نشده هرگز دوباره
+# تلاش نمی‌شدند و تضمین تحویل شکسته بود.
+# ═══════════════════════════════════════════════════════════════════════
+MUST_CONTINUE = {
+    "🧠 پردازش در PostgreSQL": "در پیمایش خالی صفر ردیف می‌دهد و ارسال پاسخ‌های معوق بعد از آن است",
+    "✂️ تفکیک آپدیت‌ها": "در پیمایش خالی هیچ آیتمی تولید نمی‌کند",
+}
+
+
+def check_continuation(wf_name, wf):
+    by_name = {n["name"]: n for n in wf["nodes"]}
+    for name, why in MUST_CONTINUE.items():
+        n = by_name.get(name)
+        if n and not n.get("alwaysOutputData"):
+            err(wf_name, f"گره «{name}» باید alwaysOutputData داشته باشد: {why}")
+
+
 def check_cron(wf_name, wf):
     for n in wf["nodes"]:
         rule = n.get("parameters", {}).get("rule", {})
@@ -401,6 +422,7 @@ def main():
         check_cron(wf_name, wf)
         check_http_inputs(wf_name, wf)
         check_order(wf_name, wf)
+        check_continuation(wf_name, wf)
         for n in wf["nodes"]:
             if n.get("type") == "n8n-nodes-base.postgres":
                 sql = n["parameters"]["query"]

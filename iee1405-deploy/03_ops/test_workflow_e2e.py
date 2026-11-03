@@ -423,6 +423,42 @@ def main():
         send_ok = False
     check("ثبت ارسال ناموفق با iee_app مجاز است", send_ok)
 
+    # ── پیمایش خالی و بازخوانی ──
+    # واقعیت روی سرور: وقتی result=[] است، گره پردازش صفر ردیف می‌دهد. بدون
+    # alwaysOutputData، n8n همه گره‌های بعدی (از جمله ارسال پاسخ‌های معوق) را
+    # رد می‌کند و تضمین تحویل می‌شکند.
+    dispatch = node("🧠 پردازش در PostgreSQL", wf)
+    check("گره پردازش در پیمایش خالی زنجیره را قطع نمی‌کند",
+          dispatch.get("alwaysOutputData") is True)
+
+    rows = psql("SELECT count(*) FROM iee1405.bot_dispatch_json('{}'::jsonb);")[0][0]
+    check("ورودی خالی {} خطا نمی‌دهد و ردیفی نمی‌سازد", rows == "0", rows)
+
+    # بازخوانی باید ایمن باشد: پردازش دوباره همان آپدیت‌ها → همه duplicate
+    psql("DELETE FROM iee1405.bot_updates;")
+    psql("DELETE FROM iee1405.bot_errors;")
+    psql("SELECT iee1405.poll_reset(0);")
+    replay = [msg(9901, OWNER_CHAT, "/start"), msg(9902, OWNER_CHAT, "/help")]
+    seq_status = []
+    for _ in range(2):                      # دو دور کامل روی همان دو آپدیت
+        psql("SELECT iee1405.poll_watch($1::jsonb);",
+             [json.dumps({"ok": True, "result": replay})])
+        for u in replay:
+            r = psql("SELECT status FROM iee1405.bot_dispatch_json($1::jsonb);",
+                     [json.dumps(u, ensure_ascii=False)])
+            seq_status.append(r[0][0])
+        psql("SELECT iee1405.poll_advance();")
+        for rid in [x[0] for x in psql("SELECT update_id FROM iee1405.pending_replies(20);")]:
+            psql("SELECT iee1405.mark_sent($1::bigint, $2::jsonb);", [rid, '{"ok":true}'])
+
+    check("دور اول آپدیت‌ها را پردازش می‌کند", seq_status[:2] == ["ok", "ok"], str(seq_status[:2]))
+    check("دور دوم همه را «تکراری» می‌شناسد (بازخوانی ایمن است)",
+          seq_status[2:] == ["duplicate", "duplicate"], str(seq_status[2:]))
+    total = psql("SELECT count(*) FROM iee1405.bot_updates;")[0][0]
+    check("بازخوانی داده تکراری نمی‌سازد", total == "2", total)
+    sent = psql("SELECT count(*) FROM iee1405.bot_updates WHERE reply_text IS NOT NULL;")[0][0]
+    check("بازخوانی پیام تکراری نمی‌فرستد", sent == "1", sent)
+
     print(f"\n{len(PASS)} موفق · {len(FAIL)} ناموفق")
     if FAIL:
         print("ناموفق‌ها:", ", ".join(FAIL))

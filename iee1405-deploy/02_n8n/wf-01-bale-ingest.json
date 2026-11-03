@@ -178,7 +178,8 @@
           "name": "Xennic PostgreSQL"
         }
       },
-      "notes": "کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد",
+      "alwaysOutputData": true,
+      "notes": "کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد. alwaysOutputData لازم است: در پیمایش خالی صفر ردیف برمی‌گرداند و بدون آن، ارسال پاسخ‌های معوق هرگز دوباره تلاش نمی‌شد.",
       "notesInFlow": true
     },
     {

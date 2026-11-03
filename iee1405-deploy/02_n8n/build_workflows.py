@@ -30,7 +30,7 @@ def nid(name: str) -> str:
 
 
 def pg_node(name, position, query, *, params_expr=None, execute_once=False,
-            notes=None):
+            always_output=False, notes=None):
     """گره PostgreSQL — همه پرس‌وجوها با پارامتر bind، بدون چسباندن رشته."""
     p = {
         "operation": "executeQuery",
@@ -53,6 +53,10 @@ def pg_node(name, position, query, *, params_expr=None, execute_once=False,
     }
     if execute_once:
         node["executeOnce"] = True
+    if always_output:
+        # حیاتی: اگر پرس‌وجو صفر ردیف برگرداند، n8n گره‌های بعدی را اجرا نمی‌کند.
+        # با این تنظیم، یک آیتم خالی عبور می‌کند و زنجیره ادامه می‌یابد.
+        node["alwaysOutputData"] = True
     if notes:
         node["notes"] = notes
         node["notesInFlow"] = True
@@ -224,7 +228,10 @@ def wf_inbound():
         "SELECT chat_id, status, reply_text, org_code\n"
         "  FROM iee1405.bot_dispatch_json($1::jsonb);",
         params_expr="JSON.stringify($json)",
-        notes="کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد",
+        always_output=True,
+        notes="کل منطق ربات داخل تابع SQL است؛ این گره فقط یک JSON می‌فرستد. "
+              "alwaysOutputData لازم است: در پیمایش خالی صفر ردیف برمی‌گرداند و "
+              "بدون آن، ارسال پاسخ‌های معوق هرگز دوباره تلاش نمی‌شد.",
     )
 
     # بلافاصله بعد از پردازش: در هر اجرا (حتی بی‌پیام) زمان دریافت ثبت می‌شود
