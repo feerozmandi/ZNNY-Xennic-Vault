@@ -210,16 +210,25 @@ def detect(headers):
                 mapping[field] = hit
                 used.add(hit)
                 break
-        else:
-            for key in kn:
-                if len(key) <= 3:
-                    continue
-                hit = next((i for i, h in enumerate(hn)
-                            if key in h and i not in used), None)
+        else:  # لایهٔ دوم: مقایسهٔ بدون فاصله/نویسهٔ نامرئی
+            kk = [re.sub(r"\s+", "", k) for k in kn]
+            hk = [re.sub(r"\s+", "", h) for h in hn]
+            for key in kk:
+                hit = next((i for i, h in enumerate(hk) if h == key and i not in used), None)
                 if hit is not None:
                     mapping[field] = hit
                     used.add(hit)
                     break
+            else:  # لایهٔ سوم: تطبیق جزئی
+                for key in kn:
+                    if len(key) <= 3:
+                        continue
+                    hit = next((i for i, h in enumerate(hn)
+                                if key in h and i not in used), None)
+                    if hit is not None:
+                        mapping[field] = hit
+                        used.add(hit)
+                        break
     return mapping
 
 
@@ -365,7 +374,7 @@ def samples(headers, body, mapping, fields, n=5) -> dict:
 def audit(show_samples: int = 0, show_mapping: bool = False) -> dict:
     res = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "tool_version": "0.4",
+        "tool_version": "0.5",
         "python": sys.version.split()[0],
         "sqlite": None, "fts5": None,
         "source_dir": str(DATA_SRC), "source_exists": DATA_SRC.exists(),

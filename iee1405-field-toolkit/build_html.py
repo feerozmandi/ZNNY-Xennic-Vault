@@ -168,10 +168,15 @@ def card(r, ix_lookup) -> str:
     if socials:
         parts.append('<div class="rows">' + "".join(
             f'<span class="web">{esc(s)}</span>' for s in socials[:4]) + '</div>')
+    if r["official_site"]:
+        buttons.append('<span class="web">✅ دامنه در فهرست منابع خودِ فایل آمده</span>')
     if buttons:
         parts.append('<div class="rows">' + "".join(buttons) + '</div>')
     else:
         parts.append('<div class="none">هیچ راه ارتباطی در منبع نبود — «ناقص»، نه «عدم تمایل»</div>')
+        if r["google_search"]:
+            parts.append('<div class="rows noprint"><a class="web" href="' + esc(r["google_search"])
+                         + '" target="_blank" rel="noopener">🔍 جست‌وجوی دستی (نیازمند اینترنت)</a></div>')
 
     if r["address"]:
         parts.append(f'<div class="meta">آدرس: {esc(r["address"])}</div>')
@@ -230,7 +235,7 @@ def build(db: Path, out: Path, *, exhibition: str = "iee1405") -> dict:
                c.company_page, c.province_label,
                v.halls, v.booths, v.booths_raw, v.priority, v.priority_reason,
                v.phones, v.emails, v.socials, v.address, v.contact_count, v.verified,
-               v.provenance_class
+               v.provenance_class, v.official_site, v.google_search
           FROM company c JOIN v_company_card v ON v.company_id = c.id
          ORDER BY v.priority DESC, c.name_fa
     """).fetchall()
@@ -278,8 +283,17 @@ def build(db: Path, out: Path, *, exhibition: str = "iee1405") -> dict:
         body = "".join(card(r, ix) for r in items)
         fname = f"hall-{h.replace(' ', '_')}.html"
         nav2 = f'<a class="btn" href="index.html">← همهٔ سالن‌ها</a>'
+        n_off = sum(1 for r in items if (r["provenance_class"] or "") == "official")
+        n_guess = sum(1 for r in items if (r["provenance_class"] or "") == "guessed")
+        n_none = sum(1 for r in items if (r["contact_count"] or 0) == 0)
+        summary = (f'<div class="card noprint"><div class="meta">'
+                   f'در این سالن: {len(items)} شرکت · '
+                   f'<b>{n_off}</b> با منبع «سایت رسمی» · '
+                   f'<b>{n_guess}</b> با «حدس دامنه» (تأییدنشده) · '
+                   f'<b>{n_none}</b> بدون هیچ اطلاعات تماس</div></div>')
         (out / fname).write_text(
-            page(f"سالن {h} — {len(items)} شرکت", body, with_search=True, nav=nav2),
+            page(f"سالن {h} — {len(items)} شرکت", summary + body,
+                 with_search=True, nav=nav2),
             encoding="utf-8")
         made[fname] = len(items)
 

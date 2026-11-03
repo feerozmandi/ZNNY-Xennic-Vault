@@ -107,15 +107,24 @@ def detect(headers: list[str]) -> dict[str, int]:
                 mp[field] = hit
                 used.add(hit)
                 break
-        else:
-            for key in kn:
-                if len(key) < 4:
-                    continue
-                hit = next((i for i, h in enumerate(hn) if key in h and i not in used), None)
+        else:  # لایهٔ دوم: بدون فاصله و نویسهٔ نامرئی
+            kk = [re.sub(r"\s+", "", k) for k in kn]
+            hk = [re.sub(r"\s+", "", h) for h in hn]
+            for key in kk:
+                hit = next((i for i, h in enumerate(hk) if h == key and i not in used), None)
                 if hit is not None:
                     mp[field] = hit
                     used.add(hit)
                     break
+            else:  # لایهٔ سوم: تطبیق جزئی
+                for key in kn:
+                    if len(key) < 4:
+                        continue
+                    hit = next((i for i, h in enumerate(hn) if key in h and i not in used), None)
+                    if hit is not None:
+                        mp[field] = hit
+                        used.add(hit)
+                        break
     return mp
 
 
@@ -312,6 +321,7 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
         prov_src = cell("provenance_source") if bgdb.is_real_cell(cell("provenance_source")) else None
         prov_urls = cell("provenance_urls") if bgdb.is_real_cell(cell("provenance_urls")) else None
         logo = cell("logo") if bgdb.is_real_cell(cell("logo")) else None
+        gsearch = cell("google_search") if bgdb.is_real_cell(cell("google_search")) else None
         # «سایت رسمی» فقط اگر همان دامنه در منابع ذکرشدهٔ خودِ منبع آمده باشد
         official = None
         if website and prov_urls and bgdb.norm_url(website).split("/")[0] in prov_urls.lower():
@@ -374,20 +384,23 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                              logo_url=COALESCE(NULLIF(logo_url,''),?),
                              official_site=COALESCE(NULLIF(official_site,''),?),
                              provenance_class=COALESCE(NULLIF(provenance_class,''),?),
+                             google_search=COALESCE(NULLIF(google_search,''),?),
                              updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')
                            WHERE id=?""",
                         (cell("name_en"), cell("slug"), website, cell("about"),
                          cell("province"), page, prov_src, prov_urls, logo, official,
-                         prov_cls if prov_cls != "unknown" else None, cid))
+                         prov_cls if prov_cls != "unknown" else None, gsearch, cid))
         else:
             cid = con.execute("""INSERT INTO company
                 (name_fa, name_norm, name_en, slug, website, about_fa,
                  province_label, company_page, provenance_source, provenance_urls,
-                 logo_url, official_site, provenance_class, source_id, source_row)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 logo_url, official_site, provenance_class, google_search,
+                 source_id, source_row)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (name, nm, cell("name_en") or None, cell("slug") or None,
                  website, cell("about") or None, cell("province") or None,
-                 page, prov_src, prov_urls, logo, official, prov_cls, src_id, idx)).lastrowid
+                 page, prov_src, prov_urls, logo, official, prov_cls, gsearch,
+                 src_id, idx)).lastrowid
             stats["companies_new"] += 1
 
         con.execute("INSERT OR IGNORE INTO company_alias(company_id, alias_norm) VALUES (?,?)",

@@ -87,6 +87,11 @@ def main() -> int:
         check("D1.11a ستون خالی «شماره غرفه» بر «موقعیت غرفه» مقدم نمی‌شود",
               bm.get("booth_column") == "موقعیت غرفه" and bm["booth_real_rows"] > 0,
               str(bm.get("booth_column")))
+        mp1 = audit["sheets"]["شرکت‌کنندگان.csv"]["mapping"]
+        check("D1.15 سرستون با نویسهٔ نامرئی هم نگاشت می‌شود",
+              mp1.get("company_page") is not None
+              and audit["sheets"]["شرکت‌کنندگان.csv"]["census"][
+                  audit["sheets"]["شرکت‌کنندگان.csv"]["headers"][mp1["company_page"]]]["real"] > 0)
         check("D1.11b منبع تکمیل اطلاعات گزارش و دسته‌بندی می‌شود",
               bm.get("provenance_distribution", {}).get("سایت رسمی شرکت", 0) > 0
               and sum(bm.get("provenance_class", {}).values())
@@ -216,6 +221,8 @@ def main() -> int:
                               ).fetchone()[0] if False else 0
         check("D3.19 «سایت رسمی» فقط با شاهد دامنه در منابع ذخیره می‌شود",
               off > 0, f"{off} شرکت")
+        gs = con.execute("SELECT count(*) FROM company WHERE google_search IS NOT NULL").fetchone()[0]
+        check("D3.24 لینک جست‌وجوی دستی منبع ذخیره می‌شود", gs > 0, str(gs))
         cls = dict(con.execute("""SELECT COALESCE(provenance_class,'(هیچ)'), count(*)
                                    FROM company GROUP BY 1""").fetchall())
         check("D3.21 طبقهٔ اطمینان شرکت ذخیره می‌شود",
@@ -298,6 +305,10 @@ def main() -> int:
               shown <= real, f"نمایش={sorted(shown)[:3]} پایگاه={len(real)}")
         check("D6.6 اولویت با دلیل نوشته شده", "اولویت" in sample and "راه ارتباطی مستقیم" in sample)
         check("D6.7 چاپ A4 تعریف شده", "@page" in sample and "print" in sample)
+        check("D6.17 خلاصهٔ پوشش در سربرگ سالن آمده",
+              "بدون هیچ اطلاعات تماس" in sample and "حدس دامنه" in sample)
+        check("D6.18 برای شرکت بدون تماس، پیوند جست‌وجوی دستی هست",
+              "جست‌وجوی دستی" in sample)
         check("D6.16 برچسب اطمینان منبع روی کارت دیده می‌شود",
               "منبع: حدس دامنه" in sample and "تأییدنشده" in sample
               and "منبع: سایت رسمی" in sample)
