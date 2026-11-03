@@ -16,7 +16,8 @@ CO_HEADERS = [
     "ردیف", "نام شرکت", "نام لاتین", "slug", "سالن", "نوع فعالیت", "استان",
     "وب‌سایت", "ایمیل", "تلفن ثابت", "موبایل", "واتساپ", "اینستاگرام",
     "تلگرام", "لینکدین", "آدرس", "وضعیت اطلاعات", "درباره", "در فهرست توانیر",
-    "دانش‌بنیان",
+    "دانش‌بنیان", "سایر شماره‌ها", "آپارات", "ایتا", "بله", "توییتر / X",
+    "صفحه شرکت در برق‌پا",
 ]
 HALLS = ["38B", "38", "41", "فضای باز", "40", "44B", "38A", "44A", "31A", "31B"]
 HALL_COUNTS = [68, 60, 48, 27, 26, 22, 16, 15, 10, 8]
@@ -60,7 +61,21 @@ def build(root: Path) -> None:
             "درباره": "شرکت نمونه برای آزمون.",
             "در فهرست توانیر": "بله" if i < 104 else "خیر",
             "دانش‌بنیان": "بله" if i < 45 else "خیر",
+            "سایر شماره‌ها": f"۰۲۱-{rnd.randint(10000000, 99999999)}" if i % 30 == 0 else "-",
+            "آپارات": f"aparat.com/sample{i+1}" if i % 40 == 0 else "-",
+            "ایتا": f"@sample{i+1}" if i % 50 == 0 else "-",
+            "بله": f"@sample{i+1}" if i % 60 == 0 else "-",
+            "توییتر / X": f"@sample{i+1}" if i % 70 == 0 else "-",
+            "صفحه شرکت در برق‌پا": (f"https://barghpa.com/company/{i+1}" if i % 3 == 0 else "-"),
         })
+
+    # سلول‌های خالی مثل فایل واقعی با جای‌نگهدار پر می‌شوند
+    PLACEHOLDER_FILL = True
+    if PLACEHOLDER_FILL:
+        for r in rows:
+            for k, v in list(r.items()):
+                if not v and k not in ("ردیف",):
+                    r[k] = "-"
 
     def write_csv(path, headers, data):
         with path.open("w", encoding="utf-8-sig", newline="") as f:
@@ -83,7 +98,17 @@ def build(root: Path) -> None:
         slots = slots[1:]
     for i, r in enumerate(part):
         r["ردیف"] = str(i + 1)
-    part_headers = ["ردیف", "نام شرکت", "سالن", "نوع فعالیت", "استان"]
+    part_headers = ["ردیف", "نام شرکت", "سالن", "نوع فعالیت", "استان",
+                    "موقعیت غرفه", "صفحه شرکت در برق‌پا"]
+    for i, r in enumerate(part):
+        n = i + 1
+        if n % 5 == 0:
+            r["موقعیت غرفه"] = f"{r['سالن']}-{n % 40 + 1}"
+        elif n % 7 == 0:
+            r["موقعیت غرفه"] = f"سالن {r['سالن']}، کنار ورودی"
+        else:
+            r["موقعیت غرفه"] = "-"
+        r["صفحه شرکت در برق‌پا"] = f"https://barghpa.com/company/{n}"
     write_csv(root / "csv" / "فهرست_کامل_۳۰۰_رکورد.csv", part_headers, part)
 
     contacts = [r for r in rows if r["ایمیل"] or r["موبایل"]][:90]

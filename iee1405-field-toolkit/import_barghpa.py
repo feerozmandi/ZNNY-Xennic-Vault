@@ -5,10 +5,12 @@
   python3 import_barghpa.py --db ../db/barghpa_iee1405.sqlite --write
 
 تضمین‌ها:
+  * جای‌نگهدارها («-»، «ندارد»، «یافت نشد») هرگز به‌عنوان تماس وارد نمی‌شوند.
   * اجرای دوباره ردیف تکراری نمی‌سازد (کلید یکتا روی name_norm و value_norm).
   * یادداشت دستی (`company.notes`) و مقادیر دستی بازنویسی نمی‌شوند.
-  * هر مقدار تماس یک ردیف contact_evidence با منبع و تاریخ دارد.
-  * شمارهٔ غرفه ساخته نمی‌شود؛ منبع چنین ستونی ندارد.
+  * هر مقدار تماس یک ردیف contact_evidence با منبع، تاریخ و روش دارد.
+  * موقعیت غرفه: `booth_raw` همیشه از منبع کپی می‌شود؛ `booth` فقط با الگوی
+    روشن پر می‌شود و در غیر این صورت NULL می‌ماند — هیچ حدسی زده نمی‌شود.
   * پیش از نوشتن، پشتیبان با API خود SQLite گرفته می‌شود.
 """
 from __future__ import annotations
@@ -23,12 +25,13 @@ from pathlib import Path
 
 import bgdb
 
-CHANNEL_ORDER = ["email", "phone", "mobile", "whatsapp", "instagram",
-                 "telegram", "linkedin", "website", "address"]
-# کدام ستون‌ها به contact می‌روند (website/address هم یک کانال‌اند)
-CONTACT_COLS = ["email", "phone", "mobile", "whatsapp", "instagram",
-                "telegram", "linkedin", "website", "address"]
-SPLITTABLE = {"email", "phone", "mobile", "whatsapp", "instagram", "telegram", "linkedin"}
+# کانال‌هایی که مستقیماً به ستون channel می‌روند
+CONTACT_COLS = ["email", "phone", "mobile", "whatsapp", "instagram", "telegram",
+                "linkedin", "twitter", "aparat", "eita", "bale", "website", "address"]
+# «سایر شماره‌ها» در شیت دیگر؛ به همان کانال phone می‌رود ولی روش شاهد جدا می‌ماند
+ALT_PHONE_COLS = ["other_phones"]
+SPLITTABLE = {"email", "phone", "other_phones", "mobile", "whatsapp", "instagram",
+              "telegram", "linkedin", "twitter", "aparat", "eita", "bale"}
 MAIN_SHEET = "شرکت‌کنندگان.csv"
 PART_SHEET = "فهرست_کامل_۳۰۰_رکورد.csv"
 
@@ -37,32 +40,49 @@ ALIASES = {
     "name_en": ["نام لاتین", "نام انگلیسی", "english", "name_en"],
     "slug": ["slug", "اسلاگ"],
     "hall": ["سالن", "hall"],
-    "booth": ["غرفه", "شماره غرفه", "booth", "stand"],
-    "type": ["نوع فعالیت", "فعالیت", "دسته"],
+    "hall_count": ["تعداد سالن"],
+    "booth": ["موقعیت غرفه", "شماره غرفه", "غرفه", "booth", "stand"],
+    "type": ["نوع شرکت", "نوع فعالیت", "فعالیت", "دسته"],
     "province": ["استان", "province"],
+    "company_page": ["صفحه شرکت در برق‌پا", "برق‌پا", "barghpa"],
     "website": ["وب‌سایت", "وب سایت", "سایت", "website", "url"],
     "email": ["ایمیل", "پست الکترونیک", "email"],
     "phone": ["تلفن ثابت", "تلفن", "phone", "tel"],
+    "other_phones": ["سایر شماره‌ها", "سایر شماره ها", "شماره‌های دیگر"],
     "mobile": ["موبایل", "همراه", "mobile"],
     "whatsapp": ["واتساپ", "whatsapp"],
     "instagram": ["اینستاگرام", "instagram"],
     "telegram": ["تلگرام", "telegram"],
     "linkedin": ["لینکدین", "linkedin"],
+    "twitter": ["توییتر / X", "توییتر", "twitter"],
+    "aparat": ["آپارات", "aparat"],
+    "eita": ["ایتا", "eita"],
+    "bale": ["بله", "bale"],
     "address": ["آدرس", "نشانی", "address"],
     "status": ["وضعیت اطلاعات", "وضعیت"],
     "about": ["درباره", "توضیح", "معرفی", "about"],
     "tavanir": ["در فهرست توانیر", "توانیر"],
     "daneshbonyan": ["دانش‌بنیان", "دانش بنیان"],
+    "assoc": ["انجمن‌ها", "انجمن ها", "سندیکای صنعت برق", "انجمن سیم و کابل",
+              "ساتکا", "ساتبا", "انجمن صنفی"],
+}
+ASSOC_FLAGS = {
+    "سندیکای صنعت برق": "sindicat_barq",
+    "انجمن سیم و کابل": "assoc_cable",
+    "ساتکا": "satka",
+    "ساتبا": "satba",
+    "انجمن صنفی": "assoc_senfi",
 }
 
 
 def detect(headers: list[str]) -> dict[str, int]:
     mp, used = {}, set()
     for field, keys in ALIASES.items():
+        kn = [bgdb.norm_text(k) for k in keys]
         for i, h in enumerate(headers):
             if i in used:
                 continue
-            if bgdb.norm_text(h) in {bgdb.norm_text(k) for k in keys}:
+            if bgdb.norm_text(h) in kn:
                 mp[field] = i
                 used.add(i)
                 break
@@ -71,7 +91,7 @@ def detect(headers: list[str]) -> dict[str, int]:
                 if i in used:
                     continue
                 hn = bgdb.norm_text(h)
-                if any(bgdb.norm_text(k) in hn for k in keys if len(bgdb.norm_text(k)) >= 4):
+                if any(k in hn for k in kn if len(k) >= 4):
                     mp[field] = i
                     used.add(i)
                     break
@@ -84,14 +104,15 @@ def read_csv(path: Path) -> tuple[list[str], list[list[str]]]:
     return (rows[0] if rows else []), (rows[1:] if rows else [])
 
 
+SPLIT_RE = re.compile(r"\s*[,،;؛]\s*|\s{2,}|\s+/\s+|\s*\|\s*")
+
+
 def split_cell(cell: str, field: str) -> list[str]:
-    cell = (cell or "").strip()
-    if not cell or cell in {"—", "-", "–"}:
+    if not bgdb.is_real_cell(cell):
         return []
     if field not in SPLITTABLE:
-        return [cell]
-    parts = re.split(r"\s*[,،;؛]\s*|\s{2,}|\s*/\s*", cell)
-    return [p.strip() for p in parts if p.strip() and p.strip() not in {"—", "-", "–"}]
+        return [cell.strip()]
+    return [p.strip() for p in SPLIT_RE.split(cell) if bgdb.is_real_cell(p)]
 
 
 def clean_value(field: str, raw: str) -> str:
@@ -106,16 +127,14 @@ def clean_value(field: str, raw: str) -> str:
 
 
 def value_norm(field: str, v: str) -> str:
-    if field in {"phone", "mobile", "whatsapp"}:
+    if field in {"phone", "mobile", "whatsapp", "other_phones"}:
         return bgdb.norm_phone(v)
     if field == "email":
         return bgdb.norm_email(v)
-    if field == "website":
+    if field in {"website", "linkedin", "company_page"}:
         return bgdb.norm_url(v)
-    if field in {"instagram", "telegram"}:
+    if field in {"instagram", "telegram", "twitter", "aparat", "eita", "bale"}:
         return bgdb.norm_text(v).lstrip("@")
-    if field == "linkedin":
-        return bgdb.norm_url(v)
     return bgdb.norm_text(v)
 
 
@@ -138,7 +157,8 @@ def score(ch: dict[str, int], flags: dict[str, bool]) -> tuple[int, str]:
     if ch.get("website"):
         p += 10
         why.append("وب‌سایت رسمی (+10)")
-    if ch.get("whatsapp") or ch.get("instagram") or ch.get("telegram") or ch.get("linkedin"):
+    if any(ch.get(f) for f in ("whatsapp", "instagram", "telegram", "linkedin",
+                               "twitter", "aparat", "eita", "bale")):
         p += 5
         why.append("شبکهٔ اجتماعی (+5)")
     if not why:
@@ -170,24 +190,37 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
     if "name" not in mp:
         raise SystemExit(f"ستون نام شناسایی نشد؛ سرستون‌ها: {headers}")
 
-    part_sheet = src / "csv" / PART_SHEET if (src / "csv" / PART_SHEET).exists() else None
+    # شیت مشارکت: سالن از این‌جا، و موقعیت غرفه اگر ستونی داشته باشد
     halls_by_company: dict[str, list[str]] = {}
+    booth_by_company: dict[str, str] = {}
+    part_sheet = src / "csv" / PART_SHEET
+    if not part_sheet.exists():
+        part_sheet = None
     if part_sheet:
         ph, pb = read_csv(part_sheet)
         pmp = detect(ph)
-        if "name" in pmp and "hall" in pmp:
+        if "name" in pmp:
             for r in pb:
                 nm = bgdb.norm_text(r[pmp["name"]] if pmp["name"] < len(r) else "")
-                hl = (r[pmp["hall"]] if pmp["hall"] < len(r) else "").strip()
-                if nm and hl:
-                    halls_by_company.setdefault(nm, [])
-                    if hl not in halls_by_company[nm]:
-                        halls_by_company[nm].append(hl)
+                if not nm:
+                    continue
+                if "hall" in pmp:
+                    hl = r[pmp["hall"]].strip() if pmp["hall"] < len(r) else ""
+                    if bgdb.is_real_cell(hl):
+                        halls_by_company.setdefault(nm, [])
+                        if hl not in halls_by_company[nm]:
+                            halls_by_company[nm].append(hl)
+                if "booth" in pmp and pmp["booth"] < len(r):
+                    raw = r[pmp["booth"]].strip()
+                    if bgdb.is_real_cell(raw):
+                        booth_by_company.setdefault(nm, raw)
 
     stats = {"rows": 0, "companies_new": 0, "companies_existing": 0,
              "contacts_new": 0, "contacts_existing": 0, "flags": 0,
              "participations_new": 0, "participations_existing": 0,
-             "skipped_empty_name": 0, "booth_found": 0, "halls": set()}
+             "skipped_empty_name": 0, "placeholders_skipped": 0,
+             "booth_raw_rows": 0, "booth_clean_rows": 0, "halls": set(),
+             "channels": set()}
 
     con = bgdb.connect(db) if write else None
     if con:
@@ -198,81 +231,99 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
         ex_id = bgdb.get_or_create(
             con, "exhibition", {"code": exhibition_code},
             {"title_fa": "بیست‌وششمین نمایشگاه بین‌المللی صنعت برق ایران",
-             "starts_on": "2026-11-07", "ends_on": "2026-11-10",
-             "venue": None,
-             "source_url": "https://barghpa.com/exhibition/26th-iran-international-electricity-exhibition"})
+             "starts_on": "2026-11-07", "ends_on": "2026-11-10", "venue": None,
+             "source_url": "https://barghpa.com/exhibition"})
         src_id = bgdb.get_or_create(
             con, "source", {"kind": "csv", "path": str(sheet), "sha256": sha256_file(sheet)},
             {"captured_on": captured_on,
-             "note": f"ساخته‌شده با xlsx2csv_stdlib.py · {len(body)} ردیف"})
+             "note": f"برگرفته از فهرست barghpa.com · {len(body)} ردیف"})
     else:
         ex_id = src_id = None
 
-    seen_companies = set()
     for idx, row in enumerate(body, start=2):
         def cell(f):
             i = mp.get(f)
             return (row[i] if i is not None and i < len(row) else "").strip()
 
         name = cell("name")
-        if not name:
+        if not bgdb.is_real_cell(name):
             stats["skipped_empty_name"] += 1
             continue
         stats["rows"] += 1
         nm = bgdb.norm_text(name)
-        if nm in seen_companies:
-            stats["companies_existing"] += 1
-        else:
-            seen_companies.add(nm)
 
-        chans = {}
-        for f in CONTACT_COLS:
+        chans: dict[str, list[tuple[str, str]]] = {}
+        for f in CONTACT_COLS + ALT_PHONE_COLS:
             i = mp.get(f)
             if i is None:
                 continue
-            vals = []
-            for raw in split_cell(row[i] if i < len(row) else "", f):
+            raw_cell = row[i] if i < len(row) else ""
+            if not bgdb.is_real_cell(raw_cell):
+                if raw_cell.strip():
+                    stats["placeholders_skipped"] += 1
+                continue
+            target = "phone" if f in ALT_PHONE_COLS else f
+            for raw in split_cell(raw_cell, f):
                 v = clean_value(f, raw)
                 vn = value_norm(f, v)
                 if v and vn:
-                    vals.append((v, vn))
-            if vals:
-                chans[f] = vals
-        flags = {k: trueish(cell(k)) for k in ("tavanir", "daneshbonyan")}
-        flag_names = {"tavanir_vendor": flags["tavanir"], "daneshbonyan": flags["daneshbonyan"]}
-        prio, why = score({k: 1 for k in chans}, flag_names)
-        if cell("booth"):
-            stats["booth_found"] += 1
+                    chans.setdefault(target, []).append((v, vn))
+                    stats["channels"].add(target)
+        for k in list(chans):
+            uniq, seen = [], set()
+            for v, vn in chans[k]:
+                if vn not in seen:
+                    seen.add(vn)
+                    uniq.append((v, vn))
+            chans[k] = uniq
 
-        halls = halls_by_company.get(nm) or ([cell("hall")] if cell("hall") else [])
+        flags = {k: trueish(cell(k)) for k in ("tavanir", "daneshbonyan")}
+        for label, flag in ASSOC_FLAGS.items():
+            ai = mp.get("assoc")
+            if ai is not None and ai < len(row) and label in (row[ai] or ""):
+                flags[flag] = True
+        prio, why = score({k: len(v) for k, v in chans.items()},
+                          {"tavanir_vendor": flags.get("tavanir", False),
+                           "daneshbonyan": flags.get("daneshbonyan", False)})
+
+        halls = halls_by_company.get(nm) or ([cell("hall")] if bgdb.is_real_cell(cell("hall")) else [])
         stats["halls"].update(halls)
+
+        booth_raw = booth_by_company.get(nm) or (cell("booth") if bgdb.is_real_cell(cell("booth")) else "")
+        booth_clean, _ = bgdb.norm_booth(booth_raw) if booth_raw else (None, "خالی")
+        if booth_raw:
+            stats["booth_raw_rows"] += 1
+        if booth_clean:
+            stats["booth_clean_rows"] += 1
 
         if not write:
             continue
 
         # ── شرکت ────────────────────────────────────────────────────
+        website = (chans.get("website") or [(None, None)])[0][0]
+        page = cell("company_page") if bgdb.is_real_cell(cell("company_page")) else None
         row_ex = con.execute("SELECT id FROM company WHERE name_norm=?", (nm,)).fetchone()
         if row_ex:
             cid = row_ex["id"]
-            stats["companies_existing"] += 0
             con.execute("""UPDATE company SET
                              name_en=COALESCE(NULLIF(name_en,''),?),
                              slug=COALESCE(NULLIF(slug,''),?),
                              website=COALESCE(NULLIF(website,''),?),
                              about_fa=COALESCE(NULLIF(about_fa,''),?),
                              province_label=COALESCE(NULLIF(province_label,''),?),
+                             company_page=COALESCE(NULLIF(company_page,''),?),
                              updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')
                            WHERE id=?""",
-                        (cell("name_en"), cell("slug"), (chans.get("website") or [("",)])[0][0],
-                         cell("about"), cell("province"), cid))
+                        (cell("name_en"), cell("slug"), website, cell("about"),
+                         cell("province"), page, cid))
         else:
             cid = con.execute("""INSERT INTO company
                 (name_fa, name_norm, name_en, slug, website, about_fa,
-                 province_label, source_id, source_row)
-                VALUES (?,?,?,?,?,?,?,?,?)""",
+                 province_label, company_page, source_id, source_row)
+                VALUES (?,?,?,?,?,?,?,?,?,?)""",
                 (name, nm, cell("name_en") or None, cell("slug") or None,
-                 (chans.get("website") or [(None,)])[0][0], cell("about") or None,
-                 cell("province") or None, src_id, idx)).lastrowid
+                 website, cell("about") or None, cell("province") or None,
+                 page, src_id, idx)).lastrowid
             stats["companies_new"] += 1
 
         con.execute("INSERT OR IGNORE INTO company_alias(company_id, alias_norm) VALUES (?,?)",
@@ -301,12 +352,12 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                     (ct_id, src_id, captured_on, "import", v, ct_id, src_id))
 
         # ── پرچم‌ها ─────────────────────────────────────────────────
-        for fname, on in flag_names.items():
-            if cell("tavanir") or cell("daneshbonyan"):
+        for fname, on in flags.items():
+            if on:
                 con.execute("""INSERT INTO company_flag(company_id, flag, value, source_id)
                                VALUES (?,?,?,?)
                                ON CONFLICT(company_id, flag) DO NOTHING""",
-                            (cid, fname, "بله" if on else "خیر", src_id))
+                            (cid, fname, "بله", src_id))
                 stats["flags"] += 1
 
         # ── مشارکت (یک ردیف برای هر سالن) ───────────────────────────
@@ -318,13 +369,19 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                                 WHERE exhibition_id=? AND company_id=? AND hall_id=?""",
                              (ex_id, cid, hid)).fetchone()
             if ex:
-                con.execute("""UPDATE participation SET priority=?, priority_reason=?
-                                WHERE id=?""", (prio, why, ex["id"]))
+                con.execute("""UPDATE participation
+                                  SET priority=?, priority_reason=?,
+                                      booth_raw=COALESCE(?, booth_raw),
+                                      booth=COALESCE(?, booth)
+                                WHERE id=?""",
+                            (prio, why, booth_raw or None, booth_clean, ex["id"]))
                 stats["participations_existing"] += 1
             else:
                 con.execute("""INSERT INTO participation
-                    (exhibition_id, company_id, hall_id, booth, priority, priority_reason)
-                    VALUES (?,?,?,NULL,?,?)""", (ex_id, cid, hid, prio, why))
+                    (exhibition_id, company_id, hall_id, booth, booth_raw, priority,
+                     priority_reason)
+                    VALUES (?,?,?,?,?,?,?)""",
+                    (ex_id, cid, hid, booth_clean, booth_raw or None, prio, why))
                 stats["participations_new"] += 1
 
         bgdb.refresh_search(con, cid)
@@ -362,13 +419,16 @@ def main() -> int:
     print("\n── نتیجه ──")
     for k in ("rows", "companies_new", "companies_existing", "contacts_new",
               "contacts_existing", "participations_new", "participations_existing",
-              "flags", "skipped_empty_name"):
+              "flags", "placeholders_skipped", "skipped_empty_name",
+              "booth_raw_rows", "booth_clean_rows"):
         print(f"  {k:24s} {stats[k]}")
     print(f"  {'halls':24s} {len(stats['halls'])} → {' · '.join(sorted(stats['halls']))}")
-    if stats["booth_found"]:
-        print(f"  ⚠️ {stats['booth_found']} ردیف ستون غرفه داشت — بررسی دستی لازم است")
-    else:
-        print("  غرفه: هیچ ستون غرفه‌ای در منبع نبود → NULL ماند (ساخته نشد)")
+    print(f"  {'channels':24s} {len(stats['channels'])} → {' · '.join(sorted(stats['channels']))}")
+    if write and stats["booth_raw_rows"]:
+        print(f"  غرفه: {stats['booth_raw_rows']} ردیف خام نگه داشته شد، "
+              f"{stats['booth_clean_rows']} با الگوی روشن به ستون booth رفت")
+    elif write:
+        print("  غرفه: هیچ مقدار غرفه‌ای در منبع نبود → NULL ماند (ساخته نشد)")
     return 0
 
 

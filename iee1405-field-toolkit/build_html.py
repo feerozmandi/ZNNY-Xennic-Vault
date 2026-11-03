@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import html
 import json
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -113,17 +112,21 @@ def esc(s) -> str:
 
 
 def tel_href(v: str) -> str:
-    """tel: فقط با ارقام و + — خط تیره و فاصله حذف می‌شود."""
-    s = str(v).translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789"))
-    s = re.sub(r"[^\d+]", "", s)
-    return "tel:" + s
+    return "tel:" + str(v).translate(str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")).replace(" ", "")
 
 
 def card(r, ix_lookup) -> str:
     halls = r["halls"] or "—"
     prio = r["priority"] or 0
     reason = r["priority_reason"] or ""
-    booth_note = "غرفه ثبت نشده"
+    # غرفه: اول مقدار پاک‌شده، بعد مقدار خام منبع، وگرنه صریحاً «ثبت نشده».
+    # هیچ‌گاه از سالن یا نام شرکت حدس زده نمی‌شود.
+    if r["booths"]:
+        booth_note = f'غرفه {r["booths"]}'
+    elif r["booths_raw"]:
+        booth_note = f'غرفه (خام منبع، تأییدنشده): {r["booths_raw"]}'
+    else:
+        booth_note = "غرفه ثبت نشده"
     phones = [p.strip() for p in (r["phones"] or "").split("|") if p.strip()]
     emails = [e.strip() for e in (r["emails"] or "").split("|") if e.strip()]
     socials = [s.strip() for s in (r["socials"] or "").split("|") if s.strip()]
@@ -133,7 +136,7 @@ def card(r, ix_lookup) -> str:
     if r["name_en"]:
         parts.append(f'<div class="meta">{esc(r["name_en"])}</div>')
     parts.append(f'<div class="meta">سالن: <b>{esc(halls)}</b> · {esc(booth_note)}'
-                 + (f' · {esc(r["province_label"])}' if r["province_label"] else "") + '</div>')
+                 + (f' · استان: {esc(r["province_label"])}' if r["province_label"] else "") + '</div>')
     badge = f'<span class="prio{" zero" if prio == 0 else ""}">اولویت {prio}' + \
             (f' — {esc(reason)}' if reason else '') + '</span>'
     parts.append(f'<div class="meta">{badge}</div>')
@@ -143,6 +146,8 @@ def card(r, ix_lookup) -> str:
         buttons.append(f'<a class="tel" href="{esc(tel_href(p))}">📞 {esc(p)}</a>')
     for e in emails[:2]:
         buttons.append(f'<a class="mail" href="mailto:{esc(e)}">✉️ {esc(e)}</a>')
+    if r["company_page"]:
+        buttons.append(f'<a class="web" href="{esc(r["company_page"])}" target="_blank" rel="noopener">🔗 صفحهٔ برق‌پا</a>')
     if r["website"]:
         w = r["website"]
         buttons.append(f'<a class="web" href="{esc(w)}" target="_blank" rel="noopener">🌐 وب‌سایت</a>')
@@ -200,11 +205,17 @@ def page(title: str, body: str, *, with_search: bool, nav: str = "") -> str:
 
 
 def build(db: Path, out: Path, *, exhibition: str = "iee1405") -> dict:
-    con = bgdb.connect(db, readonly=True)
+    # پایگاه را باز می‌کنیم و مهاجرت‌های نبوده را اعمال می‌کنیم؛ وگرنه نما ممکن
+    # است قدیمی باشد و ستون‌های تازه (غرفه) بیرون بیفتند.
+    con = bgdb.connect(db)
+    applied = bgdb.migrate(con)
+    if applied:
+        print("مهاجرت‌های اعمال‌شده: " + " · ".join(applied))
     rows = con.execute("""
-        SELECT c.id AS company_id, c.name_fa, c.name_en, c.website, c.province_label,
-               v.halls, v.priority, v.priority_reason, v.phones, v.emails, v.socials,
-               v.address, v.contact_count, v.verified
+        SELECT c.id AS company_id, c.name_fa, c.name_en, c.website,
+               c.company_page, c.province_label,
+               v.halls, v.booths, v.booths_raw, v.priority, v.priority_reason,
+               v.phones, v.emails, v.socials, v.address, v.contact_count, v.verified
           FROM company c JOIN v_company_card v ON v.company_id = c.id
          ORDER BY v.priority DESC, c.name_fa
     """).fetchall()

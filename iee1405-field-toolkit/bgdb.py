@@ -38,6 +38,43 @@ def norm_text(s: str | None) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+PLACEHOLDER_TOKENS = {
+    "-", "—", "–", "−", "_", ".", "...", "…", "?", "؟", "0",
+    "ندارد", "نداریم", "یافت نشد", "یافت‌نشد", "پیدا نشد", "نامشخص", "نامعلوم",
+    "خالی", "بدون", "هیچ", "هیچکدام", "هیچ کدام", "بدون اطلاعات",
+    "اطلاعاتی نیست", "ثبت نشده", "در دسترس نیست", "موجود نیست",
+    "n/a", "na", "none", "null", "nil", "nan", "false", "no", "unknown",
+    "❌", "×", "✗", "✘",
+}
+_PH = {re.sub(r"\s+", " ", unicodedata.normalize("NFC", p).strip().lower())
+       for p in PLACEHOLDER_TOKENS}
+
+
+def is_real_cell(cell: str | None) -> bool:
+    """«-» و «ندارد» و «یافت نشد» داده نیستند.
+
+    این تابع از اجرای واقعی روی فایل نمایشگاه بیرون آمد: سلول خالی با «-»
+    پر شده بود و شمردن آن به‌عنوان داده، «۲۹۷ شرکت دارای ایمیل» می‌ساخت.
+    """
+    v = re.sub(r"\s+", " ", unicodedata.normalize("NFC", str(cell or "")).strip().lower())
+    if not v or v in _PH:
+        return False
+    return not set(v) <= set("-–—_ .\u200c")
+
+
+def norm_booth(raw: str | None) -> tuple[str | None, str]:
+    """موقعیت غرفه: مقدار خام همیشه نگه داشته می‌شود؛ ستون booth فقط اگر
+    الگوی روشن «سالن-شماره» یا شمارهٔ تنها داشت پر می‌شود. هیچ حدسی زده نمی‌شود.
+    """
+    v = str(raw or "").translate(AR_DIGITS).strip()
+    if not is_real_cell(v):
+        return None, "خالی"
+    compact = re.sub(r"\s+", "", v).upper()
+    if re.fullmatch(r"\d{1,3}[A-Z]?-\d{1,3}", compact) or re.fullmatch(r"\d{1,4}", compact):
+        return compact, "الگوی روشن"
+    return None, "الگوی نامشخص — خام نگه داشته شد"
+
+
 def norm_phone(s: str | None) -> str:
     """+98/0098 → 0، حذف جداکننده‌ها. ۰۲۱‑۸۸۷۷ → 0218877..."""
     if not s:

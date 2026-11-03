@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -64,21 +65,36 @@ def main() -> int:
         check("D1.4 ردیف شیت‌ها مستقیماً از XLSX شمرده می‌شود",
               audit["xlsx_check"]["rows_per_sheet"].get("Sheet1") == 297,
               str(audit["xlsx_check"]["rows_per_sheet"]))
-        check("D1.5 غرفهٔ ساخته‌شده وجود ندارد", audit["metrics"]["booth_nonempty"] == 0)
+        check("D1.5 شیت اصلی هیچ غرفهٔ پرشده‌ای ندارد (غرفه از شیت دوم می‌آید)",
+              audit["metrics"]["booth_filled_in_main_sheet"] == 0
+              and audit["metrics"]["booth_filled_in_main_sheet"] < audit["metrics"]["booth_real_rows"])
         check("D1.6 اعداد بازشماری با تعریف صریح آمده‌اند",
               audit["metrics"]["company_rows"] == 297
               and audit["metrics"]["participation_rows"] == 300)
         check("D1.7 چندسالنه‌ها شناسایی می‌شوند",
               len(audit["metrics"]["multi_hall_companies"]) == 3)
-        check("D1.8 سه تعریف تلفن گزارش می‌شود (حل اختلاف ۹۸/۱۴۱/۶۰)",
+        check("D1.8 تعریف‌های تلفن گزارش می‌شود (حل اختلاف ۹۸/۱۴۱/۶۰)",
               "فقط تلفن ثابت (شرکت)" in audit["metrics"]["phone_definitions"])
+        census = audit["sheets"]["شرکت‌کنندگان.csv"]["census"]
+        ph = sum(sum(v["placeholders"].values()) for v in census.values())
+        check("D1.9 جای‌نگهدار از داده جدا شمرده می‌شود", ph > 0, f"{ph} سلول جای‌نگهدار")
+        cov = audit["metrics"]["contact_coverage"]
+        check("D1.10 جای‌نگهدار «شرکت دارای کانال» نمی‌سازد",
+              cov["email"]["companies"] < audit["metrics"]["company_rows"]
+              and cov["whatsapp"]["companies"] < audit["metrics"]["company_rows"],
+              f"email={cov['email']['companies']} whatsapp={cov['whatsapp']['companies']}")
+        bm = audit["metrics"]
+        check("D1.11 ستون «موقعیت غرفه» در شیت دوم پیدا و شکل‌بندی می‌شود",
+              bm.get("booth_column") == "موقعیت غرفه" and bm["booth_real_rows"] > 0,
+              str(bm.get("booth_shapes")))
 
         # ── D2: مهاجرت و اسکیما ────────────────────────────────────
         print("\nD2 — پایگاه داده و مهاجرت")
         con = bgdb.connect(db)
         first = bgdb.migrate(con)
         second = bgdb.migrate(con)
-        check("D2.1 مهاجرت اول اجرا می‌شود", len(first) == 1, str(first))
+        n_files = len(list(bgdb.MIGRATIONS.glob("*.sql")))
+        check("D2.1 همهٔ مهاجرت‌ها اجرا می‌شوند", len(first) == n_files, str(first))
         check("D2.2 اجرای دوم مهاجرت کاری نمی‌کند (تکرارپذیر)", second == [])
         tables = {r[0] for r in con.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -134,8 +150,9 @@ def main() -> int:
               con.execute("""SELECT count(*) FROM contact_evidence
                              WHERE source_id IS NULL OR observed_on IS NULL"""
                           ).fetchone()[0] == 0)
-        check("D3.6 هیچ شمارهٔ غرفه‌ای ساخته نشده",
-              con.execute("SELECT count(*) FROM participation WHERE booth IS NOT NULL"
+        check("D3.6 هیچ غرفه‌ای بدون مقدار خام منبع وجود ندارد",
+              con.execute("""SELECT count(*) FROM participation
+                             WHERE booth IS NOT NULL AND booth_raw IS NULL"""
                           ).fetchone()[0] == 0)
         con.execute("UPDATE company SET notes='دست‌نویس من' WHERE id=1")
         con.commit()
@@ -158,6 +175,26 @@ def main() -> int:
               con.execute("""SELECT count(*) FROM participation
                              WHERE priority>0 AND (priority_reason IS NULL OR priority_reason='')"""
                           ).fetchone()[0] == 0)
+        empties = con.execute("""SELECT count(*) FROM contact WHERE value_norm IN
+                                 ('', '-', '—', '0') OR value IN ('-','—','ندارد','یافت نشد')"""
+                              ).fetchone()[0]
+        check("D3.12 هیچ جای‌نگهدار به‌عنوان تماس وارد نشده", empties == 0, str(empties))
+        br = con.execute("SELECT count(*) FROM participation WHERE booth_raw IS NOT NULL").fetchone()[0]
+        bc = con.execute("SELECT count(*) FROM participation WHERE booth IS NOT NULL").fetchone()[0]
+        check("D3.13 غرفهٔ خام نگه داشته می‌شود و تنها الگوی روشن به booth می‌رود",
+              br > 0 and 0 < bc < br, f"raw={br} clean={bc}")
+        bad = con.execute("""SELECT booth FROM participation WHERE booth IS NOT NULL
+                              AND booth NOT GLOB '[0-9]*'""").fetchone()
+        check("D3.14 هیچ غرفهٔ ساختگی/متنی در ستون booth نیست", bad is None,
+              str(bad[0]) if bad else "")
+        newch = {r[0] for r in con.execute("SELECT DISTINCT channel FROM contact")}
+        check("D3.15 کانال‌های آپارات/ایتا/بله/توییتر وارد می‌شوند",
+              {"aparat", "eita", "bale", "twitter"} <= newch, str(sorted(newch)))
+        page = con.execute("SELECT count(*) FROM company WHERE company_page IS NOT NULL").fetchone()[0]
+        check("D3.16 صفحهٔ برق‌پا به‌عنوان منبع نگه داشته می‌شود", page > 0, str(page))
+        alt = con.execute("""SELECT count(*) FROM contact WHERE channel='phone'
+                              AND value IN (SELECT value FROM contact)""").fetchone()[0]
+        check("D3.17 «سایر شماره‌ها» به کانال phone اضافه شده", alt > 0)
         check("D3.11 پشتیبان پیش از هر نوشتن گرفته شده",
               len(list(bdir.glob("*.pre-import.sqlite"))) >= 2)
 
@@ -212,8 +249,13 @@ def main() -> int:
               "http://" not in sample.replace("http://www.w3.org", "")
               and "cdn." not in sample and "<script src" not in sample)
         check("D6.4 دکمهٔ تماس/ایمیل واقعی است", "tel:" in sample or "mailto:" in sample)
-        check("D6.5 غرفهٔ جعلی نمایش داده نمی‌شود",
-              "غرفه ثبت نشده" in sample and "غرفه ۳۸" not in sample)
+        con0 = bgdb.connect(db, readonly=True)
+        real = {x[0] for x in con0.execute(
+            "SELECT booth FROM participation WHERE booth IS NOT NULL")}
+        shown = set(re.findall(r"غرفه ([0-9A-Za-z\-]+)", sample))
+        con0.close()
+        check("D6.5 هر غرفهٔ نمایش‌داده‌شده در پایگاه وجود دارد (هیچ جعلی نیست)",
+              shown <= real, f"نمایش={sorted(shown)[:3]} پایگاه={len(real)}")
         check("D6.6 اولویت با دلیل نوشته شده", "اولویت" in sample and "راه ارتباطی مستقیم" in sample)
         check("D6.7 چاپ A4 تعریف شده", "@page" in sample and "print" in sample)
         check("D6.8 شرکت چندسالنه در هر دو سالن دیده می‌شود",

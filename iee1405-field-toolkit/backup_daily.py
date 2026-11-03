@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """پشتیبان روزانه با نگهداری ۷ نسخه — برای کرون.
 
-  0 2 * * * /usr/bin/python3 ~/ZNNY-Xennic-Vault/iee1405-field-toolkit/backup_daily.py
+  0 2 * * * /usr/bin/python3 ~/xennic-data/barghpa-26-iee1405/tools/backup_daily.py
 
 پشتیبان با API خود SQLite گرفته می‌شود (نه cp) تا فایل باز سالم بماند.
+پس از نوشتن، پشتیبان باز و integrity_check می‌شود؛ عدد شرکت هم گزارش می‌شود.
 """
 from __future__ import annotations
 
@@ -42,10 +43,9 @@ def main() -> int:
     n = chk.execute("SELECT count(*) FROM company").fetchone()[0]
     chk.close()
 
-    dailies = sorted(bdir.glob("daily-*.sqlite"),
-                     key=lambda p: re.sub(r"\D", "", p.stem))
+    dailies = sorted(bdir.glob("daily-*.sqlite"), key=lambda p: p.stem)
     removed = 0
-    for old in dailies[:-args.keep] if args.keep > 0 else []:
+    for old in (dailies[:-args.keep] if args.keep > 0 else []):
         old.unlink()
         removed += 1
 
