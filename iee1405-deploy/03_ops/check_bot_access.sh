@@ -158,13 +158,35 @@ else
     fail "پرس‌وجوی سالن کار نکرد: $HALL"
 fi
 
-# ── ۴) مسیر کامل ربات (اختیاری) ───────────────────────────────────────
-if [[ $FULL -eq 1 ]]; then
-    c_head "۴) مسیر کامل ربات (bot_dispatch_json)"
+# ── ۴) نسخهٔ تابع ربات (نه نسخهٔ قدیمیِ جامانده در پایگاه) ─────────────
+c_head "۴) نسخهٔ تابع ربات"
 
-    CHAT="$(q "SELECT coalesce((SELECT bale_chat_id FROM crm.users
-                             WHERE bale_chat_id IS NOT NULL AND is_active
-                             ORDER BY id LIMIT 1), 0)")"
+RET="$(q "SELECT pg_get_function_result('iee1405.bot_dispatch_json(jsonb)'::regprocedure)")"
+if [[ "$RET" == "TABLE(chat_id bigint, status text, reply_text text, org_code text)" ]]; then
+    pass "bot_dispatch_json همان امضای کد است (۴ ستون)"
+elif [[ -z "$RET" ]]; then
+    fail "تابع bot_dispatch_json در پایگاه نیست" "bash 03_ops/deploy_sql.sh"
+else
+    fail "پایگاه نسخهٔ قدیمیِ bot_dispatch_json را اجرا می‌کند: $RET" \
+         "bash 03_ops/deploy_sql.sh   (فایل ۰۴ امضا را DROP و از نو می‌سازد)"
+    c_hint "این حالت همان چیزی است که ربات را بی‌صدا می‌کند: پاسخ خالی، بدون خطا"
+fi
+
+# پیام راهنما باید متن داشته باشد، وگرنه ربات پاسخ خالی می‌فرستد
+HLEN="$(q "SELECT coalesce(length(btrim(template)), 0) FROM iee1405.bot_messages WHERE key = 'help'")"
+if [[ "${HLEN:-0}" -gt 20 ]]; then
+    pass "قالب پیام «help» پر است ($HLEN نویسه)"
+else
+    fail "قالب پیام «help» خالی است؛ ربات پاسخ خالی می‌فرستد" \
+         "bash 03_ops/deploy_sql.sh   (فایل ۰۴ قالب خالی را ترمیم می‌کند)"
+fi
+
+# ── ۴.۵) مسیر کامل ربات (اختیاری) ─────────────────────────────────────
+CHAT="$(q "SELECT coalesce((SELECT bale_chat_id FROM crm.users
+                         WHERE bale_chat_id IS NOT NULL AND is_active
+                         ORDER BY id LIMIT 1), 0)")"
+c_head "۴.۵) مسیر کامل ربات (bot_dispatch_json)"
+if [[ $FULL -eq 1 ]]; then
     if [[ "${CHAT:-0}" == "0" ]]; then
         c_warn "هیچ کاربر مجاز بله ثبت نشده؛ آزمون مسیر کامل رد شد"
         c_hint "کاربر را اضافه کنید، یا در بله /start بزنید و شناسه را ثبت کنید"
