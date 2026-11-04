@@ -240,6 +240,10 @@ RETURNS bigint LANGUAGE sql STABLE AS $$
     SELECT count(*)
       FROM iee1405.bot_errors e
      WHERE e.occurred_at > now() - p_window
+       -- offset_guard **اطلاع** است، نه خطا: نگهبان offset یک بار برای هر ردیف
+       -- دستی/آزمایشی ثبتش می‌کند. شمردنش باعث می‌شد health_text همیشه
+       -- «⚠️ خطای باز ربات: ۲۵» نشان دهد و هشدار سلامت بی‌دلیل بالا بیاید.
+       AND e.stage <> 'offset_guard'
        AND (e.stage <> 'bale_getupdates'
             OR e.occurred_at > COALESCE((SELECT value::timestamptz
                                            FROM iee1405.bot_state
@@ -359,6 +363,14 @@ BEGIN
     IF iee1405.recent_error_count(interval '1 hour') > 0 THEN
         v_issues := v_issues || E'\n⚠️ خطای باز ربات: ' ||
                     iee1405.recent_error_count(interval '1 hour');
+    END IF;
+    -- اطلاع، نه هشدار: این ردیف‌ها خطا نیستند و در شمارش بالا نمی‌آیند،
+    -- ولی پنهان هم نمی‌مانند.
+    IF (SELECT count(*) FROM iee1405.bot_errors
+         WHERE stage = 'offset_guard' AND occurred_at > now() - interval '24 hours') > 0 THEN
+        v_issues := v_issues || E'\nℹ️ شناسهٔ خارج از محدودهٔ بله (در offset شمرده نشد): ' ||
+                    (SELECT count(*) FROM iee1405.bot_errors
+                      WHERE stage = 'offset_guard' AND occurred_at > now() - interval '24 hours');
     END IF;
     IF v_dq.tasks_overdue > 0 THEN
         v_issues := v_issues || E'\n⚠️ پیگیری گذشته از موعد: ' || v_dq.tasks_overdue;

@@ -221,18 +221,14 @@ c_head "۴.۶) پرس‌وجوهای گردش‌کارهای n8n"
 if ! command -v python3 >/dev/null 2>&1; then
     c_warn "python3 نیست؛ بررسی SQL گردش‌کارها رد شد"
 else
-    NQ=0; NBAD=0
-    # پارامترهای n8n ($1، $2 …) در پایتون با مقدار بی‌اثر جای‌گذاری می‌شوند
-    # (هدف سنجش «ستون‌ها» است، نه نتیجه). انجام این کار در bash با
-    # ${var//…} به‌خاطر آکولادهای JSON، رشته را خراب می‌کرد.
-    while IFS=$'\t' read -r wf node sql; do
-        [[ -z "${sql:-}" ]] && continue
-        NQ=$((NQ+1))
-        err="$(q "BEGIN; $sql; ROLLBACK;" 2>&1 >/dev/null | grep -E "ERROR|FATAL" | head -1)"
-        if [[ -n "$err" ]]; then
-            NBAD=$((NBAD+1))
-            fail "$wf · $node" "$err"
-        fi
+    # ⚠️ درس گران‌قیمت: هر فراخوانی psql با «docker exec -i» **stdin را
+    # می‌بلعد**. بار اول این بخش با «while read ... < <(python3 ...)» نوشته شده
+    # بود و روی سرور فقط **یک** پرس‌وجو اجرا شد: docker.exec.stdin بقیهٔ فهرست
+    # را خورد و بازبینی سبز شد بدون اینکه چیزی را سنجیده باشد. حالا کل فهرست
+    # اول در آرایه خوانده می‌شود و هر فراخوانی psql با </dev/null اجرا می‌شود.
+    QLINES=()
+    while IFS= read -r line; do
+        QLINES+=("$line")
     done < <(python3 - "$HERE/02_n8n" <<'PYEOF'
 import glob, json, re, sys
 
@@ -255,7 +251,25 @@ for f in sorted(glob.glob(sys.argv[1] + "/*.json")):
                                    probe(re.sub(r"\s+", " ", q.strip())).rstrip(";")))
 PYEOF
     )
-    if [[ $NBAD -eq 0 ]]; then
+
+    NQ=0; NBAD=0
+    for line in "${QLINES[@]}"; do
+        [[ -z "$line" ]] && continue
+        IFS=$'\t' read -r wf node sql <<< "$line"
+        [[ -z "${sql:-}" ]] && continue
+        NQ=$((NQ+1))
+        err="$(q "BEGIN; $sql; ROLLBACK;" 2>&1 >/dev/null </dev/null \
+               | grep -E "ERROR|FATAL" | head -1)"
+        if [[ -n "$err" ]]; then
+            NBAD=$((NBAD+1))
+            fail "$wf · $node" "$err"
+        fi
+    done
+
+    if [[ $NQ -eq 0 ]]; then
+        fail "هیچ پرس‌وجویی در 02_n8n پیدا نشد" \
+             "فایل‌های wf-*.json باید در $HERE/02_n8n باشند؛ این حالت یعنی بازبینی چیزی را نسنجیده"
+    elif [[ $NBAD -eq 0 ]]; then
         pass "همهٔ $NQ پرس‌وجوی گردش‌کارها روی این پایگاه اجرا شد"
     fi
 fi
