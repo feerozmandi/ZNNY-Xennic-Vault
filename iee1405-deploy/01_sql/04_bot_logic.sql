@@ -25,7 +25,8 @@ INSERT INTO iee1405.bot_messages (key, template, description) VALUES
  ('help',
   E'راهنمای ربات میدانی Xennic\n\n'
   '/new — ثبت شرکت جدید\n'
-  '/find نام — جست‌وجو\n'
+  '/find نام — جست‌وجو در CRM\n'
+  '/c نام|شناسه|سالن — شرکت از فهرست نمایشگاه\n'
   '/org ORG-000123 — پرونده شرکت\n'
   '/log ORG-000123 | خلاصه | اقدام بعدی — ثبت مذاکره\n'
   '/cap ORG-000123 | متن توانمندی — ثبت توانمندی (reported)\n'
@@ -111,7 +112,14 @@ INSERT INTO iee1405.bot_messages (key, template, description) VALUES
  ('idle_hint',
   E'برای شروع: /new (ثبت شرکت) یا /find نام (جست‌وجو).\nراهنما: /help',
   'راهنمای حالت عادی')
-ON CONFLICT (key) DO NOTHING;
+-- قالب‌ها را دست نزن (اپراتور می‌تواند متن را بدون استقرار عوض کند)، اما
+-- قالب خالی/سفید را ترمیم کن؛ وگرنه ربات بی‌صدا پاسخی خالی می‌فرستد.
+ON CONFLICT (key) DO UPDATE
+    SET template    = EXCLUDED.template,
+        description = EXCLUDED.description,
+        updated_at  = now()
+    WHERE iee1405.bot_messages.template IS NULL
+       OR btrim(iee1405.bot_messages.template) = '';
 
 COMMENT ON TABLE iee1405.bot_messages IS 'متن پیام‌های ربات؛ تغییر بدون تغییر کد یا استقرار مجدد';
 
@@ -421,15 +429,18 @@ BEGIN
                     WHEN 'پ' THEN '/task'
                     WHEN 'و' THEN '/visit'
                     WHEN 'ر' THEN '/help'
+                    WHEN 'ش' THEN '/c'
+                    WHEN 'س' THEN '/hall'
                     ELSE NULL END;
         IF v_cmd IS NOT NULL THEN v_arg := ''; END IF;
     END IF;
     -- میان‌بر با آرگومان: «ج تابلو»
-    IF v_cmd IS NULL AND v_text ~ '^(ن|ج|م|پ|و)\s' THEN
+    IF v_cmd IS NULL AND v_text ~ '^(ن|ج|م|پ|و|ش|س)\s' THEN
         v_cmd := CASE left(v_text, 1)
                     WHEN 'ن' THEN '/new' WHEN 'ج' THEN '/find'
                     WHEN 'م' THEN '/log' WHEN 'پ' THEN '/task'
-                    WHEN 'و' THEN '/visit' END;
+                    WHEN 'و' THEN '/visit'
+                    WHEN 'ش' THEN '/c' WHEN 'س' THEN '/hall' END;
         v_arg := btrim(substr(v_text, 2));
     END IF;
 
@@ -470,6 +481,21 @@ BEGIN
                 v_reply := iee1405.msg('find_header',
                                        jsonb_build_object('q', v_arg, 'list', v_list));
             END IF;
+        END IF;
+
+    ELSIF v_cmd IN ('/c', '/company', '/شرکت', '/hall') THEN
+        -- فهرست نمایشگاه در اسکیمای آینهٔ `barghpa` است، نه در CRM.
+        -- اگر آن اسکیما هنوز بارگذاری نشده باشد، پیام روشن می‌دهیم نه خطا.
+        IF to_regclass('barghpa.company') IS NULL THEN
+            v_reply := 'آینهٔ فهرست نمایشگاه ساخته نشده است. روی سرور: ' ||
+                       'bash 03_ops/load_exhibitors.sh';
+        ELSIF NOT EXISTS (SELECT 1 FROM barghpa.company) THEN
+            v_reply := 'آینهٔ فهرست نمایشگاه خالی است. روی سرور: ' ||
+                       'bash 03_ops/load_exhibitors.sh';
+        ELSE
+            v_reply := barghpa.bot_reply(CASE WHEN v_cmd = '/hall'
+                                              THEN COALESCE(nullif(v_arg, ''), '')
+                                              ELSE v_arg END);
         END IF;
 
     ELSIF v_cmd = '/org' THEN
@@ -758,6 +784,14 @@ COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb) IS
 -- می‌تواند کل دسته آپدیت‌ها را از بین ببرد. اینجا همه چیز امن استخراج
 -- می‌شود و آپدیت‌های غیرقابل‌پردازش فقط «نادیده» ثبت می‌شوند.
 -- ─────────────────────────────────────────────────────────────────────
+-- اگر نسخهٔ نصب‌شدهٔ این تابع ستون‌های دیگری برگرداند، CREATE OR REPLACE نمی‌تواند
+-- نوع خروجی را عوض کند و کل استقرار با این خطا می‌ایستد:
+--   ERROR: cannot change return type of existing function
+-- و بدتر: ربات بی‌صدا با نسخهٔ قدیمی به کار خود ادامه می‌دهد (پاسخ خالی).
+-- پس امضا صریحاً حذف و از نو ساخته می‌شود. تنها مصرف‌کننده‌اش n8n است و چند خط
+-- پایین‌تر بازساخته می‌شود؛ بین این دو خط هیچ اجرایی معنا ندارد.
+DROP FUNCTION IF EXISTS iee1405.bot_dispatch_json(jsonb);
+
 CREATE OR REPLACE FUNCTION iee1405.bot_dispatch_json(p_update jsonb)
 RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text)
 LANGUAGE plpgsql AS $$

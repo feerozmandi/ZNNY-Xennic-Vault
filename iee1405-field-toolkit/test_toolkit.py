@@ -498,6 +498,115 @@ def main() -> int:
               and {"rank", "company", "status", "outcome"} <= set(srows[0])
               and sum(1 for r in srows if r["status"] == "visited") == 1)
 
+        # ── D10: صدور برای PostgreSQL ──────────────────────────────
+        print("\nD10 — صدور آینهٔ PostgreSQL برای ربات")
+        con = bgdb.connect(db)
+        counts = {tbl: con.execute(f"SELECT count(*) FROM {tbl}").fetchone()[0]
+                  for tbl in ("company", "contact", "participation",
+                              "company_flag", "visit_pilot")}
+        con.execute("""INSERT INTO company (name_fa, name_norm, slug, verified)
+                       VALUES (?, ?, ?, 0)""",
+                    ("شرکت آزمون 'نقل قول' و \"گیومه\"\nخط دوم", "شرکت آزمون نقل قول", "test-quote"))
+        con.commit()
+        con.close()
+        counts["company"] += 1
+
+        sql_out = root / "load.sql"
+        out = sh("export_to_pg.py", "--db", str(db), "--out", str(sql_out),
+                 "--manifest", str(root / "load.json"))
+        man = json.loads((root / "load.json").read_text(encoding="utf-8"))
+        check("D10.1 شمار ردیف‌های صدورشده با پایگاه می‌خواند",
+              (man["companies"], man["contacts"], man["participations"],
+               man["flags"], man["pilot"]) ==
+              (counts["company"], counts["contact"], counts["participation"],
+               counts["company_flag"], counts["visit_pilot"]),
+              f"{man['companies']}/{man['contacts']}/{man['participations']}/"
+              f"{man['flags']}/{man['pilot']}")
+
+        sql = sql_out.read_text(encoding="utf-8")
+
+        def insert_shape(text: str) -> list[tuple[str, int, list[int]]]:
+            """برای هر INSERT: نام جدول، شمار ستون‌ها، شمار مقدار هر ردیف.
+
+            هر دستور از بالای سطر بعدی (`INSERT INTO` در ابتدای خط) بریده می‌شود،
+            و جداکردن کاما فقط بیرون از نقل‌قول و پرانتز انجام می‌شود؛ وگرنه
+            کامای داخل نام شرکت («شرکت الف، ب») شمش را به هم می‌ریزد.
+            """
+            out = []
+            parts = re.split(r"(?m)^INSERT INTO ", text)
+            for part in parts[1:]:
+                head = part.split("\n", 1)
+                name = head[0].split("(")[0].strip()
+                cols_raw = re.match(r"[^(]*\(([^)]*)\)", part, re.S)
+                if not cols_raw:
+                    continue
+                ncol = len(cols_raw.group(1).split(","))
+                body = part[cols_raw.end():]
+                body = body.split("ON CONFLICT")[0]
+                rows, depth, cur, quote = [], 0, [], False
+                for ch in body:
+                    if ch == "'":
+                        quote = not quote
+                        cur.append(ch)
+                        continue
+                    if not quote:
+                        if ch == "(":
+                            depth += 1
+                            if depth == 1:
+                                cur = []
+                                continue
+                        elif ch == ")":
+                            depth -= 1
+                            if depth == 0:
+                                rows.append("".join(cur))
+                                continue
+                        elif ch == "," and depth == 1:
+                            cur.append("\x00")
+                            continue
+                    if depth >= 1:
+                        cur.append(ch)
+                out.append((name, ncol, [len(r.split("\x00")) for r in rows]))
+            return out
+
+        shapes = insert_shape(sql)
+        bad = [f"{tbl}: {ncol} ستون در برابر {sorted(set(c))}"
+               for tbl, ncol, c in shapes if not c or set(c) != {ncol}]
+        check("D10.2 هر INSERT ستون‌ها و مقدارهایش هم‌شمار است",
+              len(shapes) >= 5 and not bad,
+              f"{len(shapes)} دستور" + (f" · {bad[:2]}" if bad else ""))
+
+        check("D10.3 نقل قول، گیومه و خط تازه چیزی را نمی‌شکنند",
+              "'شرکت آزمون ''نقل قول'' و \"گیومه\" خط دوم'" in sql
+              and "\nخط دوم" not in sql)
+
+        out2 = root / "load_again.sql"
+        sh("export_to_pg.py", "--db", str(db), "--out", str(out2))
+        check("D10.4 صدور دوباره بایت‌به‌بایت یکسان است (بازتولیدپذیر)",
+              out2.read_bytes() == sql_out.read_bytes())
+
+        check("D10.5 هر جدول مسیر به‌روزرسانی دارد (اجرای دوباره ردیف تکراری نمی‌سازد)",
+              sql.count("ON CONFLICT") >= 5
+              and "DO UPDATE" in sql and "BEGIN;" in sql and sql.rstrip().endswith("COMMIT;"))
+
+        lim = root / "load_limit.sql"
+        sh("export_to_pg.py", "--db", str(db), "--out", str(lim), "--limit", "5")
+        man5 = json.loads(sh("export_to_pg.py", "--db", str(db), "--out", str(lim),
+                             "--limit", "5", "--manifest", str(root / "l5.json")) and
+                          (root / "l5.json").read_text(encoding="utf-8"))
+        check("D10.6 --limit فقط همان تعداد شرکت را می‌آورد",
+              man5["companies"] == 5 and man5["contacts"] < man["contacts"],
+              f"{man5['companies']} شرکت / {man5['contacts']} تماس")
+
+        pr = root / "load_prune.sql"
+        sh("export_to_pg.py", "--db", str(db), "--out", str(pr), "--prune")
+        check("D10.7 --prune ردیف‌های حذف‌شده را هم پاک می‌کند",
+              "DELETE FROM barghpa.company WHERE id NOT IN" in pr.read_text(encoding="utf-8")
+              and "DELETE FROM barghpa.company WHERE id NOT IN" not in sql)
+
+        check("D10.8 شمار ردیف‌های تأییدشده همان مبدأ است (هیچ تأییدی ساخته نمی‌شود)",
+              man["verified_companies"] == 0 and man["verified_contacts"] == 0,
+              f"{man['verified_companies']} شرکت · {man['verified_contacts']} تماس")
+
     finally:
         if "--keep" in sys.argv:
             print(f"\nپوشهٔ آزمون نگه داشته شد: {root}")
