@@ -211,7 +211,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT update_id, chat_id, text_body\n  FROM iee1405.pending_replies(20);",
+        "query": "SELECT update_id, chat_id, text_body, reply_markup\n  FROM iee1405.pending_replies(20);",
         "options": {}
       },
       "id": "2fb96d13-281e-5156-ad5d-2c58f7560267",
@@ -251,6 +251,10 @@
             {
               "name": "text",
               "value": "={{ $json.text_body }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ $json.reply_markup }}"
             }
           ]
         }
@@ -265,6 +269,78 @@
       ],
       "retryOnFail": false,
       "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cd887b12-3659-5854-8820-cd761f509faa",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "492518f5-1fd8-55bc-8cb6-484498b59cd5",
+      "name": "🔀 بررسی تحویل",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1870,
+        0
+      ],
+      "notes": "بله برای ارسال موفق ok=true برمی‌گرداند؛ هر چیز دیگر یعنی نرسید",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BALE_API_URL }}/sendMessage",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $('📤 پاسخ‌های آماده ارسال').item.json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('📤 پاسخ‌های آماده ارسال').item.json.text_body }}"
+            }
+          ]
+        }
+      },
+      "id": "6dbb1faf-f50d-5747-90a8-0f23da2e6483",
+      "name": "💬 ارسال دوباره بدون دکمه",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1870,
+        200
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "notes": "بدون reply_markup: اگر خودِ دکمه باعث رد شدن پیام شده باشد، این‌جا می‌رسد",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -289,6 +365,32 @@
           "name": "Xennic PostgreSQL"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT iee1405.mark_sent_fallback($1::bigint, $2::jsonb) AS result;",
+        "options": {
+          "queryReplacement": "={{ [$('📤 پاسخ‌های آماده ارسال').item.json.update_id, JSON.stringify($json)] }}"
+        }
+      },
+      "id": "fe0e2564-7ca0-5664-8610-0dfd81927351",
+      "name": "✅ ثبت ارسال بدون دکمه",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2090,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "notes": "تلاش جایگزین را ثبت می‌کند؛ سه بار تکرار = دکمه‌ها خودکار خاموش می‌شوند",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -426,11 +528,40 @@
         ]
       ]
     },
-    "💬 ارسال پاسخ": {
+    "🔀 بررسی تحویل": {
       "main": [
         [
           {
             "node": "✅ ثبت ارسال",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "💬 ارسال دوباره بدون دکمه",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 ارسال دوباره بدون دکمه": {
+      "main": [
+        [
+          {
+            "node": "✅ ثبت ارسال بدون دکمه",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 ارسال پاسخ": {
+      "main": [
+        [
+          {
+            "node": "🔀 بررسی تحویل",
             "type": "main",
             "index": 0
           }

@@ -159,6 +159,14 @@ def main():
     incoming = fake_bale(offset, updates)
     check("دریافت پیام جدید", len(incoming) == len(updates), str(len(incoming)))
 
+    # همان گره‌ای که در گردش‌کار واقعی بعد از دریافت اجرا می‌شود: بارزسی پاسخ
+    # بله و ثبت شناسه‌های همین دسته. بدون آن، offset جلو نمی‌رود — و این
+    # درست است: از نسخهٔ ۰.۱.۳۲ `poll_advance` فقط شناسه‌هایی را می‌شمارد که
+    # خودِ بله در همان دریافت داده، تا یک ردیف دستی با شناسهٔ غول‌آسا نتواند
+    # offset را مسموم کند و getUpdates را به ۵۰۰ بیندازد.
+    psql(query_of("🩺 بازرسی پاسخ بله", wf),
+         [json.dumps({"ok": True, "result": incoming}, ensure_ascii=False)])
+
     dispatched = 0
     for u in incoming:                                  # splitOut → یک آیتم per update
         rows = psql(query_of("🧠 پردازش در PostgreSQL", wf),
@@ -182,7 +190,7 @@ def main():
     check("صف پس از ارسال خالی شد (تحویل تضمین‌شده)", len(remaining) == 0, str(len(remaining)))
 
     new_offset = int(psql(query_of("⏭ ثبت زمان دریافت", wf))[0][0])
-    check("offset به آخرین آپدیت رسید", new_offset >= 7007, str(new_offset))
+    check("offset به آخرین آپدیتِ همین دسته رسید", new_offset >= 7009, str(new_offset))
 
     # ── بررسی رفتار ──
     owner_msgs = [m for m in OUTBOX if m["chat_id"] == OWNER_CHAT]
@@ -214,6 +222,49 @@ def main():
                "WHERE o.legal_name = 'شرکت برق‌آوران پارس' AND cl.attribute = 'capability.category'")
     check("دسته محصول به‌عنوان ادعای reported ثبت شد",
           cat and cat[0][0] == "TAB_MV", cat[0][0] if cat else "—")
+
+    # ── مسیر جایگزین: بله پیام را با دکمه رد می‌کند ──
+    # سناریوی واقعی ۰.۱.۳۵: پیام با reply_markup رد شد، «ثبت ارسال» با شکست
+    # ثبت شد و ربات تا پنج تلاش ساکت ماند. اکنون باید بدون دکمه برسد.
+    psql("UPDATE iee1405.bot_state SET value = '0' WHERE key = 'help_dedupe_seconds';")
+    psql("UPDATE iee1405.bot_state SET value = '0' WHERE key = 'markup_failures';")
+    psql("UPDATE iee1405.bot_state SET value = 'true' WHERE key = 'keyboard_enabled';")
+    psql(query_of("🧠 پردازش در PostgreSQL", wf),
+         [json.dumps(msg(7101, OWNER_CHAT, "/help"), ensure_ascii=False)])
+    pend = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+    check("پیام آزمون مسیر جایگزین در صف است", len(pend) == 1, str(len(pend)))
+    fb_id, fb_chat, fb_text = pend[0][0], pend[0][1], pend[0][2]
+
+    bad = ('{"ok":false,"error_code":400,'
+           '"description":"Bad Request: reply_markup"}')
+    psql(query_of("✅ ثبت ارسال", wf), [fb_id, bad])
+    still = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+    check("ارسال ناموفق در صف می‌ماند (تضمین تحویل)", len(still) == 1, str(len(still)))
+
+    OUTBOX.append({"chat_id": fb_chat, "text": fb_text})
+    psql(query_of("✅ ثبت ارسال بدون دکمه", wf),
+         [fb_id, '{"ok":true,"result":{"message_id":2}}'])
+    after_fb = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+    check("ارسال دوباره بدون دکمه پیام را تحویل داد", len(after_fb) == 0, str(len(after_fb)))
+    check("پیام جایگزین همان متن را دارد", OUTBOX[-1]["text"] == fb_text,
+          OUTBOX[-1]["text"][:40])
+    fails = psql("SELECT value FROM iee1405.bot_state WHERE key = 'markup_failures'")
+    check("تلاش جایگزین ثبت شد", fails and fails[0][0] == "1", fails[0][0] if fails else "—")
+
+    # سه بار پشت سر هم = دکمه‌ها روی این نسخهٔ بله کار نمی‌کنند → خودکار خاموش
+    psql("UPDATE iee1405.bot_state SET value = '2' WHERE key = 'markup_failures';")
+    psql(query_of("🧠 پردازش در PostgreSQL", wf),
+         [json.dumps(msg(7102, OWNER_CHAT, "/today"), ensure_ascii=False)])
+    pend2 = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+    if pend2:
+        psql(query_of("✅ ثبت ارسال بدون دکمه", wf),
+             [pend2[0][0], '{"ok":true,"result":{"message_id":3}}'])
+    kb = psql("SELECT value FROM iee1405.bot_state WHERE key = 'keyboard_enabled'")
+    check("پس از سه شکست پیاپی، دکمه‌ها خودکار خاموش شدند",
+          kb and kb[0][0] == "false", kb[0][0] if kb else "—")
+    psql("UPDATE iee1405.bot_state SET value = 'true' WHERE key = 'keyboard_enabled';")
+    psql("UPDATE iee1405.bot_state SET value = '0' WHERE key = 'markup_failures';")
+    psql("UPDATE iee1405.bot_state SET value = '45' WHERE key = 'help_dedupe_seconds';")
 
     # ── idempotency: همان آپدیت دوباره ──
     before = len(psql("SELECT update_id FROM iee1405.bot_updates"))

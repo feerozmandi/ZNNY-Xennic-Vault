@@ -149,16 +149,59 @@ def bale_call(name, position, method, *, query_params=None, body_params=None,
     return node
 
 
-def send_message_node(name, position, *, text_field="text_body", notes=None):
-    """ارسال پیام به بله؛ chat_id و متن از آیتم قبلی می‌آید."""
-    return bale_call(
-        name, position, "sendMessage",
-        body_params={
+def send_message_node(name, position, *, text_field="text_body", notes=None,
+                      with_markup=False, source_node=None):
+    """ارسال پیام به بله؛ chat_id و متن از آیتم قبلی می‌آید.
+
+    with_markup: ستون reply_markup را هم بفرست (دکمه‌های پایین صفحه).
+    فقط جایی که پرس‌وجوی بالادستی این ستون را برمی‌گرداند روشن می‌شود؛
+    برای گره‌های یادآور/خلاصه/هشدار، فرستادن مقدار تعریف‌نشده باعث خطای
+    بله («Bad Request») می‌شود.
+    """
+    # source_node: وقتی ورودی این گره، پاسخ خطای بله است (نه ردیف صف)،
+    # chat_id و متن باید از گرهٔ صف خوانده شوند.
+    if source_node:
+        body = {
+            "chat_id": "={{ $('" + source_node + "').item.json.chat_id }}",
+            "text": "={{ $('" + source_node + "').item.json." + text_field + " }}",
+        }
+    else:
+        body = {
             "chat_id": "={{ $json.chat_id }}",
             "text": "={{ $json." + text_field + " }}",
+        }
+    if with_markup:
+        body["reply_markup"] = "={{ $json.reply_markup }}"
+    return bale_call(name, position, "sendMessage", body_params=body, notes=notes)
+
+
+def if_node(name, position, expression, *, notes=None):
+    """گره IF با یک شرط بولی؛ خروجی ۰ = درست، خروجی ۱ = نادرست."""
+    node = {
+        "parameters": {
+            "conditions": {
+                "options": {"caseSensitive": True, "leftValue": "", "typeValidation": "loose",
+                            "version": 2},
+                "conditions": [{
+                    "id": nid(name + ":c1"),
+                    "leftValue": "={{ " + expression + " }}",
+                    "rightValue": "",
+                    "operator": {"type": "boolean", "operation": "true", "singleValue": True},
+                }],
+                "combinator": "and",
+            },
+            "options": {},
         },
-        notes=notes,
-    )
+        "id": nid(name),
+        "name": name,
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": position,
+    }
+    if notes:
+        node["notes"] = notes
+        node["notesInFlow"] = True
+    return node
 
 
 def meta(description):
@@ -244,13 +287,35 @@ def wf_inbound():
 
     n_pending = pg_node(
         "📤 پاسخ‌های آماده ارسال", [1540, 0],
-        "SELECT update_id, chat_id, text_body\n"
+        "SELECT update_id, chat_id, text_body, reply_markup\n"
         "  FROM iee1405.pending_replies(20);",
         execute_once=True,   # حیاتی: بدون این، به تعداد آیتم‌ها پیام تکراری می‌رود
         notes="ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
     )
 
-    n_send = send_message_node("💬 ارسال پاسخ", [1760, 0])
+    # reply_markup با پیام می‌رود؛ اگر تابع پایگاه این ستون را برنگرداند،
+    # گرهٔ بالادستی با «column reply_markup does not exist» می‌شکند و ربات
+    # کامل ساکت می‌شود (این اتفاق واقعاً افتاد).
+    n_send = send_message_node("💬 ارسال پاسخ", [1760, 0], with_markup=True)
+
+    # اگر بله همین پیام را با دکمه نپذیرد (مثلاً 400 روی reply_markup)، پیام
+    # نباید گم شود: یک بار بدون دکمه فرستاده می‌شود و همان پاسخ ثبت می‌گردد.
+    # بدون این شاخه، خطای دکمه = ربات کاملاً ساکت (تجربهٔ واقعی ۰.۱.۳۵).
+    PENDING = "📤 پاسخ\u200cهای آماده ارسال"
+    n_check = if_node(
+        "🔀 بررسی تحویل", [1870, 0], "$json.ok === true",
+        notes="بله برای ارسال موفق ok=true برمی‌گرداند؛ هر چیز دیگر یعنی نرسید",
+    )
+    n_resend = send_message_node(
+        "💬 ارسال دوباره بدون دکمه", [1870, 200], source_node=PENDING,
+        notes="بدون reply_markup: اگر خودِ دکمه باعث رد شدن پیام شده باشد، این‌جا می‌رسد",
+    )
+    n_mark_fb = pg_node(
+        "✅ ثبت ارسال بدون دکمه", [2090, 200],
+        "SELECT iee1405.mark_sent_fallback($1::bigint, $2::jsonb) AS result;",
+        params_expr="[$('" + PENDING + "').item.json.update_id, JSON.stringify($json)]",
+        notes="تلاش جایگزین را ثبت می‌کند؛ سه بار تکرار = دکمه‌ها خودکار خاموش می‌شوند",
+    )
 
     # update_id از گره «پاسخ‌های آماده ارسال» خوانده می‌شود، نه از $json:
     # خروجی گره ارسال، پاسخ بله است (ok/message_id) و update_id ندارد؛ نسخه
@@ -276,7 +341,8 @@ def wf_inbound():
     n_pollerr["onError"] = "continueRegularOutput"
 
     nodes = [n_sched, n_offset, n_beat, n_get, n_watch, n_split, n_dispatch,
-             n_advance, n_pending, n_send, n_mark, n_pollerr]
+             n_advance, n_pending, n_send, n_check, n_resend, n_mark, n_mark_fb,
+             n_pollerr]
 
     conns = {
         n_sched["name"]:  {"main": [[{"node": n_offset["name"],  "type": "main", "index": 0}]]},
@@ -294,7 +360,12 @@ def wf_inbound():
         n_dispatch["name"]: {"main": [[{"node": n_advance["name"], "type": "main", "index": 0}]]},
         n_advance["name"]:  {"main": [[{"node": n_pending["name"], "type": "main", "index": 0}]]},
         n_pending["name"]:  {"main": [[{"node": n_send["name"], "type": "main", "index": 0}]]},
-        n_send["name"]:     {"main": [[{"node": n_mark["name"], "type": "main", "index": 0}]]},
+        n_check["name"]:    {"main": [
+                                [{"node": n_mark["name"], "type": "main", "index": 0}],
+                                [{"node": n_resend["name"], "type": "main", "index": 0}],
+                            ]},
+        n_resend["name"]:   {"main": [[{"node": n_mark_fb["name"], "type": "main", "index": 0}]]},
+        n_send["name"]:     {"main": [[{"node": n_check["name"], "type": "main", "index": 0}]]},
     }
 
     wf = {

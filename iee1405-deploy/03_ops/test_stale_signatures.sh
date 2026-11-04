@@ -15,7 +15,8 @@
 #
 # موارد:
 #   S1  04_bot_logic.sql      · bot_dispatch_json سه‌ستونی  (باگ واقعی سرور)
-#   S2  05_ops_helpers.sql    · pending_replies سه‌ستونی    (باگ واقعی سرور)
+#   S2  05_ops_helpers.sql    · pending_replies چهارستونی بدون reply_markup
+#        (همان خطای «column "reply_markup" does not exist» روی سرور)
 #   S3  08_exhibitor_mirror.sql · barghpa.search با ستون دیگر
 #   S4  اجرای دوبارهٔ ۰۵ بدون نسخهٔ کهنه → هیچ حذفی نباید رخ دهد (بی‌اثر بودن)
 # ═══════════════════════════════════════════════════════════════════════
@@ -92,7 +93,7 @@ case_run "S2 · pending_replies سه‌ستونی — فایل ۰۵" \
        LANGUAGE sql AS 'SELECT NULL::bigint, NULL::bigint, NULL::text';" \
     "01_sql/05_ops_helpers.sql" \
     "pg_get_function_result('iee1405.pending_replies(int)'::regprocedure)" \
-    "TABLE(update_id bigint, chat_id bigint, text_body text, attempt integer)"
+    "TABLE(update_id bigint, chat_id bigint, text_body text, attempt integer, reply_markup text)"
 
 case_run "S3 · barghpa.search با ستون دیگر — فایل ۰۸" \
     "DROP FUNCTION IF EXISTS barghpa.search(text, int);

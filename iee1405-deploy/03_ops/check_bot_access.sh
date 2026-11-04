@@ -211,6 +211,55 @@ else
     c_hint "برای آزمون مسیر کامل (bot_dispatch_json) با --full اجرا کنید."
 fi
 
+# ── ۴.۶) پرس‌وجوهای واقعی گردش‌کارهای n8n ─────────────────────────────
+# چرا؟ یک بار گرهٔ «ارسال پاسخ» در n8n ستون `reply_markup` را خواست و تابع
+# پایگاه آن را برنگرداند؛ نتیجه «column "reply_markup" does not exist» و
+# سکوت کامل ربات بود. این بخش همان SQLهایی را که در فایل‌های گردش‌کار هست،
+# روی همین پایگاه اجرا می‌کند تا ناهم‌خوانی پیش از کاربر پیدا شود.
+c_head "۴.۶) پرس‌وجوهای گردش‌کارهای n8n"
+
+if ! command -v python3 >/dev/null 2>&1; then
+    c_warn "python3 نیست؛ بررسی SQL گردش‌کارها رد شد"
+else
+    NQ=0; NBAD=0
+    # پارامترهای n8n ($1، $2 …) در پایتون با مقدار بی‌اثر جای‌گذاری می‌شوند
+    # (هدف سنجش «ستون‌ها» است، نه نتیجه). انجام این کار در bash با
+    # ${var//…} به‌خاطر آکولادهای JSON، رشته را خراب می‌کرد.
+    while IFS=$'\t' read -r wf node sql; do
+        [[ -z "${sql:-}" ]] && continue
+        NQ=$((NQ+1))
+        err="$(q "BEGIN; $sql; ROLLBACK;" 2>&1 >/dev/null | grep -E "ERROR|FATAL" | head -1)"
+        if [[ -n "$err" ]]; then
+            NBAD=$((NBAD+1))
+            fail "$wf · $node" "$err"
+        fi
+    done < <(python3 - "$HERE/02_n8n" <<'PYEOF'
+import glob, json, re, sys
+
+def probe(q):
+    """پارامترهای n8n با مقدار بی‌اثر: هدف سنجش ستون‌هاست، نه نتیجه."""
+    q = re.sub(r"\$\d+::jsonb", "'{}'::jsonb", q)
+    q = re.sub(r"\$\d+::bigint", "0", q)
+    q = re.sub(r"\$\d+::text", "''", q)
+    return re.sub(r"\$\d+", "NULL", q)
+
+for f in sorted(glob.glob(sys.argv[1] + "/*.json")):
+    try:
+        d = json.load(open(f, encoding="utf-8"))
+    except Exception:
+        continue
+    for n in d.get("nodes", []):
+        q = (n.get("parameters") or {}).get("query")
+        if isinstance(q, str) and q.strip():
+            print("%s\t%s\t%s" % (f.rsplit("/", 1)[-1], n.get("name", "?"),
+                                   probe(re.sub(r"\s+", " ", q.strip())).rstrip(";")))
+PYEOF
+    )
+    if [[ $NBAD -eq 0 ]]; then
+        pass "همهٔ $NQ پرس‌وجوی گردش‌کارها روی این پایگاه اجرا شد"
+    fi
+fi
+
 # ── ۵) CRM دست‌نخورده ─────────────────────────────────────────────────
 c_head "۵) مرز CRM"
 ORG="$(q "SELECT count(*) FROM crm.organizations")"

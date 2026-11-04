@@ -392,6 +392,7 @@ LANGUAGE plpgsql AS $$
 DECLARE
     v_text      text := btrim(COALESCE(p_text, ''));
     v_key       text;   -- نسخهٔ یکسان‌شدهٔ متن برای تشخیص دستور
+    v_lbl       text;   -- همان متن، بدون ایموجی/نشانهٔ ابتدایی (برای برچسب دکمه)
     v_dedupe_s  int;    -- پنجرهٔ ضدتکرار راهنما (ثانیه)
     v_cmd       text;
     v_arg       text;
@@ -456,6 +457,11 @@ BEGIN
     -- به «برای شروع: /new …» می‌رسید چون هیچ شرطی با متن آلوده جور درنمی‌آمد.
     v_key := crm.cmd_text(v_text);
 
+    -- برچسب دکمه‌ها معمولاً ایموجی دارند («📊 امروز»). برای تطبیق واژهٔ فارسی،
+    -- نشانه‌های ابتدای متن حذف می‌شوند. عمداً روی متغیر جداگانه: اگر روی v_key
+    -- انجام شود، «/c 38B» هم اسلش ابتدایش حذف می‌شد و دستور از دست می‌رفت.
+    v_lbl := btrim(regexp_replace(v_key, '^[^a-zA-Z0-9آ-یءأإؤئ۰-۹]+', ''));
+
     -- نخستین نشانهٔ «/دستور» در متن، هرجای متن که باشد (برچسب دکمه‌ها ممکن است
     -- با ایموجی یا متن فارسی شروع شوند: «📊 امروز /today»)
     IF v_key LIKE '%/%' THEN
@@ -470,7 +476,7 @@ BEGIN
 
     -- میان‌برهای یک‌حرفی و واژه‌های فارسی (برچسب دکمه‌های بدون اسلش)
     IF v_cmd IS NULL THEN
-        v_cmd := CASE v_key
+        v_cmd := CASE v_lbl
                     WHEN 'ن' THEN '/new'
                     WHEN 'ج' THEN '/find'
                     WHEN 'م' THEN '/log'
@@ -488,22 +494,28 @@ BEGIN
                     WHEN 'جست وجو' THEN '/find'
                     WHEN 'جستجوی شرکت' THEN '/find'
                     WHEN 'پیدا' THEN '/find'
-                    WHEN 'امروز' THEN '/today'
                     WHEN 'لغو' THEN '/cancel'
                     WHEN 'انصراف' THEN '/cancel'
                     WHEN 'سالن' THEN '/hall'
                     WHEN 'شرکت' THEN '/c'
+                    -- برچسب دکمه‌های منوی ثابت (iee1405.menu_keyboard)
+                    WHEN 'امروز' THEN '/today'
+                    WHEN 'آمار نمایشگاه' THEN '/c'
+                    WHEN 'فهرست نمایشگاه' THEN '/c'
+                    WHEN 'شرکت جدید' THEN '/new'
+                    WHEN 'ثبت شرکت' THEN '/new'
+                    WHEN 'سالن ها' THEN '/c'
                     ELSE NULL END;
         IF v_cmd IS NOT NULL THEN v_arg := ''; END IF;
     END IF;
     -- میان‌بر با آرگومان: «ج تابلو»
-    IF v_cmd IS NULL AND v_key ~ '^(ن|ج|م|پ|و|ش|س)[[:space:]]' THEN
-        v_cmd := CASE left(v_key, 1)
+    IF v_cmd IS NULL AND v_lbl ~ '^(ن|ج|م|پ|و|ش|س)[[:space:]]' THEN
+        v_cmd := CASE left(v_lbl, 1)
                     WHEN 'ن' THEN '/new' WHEN 'ج' THEN '/find'
                     WHEN 'م' THEN '/log' WHEN 'پ' THEN '/task'
                     WHEN 'و' THEN '/visit'
                     WHEN 'ش' THEN '/c' WHEN 'س' THEN '/hall' END;
-        v_arg := btrim(substr(v_key, 2));
+        v_arg := btrim(substr(v_lbl, 2));
     END IF;
 
     SELECT s.state, s.payload INTO v_state, v_payload

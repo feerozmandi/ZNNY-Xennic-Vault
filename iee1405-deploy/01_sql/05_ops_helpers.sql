@@ -22,7 +22,9 @@ INSERT INTO iee1405.bot_state (key, value) VALUES
     ('bale_seen_max', NULL),      -- بزرگ‌ترین update_id که بله در آخرین دریافت داد
     ('bale_batch_ids', NULL),     -- فهرست update_idهای همان دریافت (برای بررسی گم‌شدن)
     ('health_alert_last_at', NULL), -- آخرین هشدار سلامت (بازه سکوت WF-04)
-    ('help_dedupe_seconds', '45')   -- پنجرهٔ ضدتکرار پاسخ راهنما (۰ = خاموش)
+    ('help_dedupe_seconds', '45'),  -- پنجرهٔ ضدتکرار پاسخ راهنما (۰ = خاموش)
+    ('keyboard_enabled', 'true'),   -- دکمه‌های پایین صفحه (false = حذف صفحه‌کلید)
+    ('markup_failures',  '0')       -- چند بار ارسال با دکمه رد شد و بی‌دکمه فرستادیم
 ON CONFLICT (key) DO NOTHING;
 
 COMMENT ON TABLE iee1405.bot_state IS 'وضعیت پایدار سرویس؛ با ری‌استارت n8n از دست نمی‌رود';
@@ -487,13 +489,61 @@ CREATE INDEX IF NOT EXISTS bot_updates_pending_idx
     ON iee1405.bot_updates (update_id)
  WHERE delivered_at IS NULL AND reply_text IS NOT NULL;
 
+-- ── دکمه‌ها (reply_markup) ───────────────────────────────────────────
+-- گرهٔ ارسال در n8n ستون `reply_markup` را از همین تابع می‌خواند و عیناً به
+-- بله می‌فرستد. اگر تابع این ستون را برنگرداند، **کل ارسال** می‌شکند:
+--   column "reply_markup" does not exist  →  هیچ پاسخی به کاربر نمی‌رسد
+-- (این خطا یک بار ربات را کامل ساکت کرد.)
+--
+-- قرارداد: این ستون **هرگز NULL نیست**. اگر پیامی دکمهٔ اختصاصی نداشته باشد،
+-- منوی پیش‌فرض برمی‌گردد؛ وگرنه گرهٔ HTTP ممکن است رشتهٔ خالی بفرستد و بله
+-- درخواست را با خطای ۴۰۰ رد کند.
+ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS reply_markup jsonb;
+
+-- منوی ثابت پایین صفحه. برچسب دکمه‌ها عمداً همان واژه‌هایی است که
+-- `iee1405.bot_dispatch` می‌شناسد (شروع، امروز، راهنما، جست‌وجو، …)، پس فشردن
+-- دکمه دقیقاً همان کاری را می‌کند که تایپ آن واژه.
+CREATE OR REPLACE FUNCTION iee1405.menu_keyboard()
+RETURNS text LANGUAGE sql IMMUTABLE AS $$
+    SELECT jsonb_build_object(
+        'keyboard', jsonb_build_array(
+            jsonb_build_array('📊 امروز',   '🔎 جست‌وجو'),
+            jsonb_build_array('🏢 شرکت جدید', '📈 آمار نمایشگاه'),
+            jsonb_build_array('❓ راهنما')
+        ),
+        'resize_keyboard',    true
+    )::text
+$$;
+
+COMMENT ON FUNCTION iee1405.menu_keyboard() IS
+'صفحه‌کلید ثابت ربات (ReplyKeyboardMarkup بله)؛ برچسب‌ها همان واژه‌هایی هستند که bot_dispatch می‌شناسد';
+
+-- کلیدی که واقعاً فرستاده می‌شود. اگر بله روزی این صفحه‌کلید را نپذیرفت (۴۰۰ روی
+-- reply_markup)، با یک UPDATE خاموش می‌شود بدون اینکه ارسال پیام بشکند:
+--   UPDATE iee1405.bot_state SET value = 'false' WHERE key = 'keyboard_enabled';
+-- در آن حالت به‌جای NULL، «حذف صفحه‌کلید» فرستاده می‌شود؛ چون فرستادن رشتهٔ
+-- خالی در فیلد reply_markup خودش خطای ۴۰۰ می‌دهد و کل ارسال را می‌خواباند.
+CREATE OR REPLACE FUNCTION iee1405.current_keyboard()
+RETURNS text LANGUAGE sql STABLE AS $$
+    SELECT CASE
+             WHEN COALESCE((SELECT value FROM iee1405.bot_state
+                             WHERE key = 'keyboard_enabled'), 'true') = 'true'
+               THEN iee1405.menu_keyboard()
+             ELSE '{"remove_keyboard": true}'
+           END
+$$;
+
+COMMENT ON FUNCTION iee1405.current_keyboard() IS
+'صفحه‌کلید جاری با درنظرگرفتن کلید خاموش/روشن؛ هرگز NULL نیست';
+
 SELECT iee1405.drop_stale_result('iee1405', 'pending_replies',
-       'TABLE(update_id bigint, chat_id bigint, text_body text, attempt int)');
+       'TABLE(update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup text)');
 CREATE OR REPLACE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20)
-RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int)
+RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup text)
 LANGUAGE sql STABLE AS $$
     SELECT u.update_id, u.chat_id, u.reply_text,
-           COALESCE((u.raw -> '_attempts')::int, 0)
+           COALESCE((u.raw -> '_attempts')::int, 0),
+           COALESCE(u.reply_markup::text, iee1405.current_keyboard())
       FROM iee1405.bot_updates u
      WHERE u.reply_text IS NOT NULL
        AND u.delivered_at IS NULL
@@ -550,6 +600,55 @@ BEGIN
 END $$;
 
 COMMENT ON FUNCTION iee1405.mark_sent IS 'ثبت ارسال بر اساس پاسخ واقعی بله؛ تلاش محدود تا حلقه بی‌پایان نشود';
+
+-- ─────────────────────────────────────────────────────────────────────
+-- ۱۰.۱) مسیر جایگزین ارسال
+--     اگر بله خودِ پیام را نپذیرد ولی بدون دکمه بپذیرد، باید هم پیام برسد
+--     و هم این حالت ثبت شود؛ وگرنه ربات بی‌صدا می‌ماند و کسی نمی‌فهمد چرا.
+--     سه بار پشت سر هم = دکمه‌ها روی این نسخهٔ بله کار نمی‌کنند؛ خاموششان
+--     می‌کنیم تا پیام‌ها بی‌دکمه ولی برسند (با یک UPDATE برمی‌گردند).
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION iee1405.mark_sent_fallback(p_update_id bigint,
+                                                      p_response jsonb DEFAULT NULL)
+RETURNS text LANGUAGE plpgsql AS $$
+DECLARE
+    v_result text;
+    v_ok     boolean := COALESCE((p_response ->> 'ok')::boolean, false);
+    v_fails  int;
+    v_enabled text;
+BEGIN
+    IF p_update_id IS NULL THEN
+        RETURN 'no-id';           -- بدون شناسه نمی‌دانیم کدام پیام تحویل شد
+    END IF;
+
+    v_result := iee1405.mark_sent(p_update_id, p_response);
+    IF NOT v_ok THEN
+        RETURN v_result;          -- جایگزین هم شکست خورد؛ تلاش بعدی خودش می‌آید
+    END IF;
+
+    INSERT INTO iee1405.bot_state (key, value) VALUES ('markup_failures', '1')
+    ON CONFLICT (key) DO UPDATE
+       SET value = (COALESCE(NULLIF(iee1405.bot_state.value, '')::int, 0) + 1)::text,
+           updated_at = now()
+    RETURNING COALESCE(value::int, 0) INTO v_fails;
+
+    SELECT value INTO v_enabled FROM iee1405.bot_state WHERE key = 'keyboard_enabled';
+
+    IF v_fails >= 3 AND COALESCE(v_enabled, 'true') = 'true' THEN
+        UPDATE iee1405.bot_state SET value = 'false', updated_at = now()
+         WHERE key = 'keyboard_enabled';
+        INSERT INTO iee1405.bot_errors (stage, message, detail)
+        VALUES ('send',
+                'ارسال با دکمه سه بار پشت سر هم رد شد؛ دکمه‌ها خاموش شد',
+                'برای روشن‌کردن: UPDATE iee1405.bot_state SET value = ''true'' '
+                'WHERE key = ''keyboard_enabled'';');
+    END IF;
+
+    RETURN v_result;
+END $$;
+
+COMMENT ON FUNCTION iee1405.mark_sent_fallback IS
+'ثبت ارسالِ مسیر جایگزین (بدون دکمه)؛ اگر تکرار شد دکمه‌ها را خودکار خاموش می‌کند';
 
 CREATE OR REPLACE FUNCTION iee1405.mark_delivered(p_update_id bigint)
 RETURNS void LANGUAGE sql AS $$
