@@ -50,16 +50,30 @@ BEGIN
     UPDATE iee1405.bot_state SET value = NULL, updated_at = clock_timestamp()
      WHERE key = 'last_error';
 
-    -- بیشترین شناسه‌ای که **دیده شد** (نه فقط آنچه ذخیره شد)
-    SELECT GREATEST(
-               COALESCE((SELECT max(u.update_id) FROM iee1405.bot_updates u), 0),
-               -- فقط اگر در همین چرخه دسته‌ای دیده شده باشد؛ مقدار کهنه بی‌اثر است
-               CASE WHEN COALESCE((SELECT value FROM iee1405.bot_state
-                                    WHERE key = 'bale_batch_ids'), '[]') <> '[]'
-                    THEN COALESCE((SELECT value::bigint FROM iee1405.bot_state
+    -- بیشترین شناسه‌ای که **بله در همین دریافت داد**.
+    -- چرا نه `max(bot_updates.update_id)`؟ چون هر ردیف دستی/آزمایشی با شناسهٔ
+    -- ساختگی، offset را برای همیشه به عددی می‌برد که بله نمی‌شناسد و
+    -- getUpdates با 500 «Internal Server Error» پاسخ می‌دهد — ربات کامل می‌خوابد.
+    -- (این اتفاق واقعاً روی سرور افتاد: یک ردیف با شناسهٔ ۱۷٫۹ میلیاردی، در حالی
+    --  که بله برای این ربات شناسه‌های دو رقمی می‌دهد.)
+    SELECT COALESCE(max(b.id), 0) INTO v_max
+      FROM (SELECT jsonb_array_elements_text(
+                     COALESCE((SELECT value::text FROM iee1405.bot_state
+                                WHERE key = 'bale_batch_ids'), '[]')::jsonb)::bigint AS id) b;
+
+    -- شناسه‌هایی که از آخرین شناسهٔ بله بالاترند (درج دستی برای آزمون، یا دادهٔ
+    -- خراب) در محاسبهٔ offset شمرده نمی‌شوند؛ ولی بی‌صدا هم نمانند. با
+    -- NOT EXISTS فقط یک بار ثبت می‌شود، نه هر ۲۰ ثانیه.
+    INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
+    SELECT u.update_id, u.chat_id, 'offset_guard',
+           'شناسهٔ بالاتر از آخرین شناسهٔ بله؛ در محاسبهٔ offset نادیده گرفته شد',
+           'bale_seen_max = ' || COALESCE((SELECT value FROM iee1405.bot_state
+                                            WHERE key = 'bale_seen_max'), '0')
+      FROM iee1405.bot_updates u
+     WHERE u.update_id > COALESCE((SELECT value::bigint FROM iee1405.bot_state
                                     WHERE key = 'bale_seen_max'), 0)
-                    ELSE 0 END
-           ) INTO v_max;
+       AND NOT EXISTS (SELECT 1 FROM iee1405.bot_errors e
+                        WHERE e.update_id = u.update_id AND e.stage = 'offset_guard');
 
     -- اگر آپدیتی گرفته شد ولی هیچ ردیفی برایش ساخته نشد، گم نشود: ثبت می‌شود
     INSERT INTO iee1405.bot_errors (update_id, chat_id, stage, message, detail)
