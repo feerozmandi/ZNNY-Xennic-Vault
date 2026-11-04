@@ -16,8 +16,7 @@
 ```bash
 # ۱) گرفتن فایل‌ها (مخزن عمومی است؛ نیازی به توکن نیست)
 cd ~
-git clone --branch arena/011e185b-znny-xennic-vault --single-branch \
-    https://github.com/feerozmandi/ZNNY-Xennic-Vault.git
+git clone https://github.com/feerozmandi/ZNNY-Xennic-Vault.git
 cd ZNNY-Xennic-Vault/iee1405-deploy
 
 # ۲) بررسی پیش‌نیازها — در یک نگاه می‌گوید چه چیزی کم است
@@ -52,18 +51,18 @@ bash 03_ops/smoke_test.sh                  # آزمون دود: توکن، گر�
 
 رمز ساخته‌شده در `~/.iee1405-app-password` ذخیره می‌شود تا کارت اعتبارنامه n8n را با آن بسازید.
 
-> [!note] چرا `--branch`
-> این بسته فعلاً روی شاخه `arena/011e185b-znny-xennic-vault` است (PR #75).
-> با `git clone` ساده، شاخه `dev` گرفته می‌شود و پوشه `iee1405-deploy` **وجود ندارد**.
-> پس از ادغام PR، دستور ساده `git clone` کافی خواهد بود.
+> [!note] چرا دیگر `--branch` لازم نیست
+> این بسته پیش‌تر فقط روی یک شاخهٔ کاری بود (PR #75). آن PR ادغام شد و پوشهٔ
+> `iee1405-deploy` اکنون روی شاخهٔ `dev` هست، پس `git clone` ساده کافی است.
+> اگر شاخهٔ کاری دیگری را دنبال می‌کنید، `--branch <نام>` بدهید.
 
 ### اگر قبلاً مخزن را روی سرور دارید
 
 ```bash
 cd ~/ZNNY-Xennic-Vault
-git fetch origin arena/011e185b-znny-xennic-vault
-git checkout arena/011e185b-znny-xennic-vault
-git pull --ff-only origin arena/011e185b-znny-xennic-vault
+git fetch origin dev
+git checkout dev
+git pull --ff-only origin dev
 cd iee1405-deploy && bash 03_ops/preflight.sh
 ```
 
@@ -100,11 +99,11 @@ cd iee1405-deploy && bash 03_ops/preflight.sh
 | `ssh: connect ... port 33878: Connection timed out` | از داخل سرور به خودش SSH زده‌اید (یا از شبکه‌ای که پورت بسته است) | اگر `whoami` = `xennic` و `hostname` = `server2085`، همین‌جا هستید؛ `ssh` را حذف کنید |
 | `fatal: repository '…' does not exist` | جای‌نگهدار `…` عیناً وارد شده | آدرس کامل را از بخش ۰ کپی کنید |
 | `bash: 00_audit/...: No such file or directory` | clone انجام نشده یا از پوشه اشتباه اجرا شده | `cd ~/ZNNY-Xennic-Vault/iee1405-deploy` سپس دوباره |
-| `iee1405-deploy` بعد از clone نیست | شاخه پیش‌فرض (`dev`) گرفته شده | `--branch arena/011e185b-znny-xennic-vault --single-branch` |
+| `iee1405-deploy` بعد از clone نیست | مخزن قدیمی‌تر از ادغام PR #75 است یا شاخهٔ دیگری گرفته شده | `git -C ~/ZNNY-Xennic-Vault fetch origin dev && git checkout dev && git pull --ff-only` |
 
 ---
 
-## ۱. بازرسی (بدون هیچ تغییری)## ۱. بازرسی (بدون هیچ تغییری)
+## ۱. بازرسی (بدون هیچ تغییری)
 
 ```bash
 cd ~/iee1405-deploy
