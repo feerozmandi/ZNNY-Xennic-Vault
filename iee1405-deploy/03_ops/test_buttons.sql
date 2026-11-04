@@ -21,7 +21,8 @@ INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active) VA
     ('btn-2', 'آزمون دکمه ۲', 'owner', 990002, true),
     ('btn-3', 'آزمون دکمه ۳', 'owner', 990003, true),
     ('btn-4', 'آزمون دکمه ۴', 'owner', 990004, true),
-    ('btn-5', 'آزمون دکمه ۵', 'owner', 990005, true)
+    ('btn-5', 'آزمون دکمه ۵', 'owner', 990005, true),
+    ('btn-6', 'آزمون دکمه ۶', 'owner', 990006, true)
 ON CONFLICT (username) DO UPDATE SET bale_chat_id = EXCLUDED.bale_chat_id,
                                      is_active = true;
 
@@ -37,7 +38,7 @@ DECLARE
 
 BEGIN
     -- یک نام واقعی از آینه برای آزمون جست‌وجوی خودکار (اگر آینه بارگذاری شده باشد)
-    IF to_regclass('barghpa.company') IS NOT NULL THEN
+    IF iee1405.mirror_ready() THEN
         SELECT name_fa INTO sample FROM barghpa.company ORDER BY id LIMIT 1;
     END IF;
 
@@ -128,7 +129,7 @@ BEGIN
     END IF;
 
     -- ── T7: /c با ارقام فارسی و نویسهٔ نامرئی ────────────────────────
-    IF to_regclass('barghpa.company') IS NOT NULL AND EXISTS (SELECT 1 FROM barghpa.company) THEN
+    IF iee1405.mirror_ready() THEN
         n := n + 1;
         SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
             'update_id', n,
@@ -174,6 +175,53 @@ BEGIN
     ELSE
         fails := fails + 1;
         RAISE NOTICE '❌ T9 · متن نامفهوم → سکوت';
+    END IF;
+
+    -- ── T10: طوفان /start در یک دسته → فقط یکی پاسخ می‌گیرد ──────────
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990006),
+            'text', '/start'))) d;
+    IF reply LIKE '%راهنمای ربات%' THEN
+        RAISE NOTICE '✅ T10 · اولین /start پاسخ گرفت';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T10 · اولین /start → %', left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990006),
+            'text', '/start'))) d;
+    IF reply IS NULL THEN
+        RAISE NOTICE '✅ T10b · /start دوم در همان لحظه ساکت شد (ضدتکرار طوفان)';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T10b · /start دوم هم پاسخ گرفت (ضدتکرار کار نمی‌کند)';
+    END IF;
+
+    -- ── T11: بعد از پنجرهٔ کوتاه (۴۵ ثانیه) دوباره پاسخ می‌گیرد ───────
+    -- این همان چیزی است که با پنجرهٔ ۱۰ دقیقه‌ای «ربات خراب است» به نظر می‌رسید.
+    UPDATE iee1405.bot_updates
+       SET processed_at = processed_at - interval '120 seconds'
+     WHERE chat_id = 990006;
+
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990006),
+            'text', '/start'))) d;
+    IF reply LIKE '%راهنمای ربات%' THEN
+        RAISE NOTICE '✅ T11 · /start بعد از پنجرهٔ ضدتکرار دوباره پاسخ گرفت';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T11 · /start بعد از پنجره → % (ربات ساکت می‌ماند)',
+                     left(coalesce(reply, '(خالی)'), 40);
     END IF;
 
     IF fails > 0 THEN

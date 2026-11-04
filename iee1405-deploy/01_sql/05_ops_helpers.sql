@@ -21,7 +21,8 @@ INSERT INTO iee1405.bot_state (key, value) VALUES
     ('last_error', NULL),
     ('bale_seen_max', NULL),      -- بزرگ‌ترین update_id که بله در آخرین دریافت داد
     ('bale_batch_ids', NULL),     -- فهرست update_idهای همان دریافت (برای بررسی گم‌شدن)
-    ('health_alert_last_at', NULL) -- آخرین هشدار سلامت (بازه سکوت WF-04)
+    ('health_alert_last_at', NULL), -- آخرین هشدار سلامت (بازه سکوت WF-04)
+    ('help_dedupe_seconds', '45')   -- پنجرهٔ ضدتکرار پاسخ راهنما (۰ = خاموش)
 ON CONFLICT (key) DO NOTHING;
 
 COMMENT ON TABLE iee1405.bot_state IS 'وضعیت پایدار سرویس؛ با ری‌استارت n8n از دست نمی‌رود';
