@@ -22,7 +22,8 @@ INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active) VA
     ('btn-3', 'آزمون دکمه ۳', 'owner', 990003, true),
     ('btn-4', 'آزمون دکمه ۴', 'owner', 990004, true),
     ('btn-5', 'آزمون دکمه ۵', 'owner', 990005, true),
-    ('btn-6', 'آزمون دکمه ۶', 'owner', 990006, true)
+    ('btn-6', 'آزمون دکمه ۶', 'owner', 990006, true),
+    ('btn-7', 'آزمون دکمه ۷', 'owner', 990007, true)
 ON CONFLICT (username) DO UPDATE SET bale_chat_id = EXCLUDED.bale_chat_id,
                                      is_active = true;
 
@@ -32,6 +33,8 @@ DECLARE
     r record;
     reply text;
     sample text;
+    markup text;
+    btn text;
     fails int := 0;
 
     -- چت، متن، انتظارِ «چه چیزی در پاسخ باشد»، توضیح
@@ -222,6 +225,55 @@ BEGIN
         fails := fails + 1;
         RAISE NOTICE '❌ T11 · /start بعد از پنجره → % (ربات ساکت می‌ماند)',
                      left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    -- ── T12: دکمه‌ها (reply_markup) — قرارداد گرهٔ ارسال در n8n ───────
+    -- گرهٔ «📤 پاسخ‌های آماده ارسال» ستون reply_markup را می‌خواند و عیناً به
+    -- بله می‌فرستد. اگر تابع این ستون را برنگرداند، کل ارسال می‌شکند:
+    --   column "reply_markup" does not exist  →  ربات کامل ساکت
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990007),
+            'text', '/start'))) d;
+
+    SELECT p.reply_markup INTO markup
+      FROM iee1405.pending_replies(50) p
+     WHERE p.update_id = n;
+
+    IF markup IS NULL OR markup = '' THEN
+        fails := fails + 1;
+        RAISE NOTICE '❌ T12 · pending_replies ستون reply_markup را برنگرداند (گرهٔ ارسال می‌شکند)';
+    ELSIF NOT (markup::jsonb ? 'keyboard') THEN
+        fails := fails + 1;
+        RAISE NOTICE '❌ T12 · reply_markup صفحه‌کلید ندارد: %', left(markup, 60);
+    ELSE
+        RAISE NOTICE '✅ T12 · reply_markup معتبر است (keyboard با % ردیف)',
+                     jsonb_array_length(markup::jsonb -> 'keyboard');
+    END IF;
+
+    -- ── T13: برچسب دکمه‌های همین صفحه‌کلید باید کار کند ──────────────
+    -- اگر برچسبی در منو باشد که bot_dispatch نمی‌شناسد، کاربر دکمه می‌زند و
+    -- «دستور نشناختم» می‌گیرد. پس تک‌تک برچسب‌ها آزمایش می‌شوند.
+    FOR btn IN
+        SELECT jsonb_array_elements_text(row_json) AS label
+          FROM jsonb_array_elements(iee1405.menu_keyboard()::jsonb -> 'keyboard') AS row_json,
+               LATERAL (SELECT row_json) x
+    LOOP
+        n := n + 1;
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', n,
+            'message', jsonb_build_object(
+                'chat', jsonb_build_object('id', 990004),
+                'text', btn))) d;
+        IF reply IS NULL OR reply LIKE '%نمی‌شناسم%' THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T13 · برچسب دکمه «%» شناخته نشد → %', btn, left(coalesce(reply, 'خالی'), 40);
+        END IF;
+    END LOOP;
+    IF fails = 0 THEN
+        RAISE NOTICE '✅ T13 · همهٔ برچسب‌های منو به دستور معتبر نگاشت می‌شوند';
     END IF;
 
     IF fails > 0 THEN
