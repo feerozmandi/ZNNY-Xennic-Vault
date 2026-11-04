@@ -1,0 +1,186 @@
+-- ═══════════════════════════════════════════════════════════════════════
+-- آزمون ورودی ربات: دکمه‌ها و برچسب‌های آلوده
+-- اجرا: psql -d <db> -v ON_ERROR_STOP=1 -f 03_ops/test_buttons.sql
+--
+-- چرا؟ روی سرور «هر دکمه» به «برای شروع: /new …» می‌رسید، چون تشخیص دستور با
+-- متن خام انجام می‌شد و برچسب دکمه‌های بله نویسه‌های جهت‌دهی/نامرئی و گاهی
+-- «@نام‌ربات» دارد. این آزمون همان ورودی‌ها را می‌فرستد و پاسخ درست را می‌خواهد.
+--
+-- همه‌چیز داخل تراکنش است و با ROLLBACK برمی‌گردد؛ هیچ پیامی به بله نمی‌رود
+-- (این توابع فقط ردیف در پایگاه می‌سازند و n8n آن‌ها را نمی‌بیند، چون تراکنش
+-- برمی‌گردد).
+-- ═══════════════════════════════════════════════════════════════════════
+\set ON_ERROR_STOP on
+
+BEGIN;
+
+-- کاربران آزمون با چت‌های جدا: قاعدهٔ «پاسخ تکراری راهنما» در ۱۰ دقیقه،
+-- اگر همه یک چت باشند، پاسخ دوم را خالی می‌کند و آزمون را الکی قرمز می‌کند.
+INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active) VALUES
+    ('btn-1', 'آزمون دکمه ۱', 'owner', 990001, true),
+    ('btn-2', 'آزمون دکمه ۲', 'owner', 990002, true),
+    ('btn-3', 'آزمون دکمه ۳', 'owner', 990003, true),
+    ('btn-4', 'آزمون دکمه ۴', 'owner', 990004, true),
+    ('btn-5', 'آزمون دکمه ۵', 'owner', 990005, true)
+ON CONFLICT (username) DO UPDATE SET bale_chat_id = EXCLUDED.bale_chat_id,
+                                     is_active = true;
+
+DO $test$
+DECLARE
+    n bigint := 990000;
+    r record;
+    reply text;
+    sample text;
+    fails int := 0;
+
+    -- چت، متن، انتظارِ «چه چیزی در پاسخ باشد»، توضیح
+
+BEGIN
+    -- یک نام واقعی از آینه برای آزمون جست‌وجوی خودکار (اگر آینه بارگذاری شده باشد)
+    IF to_regclass('barghpa.company') IS NOT NULL THEN
+        SELECT name_fa INTO sample FROM barghpa.company ORDER BY id LIMIT 1;
+    END IF;
+
+    -- ── T1: دستور با نویسهٔ جهت‌دهی در ابتدا (برچسب دکمه) ─────────────
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990001),
+            'text', E'\u200F\u200E/start'))) d;
+    IF reply LIKE '%راهنمای ربات%' THEN
+        RAISE NOTICE '✅ T1 · «chr(8207)||/start» (نویسهٔ نامرئی U+200F) → راهنما';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T1 · «نویسهٔ نامرئی + /start» → %', left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    -- ── T2: دستور با @نام‌ربات ───────────────────────────────────────
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990002),
+            'text', '/help@xennicnotifierbot'))) d;
+    IF reply LIKE '%راهنمای ربات%' THEN
+        RAISE NOTICE '✅ T2 · «/help@xennicnotifierbot» → راهنما';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T2 · «/help@bot» → %', left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    -- ── T3: برچسب فارسی بدون اسلش ───────────────────────────────────
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990003),
+            'text', 'شروع'))) d;
+    IF reply LIKE '%راهنمای ربات%' THEN
+        RAISE NOTICE '✅ T3 · «شروع» → راهنما';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T3 · «شروع» → %', left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    -- ── T4: ایموجی + دستور (برچسب‌های دکمه‌ای که ایموجی دارند) ────────
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990004),
+            'text', E'📊 امروز /today'))) d;
+    IF reply LIKE '%خلاصه امروز%' THEN
+        RAISE NOTICE '✅ T4 · «📊 امروز /today» → خلاصه امروز';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T4 · «📊 امروز /today» → %', left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    -- ── T5: دستور ناشناخته باید متن را بازگفت کند (ابزار عیب‌یابی) ────
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990005),
+            'text', '/foo'))) d;
+    IF reply LIKE '%/foo%' AND reply LIKE '%نمی‌شناسم%' THEN
+        RAISE NOTICE '✅ T5 · «/foo» → دستور ناشناخته با بازگفت متن';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T5 · «/foo» → %', left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    -- ── T6: میان‌بر یک‌حرفی هنوز کار می‌کند ───────────────────────────
+    -- چت تازه، نه 990001: قاعدهٔ ضدتکرار راهنما (۱۰ دقیقه) پاسخ دوم را خالی
+    -- می‌کند — همان چیزی که در بله شبیه «ربات جواب نمی‌دهد» دیده می‌شود.
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990005),
+            'text', 'ر'))) d;
+    IF reply LIKE '%راهنمای ربات%' THEN
+        RAISE NOTICE '✅ T6 · «ر» → راهنما';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T6 · «ر» → %', left(coalesce(reply, '(خالی)'), 40);
+    END IF;
+
+    -- ── T7: /c با ارقام فارسی و نویسهٔ نامرئی ────────────────────────
+    IF to_regclass('barghpa.company') IS NOT NULL AND EXISTS (SELECT 1 FROM barghpa.company) THEN
+        n := n + 1;
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', n,
+            'message', jsonb_build_object(
+                'chat', jsonb_build_object('id', 990002),
+                'text', E'\u200F/c ۳۸B\u200E'))) d;
+        IF reply LIKE '%آینه%' OR reply LIKE '%سالن%' OR reply LIKE '%شرکت%' THEN
+            RAISE NOTICE '✅ T7 · «/c با ارقام فارسی و نویسهٔ نامرئی» → پاسخ آینه';
+        ELSE
+            fails := fails + 1;
+            RAISE NOTICE '❌ T7 · «/c ۳۸B» → %', left(coalesce(reply, '(خالی)'), 40);
+        END IF;
+
+        -- ── T8: نام شرکت در حالت عادی → جست‌وجوی خودکار ───────────────
+        IF sample IS NOT NULL THEN
+            n := n + 1;
+            SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+                'update_id', n,
+                'message', jsonb_build_object(
+                    'chat', jsonb_build_object('id', 990003),
+                    'text', sample))) d;
+            IF reply IS NOT NULL AND reply NOT LIKE '%برای شروع%' THEN
+                RAISE NOTICE '✅ T8 · نام شرکت در حالت عادی → جست‌وجوی خودکار (%)',
+                             left(coalesce(reply, ''), 30);
+            ELSE
+                fails := fails + 1;
+                RAISE NOTICE '❌ T8 · نام شرکت → %', left(coalesce(reply, '(خالی)'), 40);
+            END IF;
+        END IF;
+    ELSE
+        RAISE NOTICE '⏭  T7/T8 رد شد — آینهٔ barghpa بارگذاری نشده است';
+    END IF;
+
+    -- ── T9: پیام ناشناخته باید خالی نماند (هیچ‌وقت سکوت) ─────────────
+    n := n + 1;
+    SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+        'update_id', n,
+        'message', jsonb_build_object(
+            'chat', jsonb_build_object('id', 990004),
+            'text', 'قققق'))) d;
+    IF reply IS NOT NULL AND reply <> '' THEN
+        RAISE NOTICE '✅ T9 · متن نامفهوم → پاسخ (نه سکوت)';
+    ELSE
+        fails := fails + 1;
+        RAISE NOTICE '❌ T9 · متن نامفهوم → سکوت';
+    END IF;
+
+    IF fails > 0 THEN
+        RAISE EXCEPTION 'آزمون ورودی ربات: % مورد ناموفق', fails;
+    END IF;
+    RAISE NOTICE '── همهٔ موارد ورودی ربات سبز است ──';
+END
+$test$;
+
+ROLLBACK;
