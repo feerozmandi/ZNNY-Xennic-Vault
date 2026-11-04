@@ -156,6 +156,78 @@ RETURNS text LANGUAGE sql STABLE AS $$
             FROM crm.product_categories) t
 $$;
 
+-- ─────────────────────────────────────────────────────────────────────
+-- کیبوردها (reply_markup)
+-- نکته: کلاینت بله ظاهر دکمه‌ها را خودش رندر می‌کند و استایل CSS (مثلاً
+-- «شیشه‌ای») برای دکمه‌های ربات ممکن نیست؛ استایل «شیشه‌ای» فقط در سطوح
+-- وب (کارت‌های HTML میدانی و پنل WordPress) قابل پیاده‌سازی است.
+-- ─────────────────────────────────────────────────────────────────────
+-- کیبورد densidade principale (reply keyboard — siempre visível sous le chat)
+CREATE OR REPLACE FUNCTION iee1405.menu_kb()
+RETURNS jsonb LANGUAGE sql STABLE AS $$
+    SELECT jsonb_build_object(
+        'keyboard', jsonb_build_array(
+            jsonb_build_array(jsonb_build_object('text', '🆕 /new — شرکت جدید')),
+            jsonb_build_array(jsonb_build_object('text', '🔍 /find — جست‌وجو'),
+                              jsonb_build_object('text', '📝 /log — مذاکره')),
+            jsonb_build_array(jsonb_build_object('text', '✅ /visit — بازدید'),
+                              jsonb_build_object('text', '📋 /task — پیگیری')),
+            jsonb_build_array(jsonb_build_object('text', '📊 /today — خلاصه امروز'),
+                              jsonb_build_object('text', '❓ /help — راهنما'))
+        ),
+        'resize_keyboard', true,
+        'one_time_keyboard', false,
+        'is_persistent', true
+    );
+$$;
+
+-- کیبورد inline برای انتخاب دسته محصول؛ callback_data = 'cat:<CODE>'
+-- (callback_query در bot_dispatch_json به متن تبدیل و با resolve_category حل می‌شود)
+CREATE OR REPLACE FUNCTION iee1405.cat_kb()
+RETURNS jsonb LANGUAGE sql STABLE AS $$
+    SELECT jsonb_build_object(
+        'inline_keyboard',
+        (SELECT jsonb_agg(row_btn ORDER BY sort_order)
+           FROM (SELECT jsonb_build_array(jsonb_build_object(
+                        'text', title_fa,
+                        'callback_data', 'cat:' || code)) AS row_btn,
+                      sort_order
+                   FROM crm.product_categories) t)
+    );
+$$;
+
+-- کیبورد inline actions بعد از ثبت (داخل پیام): دکمه‌های مربوط به همان شرکت
+CREATE OR REPLACE FUNCTION iee1405.org_actions_kb(p_code text)
+RETURNS jsonb LANGUAGE sql STABLE AS $$
+    SELECT jsonb_build_object(
+        'inline_keyboard', jsonb_build_array(
+            jsonb_build_array(
+                jsonb_build_object('text', '📝 ثبت مذاکره', 'callback_data', 'cmd:/log ' || p_code),
+                jsonb_build_object('text', '✅ ثبت بازدید', 'callback_data', 'cmd:/visit ' || p_code)),
+            jsonb_build_array(
+                jsonb_build_object('text', '📋 پیگیری', 'callback_data', 'cmd:/task ' || p_code),
+                jsonb_build_object('text', '🧾 توانمندی', 'callback_data', 'cmd:/cap ' || p_code)),
+            jsonb_build_array(
+                jsonb_build_object('text', '🏢 کارت شرکت', 'callback_data', 'org:' || p_code))
+        ));
+$$;
+
+-- کیبورد inline نتایج جست‌وجو: هر نتیجه یک دکمه → باز شدن کارت شرکت
+-- ترتیب دکمه‌ها همان ترتیب نتایج جست‌وجو است (ترتیب آرایه کدهای ورودی)
+CREATE OR REPLACE FUNCTION iee1405.find_kb(p_codes jsonb)
+RETURNS jsonb LANGUAGE sql STABLE AS $$
+    SELECT jsonb_build_object(
+        'inline_keyboard',
+        (SELECT jsonb_agg(jsonb_build_array(jsonb_build_object(
+                    'text', (t.rn::text || ') ' || t.name),
+                    'callback_data', 'org:' || t.code)) ORDER BY t.rn)
+           FROM (SELECT el.code, el.rn,
+                        coalesce(o.display_name, o.legal_name) AS name
+                   FROM jsonb_array_elements_text(p_codes) WITH ORDINALITY AS el(code, rn)
+                   JOIN crm.organizations o ON o.code = el.code AND o.deleted_at IS NULL) t)
+    );
+$$;
+
 -- تبدیل ورودی کاربر (شماره یا کد) به کد دسته
 CREATE OR REPLACE FUNCTION iee1405.resolve_category(p_input text)
 RETURNS text LANGUAGE plpgsql STABLE AS $$
@@ -347,10 +419,11 @@ CREATE OR REPLACE FUNCTION iee1405.bot_dispatch(
     p_chat_id   bigint,
     p_text      text,
     p_raw       jsonb DEFAULT '{}'::jsonb
-) RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text)
+) RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text, reply_markup jsonb)
 LANGUAGE plpgsql AS $$
 DECLARE
     v_text      text := btrim(COALESCE(p_text, ''));
+    v_markup    jsonb;
     v_cmd       text;
     v_arg       text;
     v_actor     text;
@@ -380,6 +453,18 @@ DECLARE
     v_due       date;
     d           record;
 BEGIN
+    -- دکمه‌های inline با callback_data می‌آیند؛ پیشوند نوع را مشخص می‌کند:
+    --   cat:<CODE>  → انتخاب دسته (resolve_category کد را مستقیم می‌پذیرد)
+    --   cmd:<CMD>   → اجرای دستور (مثلاً cmd:/log ORG-000001)
+    --   org:<CODE>  → باز کردن کارت شرکت (معادل /org <CODE>)
+    IF v_text LIKE 'cat:%' THEN
+        v_text := substr(v_text, 5);
+    ELSIF v_text LIKE 'cmd:%' THEN
+        v_text := substr(v_text, 5);
+    ELSIF v_text LIKE 'org:%' THEN
+        v_text := '/org ' || substr(v_text, 5);
+    END IF;
+
     -- ۵.۱) Idempotency: ثبت آپدیت؛ اگر قبلاً آمده باشد، خروجی خالی
     INSERT INTO iee1405.bot_updates (update_id, chat_id, raw, command)
     VALUES (p_update_id, p_chat_id, COALESCE(p_raw, '{}'::jsonb), left(v_text, 60))
@@ -387,9 +472,12 @@ BEGIN
     RETURNING update_id INTO v_inserted;
 
     IF v_inserted IS NULL THEN
-        RETURN QUERY SELECT p_chat_id, 'duplicate'::text, NULL::text, NULL::text;
+        RETURN QUERY SELECT p_chat_id, 'duplicate'::text, NULL::text, NULL::text, NULL::jsonb;
         RETURN;
     END IF;
+
+    -- پیش‌فرض همه پاسخ‌ها: کیبورد اصلی (دکمه‌های ثابت پایین چت)
+    v_markup := iee1405.menu_kb();
 
     -- ۵.۲) احراز هویت
     SELECT u.username, u.role INTO v_actor, v_role
@@ -401,7 +489,7 @@ BEGIN
         UPDATE iee1405.bot_updates
            SET status = 'skipped', reply_text = v_reply, processed_at = now()
          WHERE update_id = p_update_id;
-        RETURN QUERY SELECT p_chat_id, 'unauthorized'::text, v_reply, NULL::text;
+        RETURN QUERY SELECT p_chat_id, 'unauthorized'::text, v_reply, NULL::text, NULL::jsonb;
         RETURN;
     END IF;
 
@@ -469,6 +557,7 @@ BEGIN
                                             jsonb_build_object('codes', v_codes));
                 v_reply := iee1405.msg('find_header',
                                        jsonb_build_object('q', v_arg, 'list', v_list));
+                v_markup := iee1405.find_kb(v_codes);
             END IF;
         END IF;
 
@@ -524,10 +613,12 @@ BEGIN
                         'code', v_org_code, 'name', v_org_name, 'summary', v_summary,
                         'vars', E'\nپیگیری: ' || v_next || E'\nسررسید: ' ||
                                 to_char(current_date + 7, 'YYYY-MM-DD')));
+                    v_markup := iee1405.org_actions_kb(v_org_code);
                 ELSE
                     v_reply := iee1405.msg('log_done', jsonb_build_object(
                         'code', v_org_code, 'name', v_org_name, 'summary', v_summary,
                         'vars', ''));
+                    v_markup := iee1405.org_actions_kb(v_org_code);
                 END IF;
             END IF;
         END IF;
@@ -571,6 +662,7 @@ BEGIN
                                   jsonb_build_object('org', v_org_code));
                 v_reply := iee1405.msg('visit_done', jsonb_build_object(
                     'code', v_org_code, 'name', v_org_name, 'outcome', 'ثبت سریع'));
+                v_markup := iee1405.org_actions_kb(v_org_code);
             END IF;
         END IF;
 
@@ -597,6 +689,7 @@ BEGIN
                 v_reply := iee1405.msg('task_done', jsonb_build_object(
                     'code', v_org_code, 'title', v_title,
                     'due', to_char(v_due, 'YYYY-MM-DD'), 'days', v_days::text));
+                v_markup := iee1405.org_actions_kb(v_org_code);
             END IF;
         END IF;
 
@@ -623,6 +716,7 @@ BEGIN
                 v_reply := iee1405.msg('name_duplicate', jsonb_build_object(
                               'code', v_org_code, 'name', v_org_name)) || E'\n\n' ||
                            iee1405.category_list();
+                v_markup := iee1405.cat_kb();
             ELSE
                 INSERT INTO crm.organizations (legal_name, display_name, org_type, created_by, updated_by)
                 VALUES (v_text, v_text, 'other', v_actor, v_actor)
@@ -636,6 +730,7 @@ BEGIN
                 v_reply := iee1405.msg('new_ask_category', jsonb_build_object(
                               'code', v_org_code, 'name', v_text,
                               'category_list', iee1405.category_list()));
+                v_markup := iee1405.cat_kb();
             END IF;
             v_org_code := v_org_code;
 
@@ -644,6 +739,7 @@ BEGIN
             IF v_cat IS NULL THEN
                 v_reply := iee1405.msg('cat_invalid',
                               jsonb_build_object('category_list', iee1405.category_list()));
+                v_markup := iee1405.cat_kb();
             ELSE
                 v_org_id   := (v_payload ->> 'org_id')::uuid;
                 v_org_code := v_payload ->> 'code';
@@ -691,6 +787,7 @@ BEGIN
                             WHEN v_hall IS NULL   THEN v_number
                             ELSE v_hall || '-' || v_number
                          END));
+            v_markup := iee1405.org_actions_kb(v_org_code);
 
         ELSIF v_state = 'pick_org' AND v_text ~ '^[0-9]{1,2}$' THEN
             v_codes := v_payload -> 'codes';
@@ -726,10 +823,11 @@ BEGIN
 
     -- ۵.۶) ثبت نتیجه در لاگ آپدیت
     UPDATE iee1405.bot_updates
-       SET status = 'processed', reply_text = v_reply, actor = v_actor, processed_at = now()
+       SET status = 'processed', reply_text = v_reply, reply_markup = v_markup,
+           actor = v_actor, processed_at = now()
      WHERE update_id = p_update_id;
 
-    RETURN QUERY SELECT p_chat_id, 'ok'::text, v_reply, v_org_code;
+    RETURN QUERY SELECT p_chat_id, 'ok'::text, v_reply, v_org_code, v_markup;
 
 EXCEPTION WHEN OTHERS THEN
     -- ۵.۷) خطا: ثبت دقیق و پاسخ محترمانه (بدون از دست رفتن داده)
@@ -743,7 +841,7 @@ EXCEPTION WHEN OTHERS THEN
 
     RETURN QUERY SELECT p_chat_id, 'error'::text,
         'خطای موقت در ثبت (کد ' || SQLSTATE || '). یک بار دیگر تلاش کنید؛ اگر تکرار شد به مدیر بگویید.',
-        NULL::text;
+        NULL::text, v_markup;
 END $$;
 
 COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb) IS
@@ -758,8 +856,10 @@ COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb) IS
 -- می‌تواند کل دسته آپدیت‌ها را از بین ببرد. اینجا همه چیز امن استخراج
 -- می‌شود و آپدیت‌های غیرقابل‌پردازش فقط «نادیده» ثبت می‌شوند.
 -- ─────────────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS iee1405.bot_dispatch_json(jsonb);
+
 CREATE OR REPLACE FUNCTION iee1405.bot_dispatch_json(p_update jsonb)
-RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text)
+RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text, reply_markup jsonb)
 LANGUAGE plpgsql AS $$
 DECLARE
     v_update_id bigint;
@@ -769,7 +869,7 @@ DECLARE
     v_msg       jsonb;
 BEGIN
     IF p_update IS NULL OR jsonb_typeof(p_update) <> 'object' THEN
-        RETURN QUERY SELECT NULL::bigint, 'invalid'::text, NULL::text, NULL::text;
+        RETURN QUERY SELECT NULL::bigint, 'invalid'::text, NULL::text, NULL::text, NULL::jsonb;
         RETURN;
     END IF;
 
@@ -782,7 +882,7 @@ BEGIN
         IF NOT (p_update ? 'update_id') THEN
             RETURN;
         END IF;
-        RETURN QUERY SELECT NULL::bigint, 'invalid'::text, NULL::text, NULL::text;
+        RETURN QUERY SELECT NULL::bigint, 'invalid'::text, NULL::text, NULL::text, NULL::jsonb;
         RETURN;
     END IF;
 
@@ -812,7 +912,7 @@ BEGIN
         INSERT INTO iee1405.bot_updates (update_id, chat_id, raw, command, status, processed_at)
         VALUES (v_update_id, NULL, p_update, v_kind, 'skipped', now())
         ON CONFLICT (update_id) DO NOTHING;
-        RETURN QUERY SELECT NULL::bigint, 'ignored'::text, NULL::text, NULL::text;
+        RETURN QUERY SELECT NULL::bigint, 'ignored'::text, NULL::text, NULL::text, NULL::jsonb;
         RETURN;
     END IF;
 
@@ -822,16 +922,16 @@ BEGIN
                   'عکس/فایل را بعد از ثبت متن شرکت بفرستید تا به پرونده وصل شود.' || E'\n' ||
                   'راهنما: /help';
 
-        INSERT INTO iee1405.bot_updates (update_id, chat_id, raw, command, status, reply_text)
-        VALUES (v_update_id, v_chat_id, p_update, v_kind, 'received', v_text)
+        INSERT INTO iee1405.bot_updates (update_id, chat_id, raw, command, status, reply_text, reply_markup)
+        VALUES (v_update_id, v_chat_id, p_update, v_kind, 'received', v_text, iee1405.menu_kb())
         ON CONFLICT (update_id) DO NOTHING;
 
-        RETURN QUERY SELECT v_chat_id, 'media'::text, v_text, NULL::text;
+        RETURN QUERY SELECT v_chat_id, 'media'::text, v_text, NULL::text, iee1405.menu_kb();
         RETURN;
     END IF;
 
     RETURN QUERY
-    SELECT d.chat_id, d.status, d.reply_text, d.org_code
+    SELECT d.chat_id, d.status, d.reply_text, d.org_code, d.reply_markup
       FROM iee1405.bot_dispatch(v_update_id, v_chat_id, v_text, p_update) d;
 END $$;
 

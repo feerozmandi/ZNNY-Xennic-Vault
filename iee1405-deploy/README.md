@@ -16,7 +16,7 @@
 ```bash
 # ۱) گرفتن فایل‌ها (مخزن عمومی است؛ نیازی به توکن نیست)
 cd ~
-git clone --branch arena/011e185b-znny-xennic-vault --single-branch \
+git clone --branch arena/20d6ce2c-znny-xennic-vault --single-branch \
     https://github.com/feerozmandi/ZNNY-Xennic-Vault.git
 cd ZNNY-Xennic-Vault/iee1405-deploy
 
@@ -53,7 +53,7 @@ bash 03_ops/smoke_test.sh                  # آزمون دود: توکن، گر�
 رمز ساخته‌شده در `~/.iee1405-app-password` ذخیره می‌شود تا کارت اعتبارنامه n8n را با آن بسازید.
 
 > [!note] چرا `--branch`
-> این بسته فعلاً روی شاخه `arena/011e185b-znny-xennic-vault` است (PR #75).
+> این بسته فعلاً روی شاخه `arena/20d6ce2c-znny-xennic-vault` است.
 > با `git clone` ساده، شاخه `dev` گرفته می‌شود و پوشه `iee1405-deploy` **وجود ندارد**.
 > پس از ادغام PR، دستور ساده `git clone` کافی خواهد بود.
 
@@ -61,9 +61,9 @@ bash 03_ops/smoke_test.sh                  # آزمون دود: توکن، گر�
 
 ```bash
 cd ~/ZNNY-Xennic-Vault
-git fetch origin arena/011e185b-znny-xennic-vault
-git checkout arena/011e185b-znny-xennic-vault
-git pull --ff-only origin arena/011e185b-znny-xennic-vault
+git fetch origin arena/20d6ce2c-znny-xennic-vault
+git checkout arena/20d6ce2c-znny-xennic-vault
+git pull --ff-only origin arena/20d6ce2c-znny-xennic-vault
 cd iee1405-deploy && bash 03_ops/preflight.sh
 ```
 
@@ -100,7 +100,7 @@ cd iee1405-deploy && bash 03_ops/preflight.sh
 | `ssh: connect ... port 33878: Connection timed out` | از داخل سرور به خودش SSH زده‌اید (یا از شبکه‌ای که پورت بسته است) | اگر `whoami` = `xennic` و `hostname` = `server2085`، همین‌جا هستید؛ `ssh` را حذف کنید |
 | `fatal: repository '…' does not exist` | جای‌نگهدار `…` عیناً وارد شده | آدرس کامل را از بخش ۰ کپی کنید |
 | `bash: 00_audit/...: No such file or directory` | clone انجام نشده یا از پوشه اشتباه اجرا شده | `cd ~/ZNNY-Xennic-Vault/iee1405-deploy` سپس دوباره |
-| `iee1405-deploy` بعد از clone نیست | شاخه پیش‌فرض (`dev`) گرفته شده | `--branch arena/011e185b-znny-xennic-vault --single-branch` |
+| `iee1405-deploy` بعد از clone نیست | شاخه پیش‌فرض (`dev`) گرفته شده | `--branch arena/20d6ce2c-znny-xennic-vault --single-branch` |
 
 ---
 
@@ -193,7 +193,7 @@ bash 03_ops/import_workflows.sh list
 
 | فایل | نام در n8n | زمان‌بندی | کار |
 |---|---|---|---|
-| `wf-01-bale-ingest.json` | IEE1405-01 — دریافت پیام‌های بله | هر ۲۰ ثانیه | getUpdates → ثبت در PG → پاسخ |
+| `wf-01-bale-ingest.json` | IEE1405-01 — دریافت پیام‌های بله | هر ۳ ثانیه | getUpdates → ثبت در PG → پاسخ |
 | `wf-02-reminders.json` | IEE1405-02 — یادآور پیگیری‌ها | روزانه ۰۷:۳۰ | پیگیری‌های سررسید تا ۳ روز |
 | `wf-03-digest.json` | IEE1405-03 — خلاصه پایان روز | روزانه ۲۰:۳۰ | آمار روز + نزدیک‌ترین پیگیری‌ها |
 | `wf-04-health.json` | IEE1405-04 — پایش سلامت | هر ۳۰ دقیقه | فقط وقتی مشکل هست هشدار می‌دهد |
@@ -208,7 +208,7 @@ bash 03_ops/import_workflows.sh list
 
 > [!important] هر گره HTTP باید `timeout` داشته باشد
 > بدون `options.timeout` درخواست معلق تا ۵ دقیقه باز می‌ماند، صف اجراها پر
-> می‌شود و `last_poll_at` هرگز تازه نمی‌شود. مقدار این نسخه: ۲۰ ثانیه.
+> می‌شود و `last_poll_at` هرگز تازه نمی‌شود. مقدار این نسخه: ۳ ثانیه.
 > بازفرست خودکار لازم نیست: پاسخ‌ها در دیتابیس می‌مانند و اجرای بعدی
 > (هر ۲۰ ثانیه) دوباره تلاش می‌کند.
 

@@ -550,8 +550,9 @@ CREATE TABLE IF NOT EXISTS iee1405.bot_updates (
     raw          jsonb NOT NULL,
     command      text,
     status       text NOT NULL DEFAULT 'received'
-                 CHECK (status IN ('received', 'processed', 'skipped', 'error')),
+                 CHECK (status IN ('received', 'processed', 'skipped', 'error', 'sending', 'failed')),
     reply_text   text,
+    reply_markup jsonb,
     error        text,
     received_at  timestamptz NOT NULL DEFAULT now(),
     processed_at timestamptz

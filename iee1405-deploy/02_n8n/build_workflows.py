@@ -150,12 +150,15 @@ def bale_call(name, position, method, *, query_params=None, body_params=None,
 
 
 def send_message_node(name, position, *, text_field="text_body", notes=None):
-    """ارسال پیام به بله؛ chat_id و متن از آیتم قبلی می‌آید."""
+    """ارسال پیام به بله؛ chat_id و متن از آیتم قبلی می‌آید.
+    reply_markup (کیبورد/دکمه‌ها) همیشه ارسال می‌شود چون pending_replies
+    آن را با COALESCE به کیبورد اصلی پر می‌کند؛ مقدار خالی هرگز ارسال نمی‌شود."""
     return bale_call(
         name, position, "sendMessage",
         body_params={
             "chat_id": "={{ $json.chat_id }}",
             "text": "={{ $json." + text_field + " }}",
+            "reply_markup": "={{ JSON.stringify($json.reply_markup) }}",
         },
         notes=notes,
     )
@@ -180,7 +183,10 @@ def flow(*names):
 # WF-01 — دریافت پیام‌های بله و ثبت در PostgreSQL
 # ═══════════════════════════════════════════════════════════════════════
 def wf_inbound():
-    n_sched = schedule_node("⏱ هر ۲۰ ثانیه", [0, 0], seconds=20)
+    # هر ۳ ثانیه: فاصله ۲۰ ثانیه‌ای یعنی بدترین حالت ~۲۰ ثانیه تأخیر در پاسخ
+    # (قبل از gatUpdates) که کاربر آن را «کندی ربات» می‌بیند. با ۳ ثانیه،
+    # پاسخ معمولاً زیر ۵ ثانیه می‌رسد.
+    n_sched = schedule_node("⏱ هر ۳ ثانیه", [0, 0], seconds=3)
 
     n_offset = pg_node(
         "📍 خواندن offset", [220, 0],
@@ -244,10 +250,10 @@ def wf_inbound():
 
     n_pending = pg_node(
         "📤 پاسخ‌های آماده ارسال", [1540, 0],
-        "SELECT update_id, chat_id, text_body\n"
+        "SELECT update_id, chat_id, text_body, reply_markup\n"
         "  FROM iee1405.pending_replies(20);",
         execute_once=True,   # حیاتی: بدون این، به تعداد آیتم‌ها پیام تکراری می‌رود
-        notes="ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
+        notes="claim اتمیک با SKIP LOCKED: دو اجرای هم‌زمان هرگز یک پیام را دو بار نمی‌فرستند",
     )
 
     n_send = send_message_node("💬 ارسال پاسخ", [1760, 0])
@@ -331,7 +337,7 @@ def wf_reminders():
     n_sched = schedule_node("⏱ هر روز ۰۷:۳۰", [0, 0], cron="0 30 7 * * *")
     n_q = pg_node(
         "📋 پیگیری‌های باز", [220, 0],
-        "SELECT chat_id, actor, text_body FROM iee1405.reminder_items();",
+        "SELECT chat_id, actor, text_body, iee1405.menu_kb() AS reply_markup\n  FROM iee1405.reminder_items();",
         notes="یک پیام به‌ازای هر مسئول؛ اگر چیزی نیست، هیچ پیامی نمی‌رود",
     )
     n_send = send_message_node("💬 ارسال یادآور", [440, 0])
@@ -364,7 +370,8 @@ def wf_digest():
     n_sched = schedule_node("⏱ هر روز ۲۰:۳۰", [0, 0], cron="0 30 20 * * *")
     n_q = pg_node(
         "📊 خلاصه روز", [220, 0],
-        "SELECT o.chat_id, iee1405.digest_text() AS text_body\n"
+        "SELECT o.chat_id, iee1405.digest_text() AS text_body,\n"
+        "       iee1405.menu_kb() AS reply_markup\n"
         "  FROM iee1405.owner_chat_ids() o;",
         notes="متن از v_today_digest ساخته می‌شود (تست‌شده در SQL)",
     )
@@ -402,7 +409,7 @@ def wf_health():
         # کات‌های بدون ارجاع را هرس می‌کند و نسخه قبلی هرگز خودترمیمی را
         # اجرا نمی‌کرد (آزمون‌شده روی ۱۶.۲). تابع هم‌چنین هشدار را به یک‌بار
         # در ۳ ساعت محدود می‌کند تا هر نیم‌ساعت پیام تکراری نیاید.
-        "SELECT chat_id, text_body FROM iee1405.health_watch();",
+        "SELECT chat_id, text_body, iee1405.menu_kb() AS reply_markup\n  FROM iee1405.health_watch();",
         notes="در حالت سالم ساکت است؛ خودترمیمی همیشه اجرا می‌شود",
     )
     n_send = send_message_node("💬 هشدار", [440, 0])

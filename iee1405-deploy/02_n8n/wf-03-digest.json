@@ -28,7 +28,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT o.chat_id, iee1405.digest_text() AS text_body\n  FROM iee1405.owner_chat_ids() o;",
+        "query": "SELECT o.chat_id, iee1405.digest_text() AS text_body,\n       iee1405.menu_kb() AS reply_markup\n  FROM iee1405.owner_chat_ids() o;",
         "options": {}
       },
       "id": "ca8f4215-d68d-57a0-8476-25628e501341",
@@ -67,6 +67,10 @@
             {
               "name": "text",
               "value": "={{ $json.text_body }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ JSON.stringify($json.reply_markup) }}"
             }
           ]
         }

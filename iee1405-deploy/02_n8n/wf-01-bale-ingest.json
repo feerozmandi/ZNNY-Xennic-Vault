@@ -8,20 +8,20 @@
           "interval": [
             {
               "field": "seconds",
-              "secondsInterval": 20
+              "secondsInterval": 3
             }
           ]
         }
       },
-      "id": "46fb1037-c664-566a-9c7a-897ed7819a36",
-      "name": "⏱ هر ۲۰ ثانیه",
+      "id": "77786af9-3153-5987-ad1c-aa11e47d9f1c",
+      "name": "⏱ هر ۳ ثانیه",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
         0,
         0
       ],
-      "notes": "هر 20 ثانیه",
+      "notes": "هر 3 ثانیه",
       "notesInFlow": false
     },
     {
@@ -211,7 +211,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT update_id, chat_id, text_body\n  FROM iee1405.pending_replies(20);",
+        "query": "SELECT update_id, chat_id, text_body, reply_markup\n  FROM iee1405.pending_replies(20);",
         "options": {}
       },
       "id": "2fb96d13-281e-5156-ad5d-2c58f7560267",
@@ -229,7 +229,7 @@
         }
       },
       "executeOnce": true,
-      "notes": "ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
+      "notes": "claim اتمیک با SKIP LOCKED: دو اجرای هم‌زمان هرگز یک پیام را دو بار نمی‌فرستند",
       "notesInFlow": true
     },
     {
@@ -251,6 +251,10 @@
             {
               "name": "text",
               "value": "={{ $json.text_body }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ JSON.stringify($json.reply_markup) }}"
             }
           ]
         }
@@ -320,7 +324,7 @@
     }
   ],
   "connections": {
-    "⏱ هر ۲۰ ثانیه": {
+    "⏱ هر ۳ ثانیه": {
       "main": [
         [
           {

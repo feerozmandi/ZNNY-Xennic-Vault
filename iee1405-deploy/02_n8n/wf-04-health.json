@@ -28,7 +28,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT chat_id, text_body FROM iee1405.health_watch();",
+        "query": "SELECT chat_id, text_body, iee1405.menu_kb() AS reply_markup\n  FROM iee1405.health_watch();",
         "options": {}
       },
       "id": "22333e8f-cd60-50f1-9a40-9ef40bf5061e",
@@ -67,6 +67,10 @@
             {
               "name": "text",
               "value": "={{ $json.text_body }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ JSON.stringify($json.reply_markup) }}"
             }
           ]
         }

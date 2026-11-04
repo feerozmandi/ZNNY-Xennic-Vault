@@ -460,22 +460,42 @@ $$;
 --     شکست بخورد، در اجرای بعدی دوباره تلاش می‌شود. هیچ پاسخی گم نمی‌شود.
 -- ─────────────────────────────────────────────────────────────────────
 ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS delivered_at timestamptz;
+ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS claimed_at timestamptz;
+ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS reply_markup jsonb;
 CREATE INDEX IF NOT EXISTS bot_updates_pending_idx
     ON iee1405.bot_updates (update_id)
  WHERE delivered_at IS NULL AND reply_text IS NOT NULL;
 
+-- صف پاسخ‌های ارسالی: claim اتمیک با FOR UPDATE SKIP LOCKED.
+-- چرا؟ دو اجرای هم‌زمان گردش‌کار (n8n هر چند ثانیه یک اجرا شروع می‌کند و
+-- منتظر پایان اجرای قبلی نمی‌ماند) قبلاً می‌توانستند همان ردیف‌های «ارسال‌نشده»
+-- را هر دو select کنند و همان پیام را دو بار (چند ثانیه پشت سر هم) بفرستند.
+-- با SKIP LOCKED هر ردیف فقط یک‌بار claim می‌شود و status آن 'sending' می‌شود;
+-- mark_sent بعد از ارسال موفق delivered_at را ست می‌کند و در ارسال ناموفق
+-- status را به 'processed' برمی‌گرداند تا در چرخه بعد دوباره تلاش شود.
 CREATE OR REPLACE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20)
-RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int)
-LANGUAGE sql STABLE AS $$
-    SELECT u.update_id, u.chat_id, u.reply_text,
-           COALESCE((u.raw -> '_attempts')::int, 0)
-      FROM iee1405.bot_updates u
-     WHERE u.reply_text IS NOT NULL
-       AND u.delivered_at IS NULL
-       AND u.status IN ('received', 'processed', 'skipped')
-     ORDER BY u.update_id
-     LIMIT p_limit
-$$;
+RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup jsonb)
+LANGUAGE plpgsql AS $$
+BEGIN
+    RETURN QUERY
+    UPDATE iee1405.bot_updates u
+       SET status = 'sending', claimed_at = clock_timestamp()
+      FROM (SELECT u2.update_id
+              FROM iee1405.bot_updates u2
+             WHERE u2.reply_text IS NOT NULL
+               AND u2.delivered_at IS NULL
+               AND (u2.status IN ('received', 'processed', 'skipped')
+                    -- claimهای کهنه (اجرای نیمه‌کاره) دوباره در صف قرار می‌گیرند
+                    OR (u2.status = 'sending'
+                        AND u2.claimed_at < clock_timestamp() - interval '90 seconds'))
+             ORDER BY u2.update_id
+             LIMIT p_limit
+             FOR UPDATE OF u2 SKIP LOCKED) c
+     WHERE u.update_id = c.update_id
+    RETURNING u.update_id, u.chat_id, u.reply_text,
+              COALESCE((u.raw -> '_attempts')::int, 0),
+              COALESCE(u.reply_markup, iee1405.menu_kb());
+END $$;
 
 -- ثبت نتیجه ارسال. چرا پاسخ بله هم ورودی است؟ چون «ارسال شد» را نباید از
 -- متن خطای n8n حدس زد: بله برای خیلی از خطاها کد ۲۰۰ با ok:false می‌دهد.
@@ -503,9 +523,11 @@ BEGIN
                        p_response ->> 'error_code',
                        p_response ->> 'message',
                        '?');
+    -- ارسال ناموفق: دوباره به صف برمی‌گردد ('processed') تا چرخه بعد retry شود
     UPDATE iee1405.bot_updates
        SET raw = jsonb_set(COALESCE(raw, '{}'::jsonb), '{_attempts}',
-                           to_jsonb(COALESCE((raw ->> '_attempts')::int, 0) + 1), true)
+                           to_jsonb(COALESCE((raw ->> '_attempts')::int, 0) + 1), true),
+           status = 'processed', claimed_at = NULL
      WHERE update_id = p_update_id
      RETURNING COALESCE((raw ->> '_attempts')::int, 0) INTO v_attempts;
 
@@ -531,7 +553,7 @@ RETURNS void LANGUAGE sql AS $$
     UPDATE iee1405.bot_updates SET delivered_at = now() WHERE update_id = p_update_id
 $$;
 
-COMMENT ON FUNCTION iee1405.pending_replies IS 'پاسخ‌های ارسال‌نشده؛ مبنای تضمین تحویل';
+COMMENT ON FUNCTION iee1405.pending_replies IS 'claim اتمیک پاسخ‌های ارسال‌نشده (SKIP LOCKED)؛ مبنای تضمین تحویل بدون ارسال تکراری';
 
 -- ─────────────────────────────────────────────────────────────────────
 -- 11) ثبت خطای دریافت از بله
