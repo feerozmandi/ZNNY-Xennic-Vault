@@ -152,6 +152,8 @@ LANGUAGE sql IMMUTABLE AS $$
 $$;
 
 -- جست‌وجو در آینه: ۰ نتیجه، یک نتیجه (کارت)، چند نتیجه (فهرست شماره‌دار)
+SELECT iee1405.drop_stale_result('barghpa', 'search',
+       'TABLE(company_id bigint, name_fa text, halls text, contact_count int, provenance text)');
 CREATE OR REPLACE FUNCTION barghpa.search(p_q text, p_limit int DEFAULT 8)
 RETURNS TABLE (company_id bigint, name_fa text, halls text,
                contact_count int, provenance text)
@@ -177,6 +179,8 @@ COMMENT ON FUNCTION barghpa.search(text, int) IS
 'جست‌وجوی نام/شناسه با یکسان‌سازی فارسی (ي/ك، نیم‌فاصله، ارقام فارسی).';
 
 -- فهرست یک سالن
+SELECT iee1405.drop_stale_result('barghpa', 'by_hall',
+       'TABLE(company_id bigint, name_fa text, priority int, contact_count int)');
 CREATE OR REPLACE FUNCTION barghpa.by_hall(p_hall text, p_limit int DEFAULT 15)
 RETURNS TABLE (company_id bigint, name_fa text, priority int, contact_count int)
 LANGUAGE sql STABLE AS $$
@@ -380,6 +384,8 @@ COMMENT ON FUNCTION barghpa.bot_reply(text) IS
 'ورودی دستور /c — شناسه، نام سالن یا عبارت جست‌وجو را می‌پذیرد.';
 
 -- ── خودآزمایی سمت سرور: عددهایی که باید با SQLite یکی باشند
+SELECT iee1405.drop_stale_result('barghpa', 'selftest',
+       'TABLE(check_name text, ok boolean, detail text)');
 CREATE OR REPLACE FUNCTION barghpa.selftest()
 RETURNS TABLE (check_name text, ok boolean, detail text)
 LANGUAGE plpgsql STABLE AS $$

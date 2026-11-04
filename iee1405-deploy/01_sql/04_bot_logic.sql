@@ -212,6 +212,8 @@ BEGIN
 END $$;
 
 -- جست‌وجوی شرکت (کد، نام، غرفه) — حداکثر ۸ نتیجه
+SELECT iee1405.drop_stale_result('iee1405', 'search_orgs',
+       'TABLE(code text, legal_name text, booth text)');
 CREATE OR REPLACE FUNCTION iee1405.search_orgs(p_q text, p_limit int DEFAULT 8)
 RETURNS TABLE (code text, legal_name text, booth text) LANGUAGE sql STABLE AS $$
     WITH ex AS (SELECT id FROM iee1405.exhibitions WHERE code = 'IEE1405')
@@ -334,6 +336,8 @@ RETURNS void LANGUAGE sql AS $$
            expires_at = EXCLUDED.expires_at
 $$;
 
+SELECT iee1405.drop_stale_result('iee1405', 'session_get',
+       'TABLE(state text, payload jsonb)');
 CREATE OR REPLACE FUNCTION iee1405.session_get(p_chat_id bigint)
 RETURNS TABLE (state text, payload jsonb) LANGUAGE sql STABLE AS $$
     SELECT CASE WHEN s.expires_at < now() THEN 'idle' ELSE s.state END,
@@ -792,6 +796,8 @@ COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb) IS
 -- پایین‌تر بازساخته می‌شود؛ بین این دو خط هیچ اجرایی معنا ندارد.
 DROP FUNCTION IF EXISTS iee1405.bot_dispatch_json(jsonb);
 
+SELECT iee1405.drop_stale_result('iee1405', 'bot_dispatch_json',
+       'TABLE(chat_id bigint, status text, reply_text text, org_code text)');
 CREATE OR REPLACE FUNCTION iee1405.bot_dispatch_json(p_update jsonb)
 RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text)
 LANGUAGE plpgsql AS $$

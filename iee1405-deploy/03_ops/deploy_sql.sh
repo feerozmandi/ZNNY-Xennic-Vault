@@ -71,6 +71,13 @@ run_file() {
     if ! pgq "$PG_DB" -v ON_ERROR_STOP=1 -f - < "$f" >/tmp/iee_out.txt 2>/tmp/iee_err.txt; then
         c_bad "خطا در $(basename "$f")"
         grep -E "ERROR|FATAL" /tmp/iee_err.txt | head -10 | sed 's/^/     /'
+        # همین خطا دو بار ربات را بی‌صدا کرد؛ راه‌حل را همان‌جا بگو
+        if grep -q "cannot change return type" /tmp/iee_err.txt; then
+            c_hint "پایگاه نسخهٔ کهنهٔ یک تابع را دارد و CREATE OR REPLACE نمی‌تواند نوع خروجی را عوض کند."
+            c_hint "از نسخهٔ ۰.۱.۳۳ فایل‌ها خودشان نسخهٔ کهنه را حذف می‌کنند؛ اگر این پیام را دیدید،"
+            c_hint "یعنی فایل ۰۱ (که تابع نگهبان را می‌سازد) در همین اجرا مشکل داشته. ترتیب اجرا را ببینید."
+            c_hint "راه سریع: bash 03_ops/test_stale_signatures.sh  ← نشان می‌دهد نگهبان کار می‌کند یا نه"
+        fi
         exit 1
     fi
     local notices

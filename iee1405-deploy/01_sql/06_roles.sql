@@ -119,6 +119,8 @@ REVOKE CREATE ON SCHEMA public FROM iee_app, iee_panel, iee_report;
 
 -- ── بازبینی: هر چیزی که iee_app نمی‌تواند بسازد/بنویسد، همین‌جا دیده شود ──
 -- بدون این، کمبود دسترسی فقط وقتی معلوم می‌شود که ربات در نیمه‌شب کار نکند.
+SELECT iee1405.drop_stale_result('iee1405', 'privilege_gaps',
+       'TABLE(kind text, object_name text, needed text)');
 CREATE OR REPLACE FUNCTION iee1405.privilege_gaps()
 RETURNS TABLE (kind text, object_name text, needed text)
 LANGUAGE sql STABLE AS $$
