@@ -4,7 +4,7 @@
 > وضعیت: **مرحلهٔ A روی دادهٔ واقعی اجرا شد (۱۴۰۵/۰۸/۱۲). مرحلهٔ B آماده و آزمون‌شده
 > (۹۵ بررسی)، و در سرور اجرا شد (۲۹۷ شرکت / ۴۹۷ تماس / ۳۰۰ مشارکت). مرحلهٔ C
 > با تأیید مالک: **۲۰ نامزد در ۱۰ سالن**، و برنامهٔ ۴ روزهٔ بازدید ساخته شد.**
-> تاریخ: ۱۴۰۵/۰۸/۱۲ · بازبینی: ۱۴۰۵/۰۸/۱۳ (2026-11-04) · ابزار: v0.8
+> تاریخ: ۱۴۰۵/۰۸/۱۲ · بازبینی: ۱۴۰۵/۰۸/۱۳ (2026-11-04) · ابزار: v0.8.1
 > در v0.7 دو نقصِ فهرست واقعی (سالن‌های بی‌نامزد و سه شرکتِ یک خانواده) برطرف شد؛
 > در v0.8 حلقهٔ بازخورد بسته شد: `--pilot-report` می‌گوید کدام نامزد دیده شد.
 
@@ -47,37 +47,59 @@
 ### به‌روزرسانی ابزار روی سرور (بدون عوض‌کردن شاخهٔ مخزن)
 
 `tools/` یک کپی است، نه لینک. اگر نسخهٔ قدیمی آنجا بماند، پرچم‌های تازه با
-`unrecognized arguments` رد می‌شوند — همین اتفاق در اجرای اول v0.7 افتاد.
+`unrecognized arguments` رد می‌شوند — دو بار همین اتفاق افتاد.
 
-این بلوک **همهٔ** فایل‌های پایتون و پوشهٔ `schema/` را از شاخهٔ پایدار `dev`
-بیرون می‌کشد و شاخهٔ فعلی مخزن را دست نمی‌زند. پیش‌تر چهار فایل دستی کپی می‌شد؛
-`build_html.py`، `log_interaction.py` و `schema/` (که مهاجرت‌ها را دارد) از قلم
-می‌افتادند. نام شاخه را هم دستی نوشته بودیم که پس از ادغام حذف شد و همان بلوک
-با `couldn't find remote ref` شکست.
+> [!warning] چرا `origin/dev` روی سرور وجود ندارد
+> آن کلون با `--single-branch --branch arena/011e185b-…` ساخته شده و آن شاخه
+> پس از ادغام PR #75 **حذف** شد. در چنین کلونی `remote.origin.fetch` فقط همان
+> شاخهٔ مرده را نگاشت می‌کند، پس `git fetch origin dev` **تنها `FETCH_HEAD`**
+> را به‌روز می‌کند و `origin/dev` ساخته نمی‌شود. نتیجه: `fatal: Not a valid
+> object name origin/dev:iee1405-field-toolkit` — و در بدترین حالت، کپی
+> انجام نمی‌شود ولی اسکریپت ادامه می‌دهد و آزمونِ **نسخهٔ قدیمی** سبز می‌شود.
+> به همین دلیل بلوک زیر هم از `FETCH_HEAD` می‌خواند و هم پیش از کپی بررسی
+> می‌کند که فهرست فایل خالی نباشد.
 
 ```bash
-V=~/ZNNY-Xennic-Vault
-B=dev                                                # شاخهٔ پایدار
-T=~/xennic-data/barghpa-26-iee1405/tools
-BK=~/xennic-data/barghpa-26-iee1405/backups/tools-$(date -u +%Y%m%dT%H%M%SZ)
+update_tools() {
+  V=~/ZNNY-Xennic-Vault
+  B=dev
+  T=~/xennic-data/barghpa-26-iee1405/tools
+  BK=~/xennic-data/barghpa-26-iee1405/backups/tools-$(date -u +%Y%m%dT%H%M%SZ)
 
-mkdir -p "$BK" && cp -a "$T"/*.py "$T"/schema "$BK"/     # نسخهٔ قبلی حفظ می‌شود
-git -C "$V" fetch origin "$B" || echo "‼️ fetch نشد — ادامه ندهید"
-for f in $(git -C "$V" ls-tree --name-only "origin/$B:iee1405-field-toolkit" | grep '\.py$'); do
-  git -C "$V" show "origin/$B:iee1405-field-toolkit/$f" > "$T/$f" || echo "‼️ $f"
-done
-for f in $(git -C "$V" ls-tree --name-only "origin/$B:iee1405-field-toolkit/schema"); do
-  git -C "$V" show "origin/$B:iee1405-field-toolkit/schema/$f" > "$T/schema/$f" || echo "‼️ schema/$f"
-done
-grep -c cover-halls "$T/pick_pilot.py"               # باید ۳ یا بیشتر باشد
-python3 "$T/test_toolkit.py" 2>&1 | tail -2          # باید «۹۵ موفق / ۰ ناموفق»
+  git -C "$V" fetch origin "$B" || { echo "‼️ fetch نشد — ادامه ندهید"; return 1; }
+
+  PY=$(git -C "$V" ls-tree --name-only "FETCH_HEAD:iee1405-field-toolkit" | grep '\.py$')
+  SC=$(git -C "$V" ls-tree --name-only "FETCH_HEAD:iee1405-field-toolkit/schema")
+  [ -n "$PY" ] && [ -n "$SC" ] || { echo "‼️ فهرست فایل از FETCH_HEAD خوانده نشد — ادامه ندهید"; return 1; }
+
+  mkdir -p "$BK" && cp -a "$T"/*.py "$T"/schema "$BK"/     && echo "۱) نسخهٔ قبلی در $BK"
+  for f in $PY; do
+    git -C "$V" show "FETCH_HEAD:iee1405-field-toolkit/$f" > "$T/$f" \
+      || echo "‼️ $f"
+  done
+  for f in $SC; do
+    git -C "$V" show "FETCH_HEAD:iee1405-field-toolkit/schema/$f" > "$T/schema/$f" \
+      || echo "‼️ schema/$f"
+  done
+
+  rm -rf "$T/__pycache__"      # بایت‌کد قدیمی می‌تواند نسخهٔ قبلی را اجرا کند
+  echo "۲) نشانه‌های نسخه (هر سه باید غیرصفر باشند):"
+  grep -c cover-halls   "$T/pick_pilot.py"
+  grep -c pilot-report  "$T/log_interaction.py"
+  grep -c HALL_ORDER    "$T/build_plan.py"
+  python3 "$T/test_toolkit.py" 2>&1 | tail -2       # باید «۹۵ موفق / ۰ ناموفق»
+}
+update_tools
 ```
 
-اگر `grep` صفر داد یا آزمون سبز نشد، یعنی فایل از شاخهٔ درست نیامده — ادامه
-ندهید. ترتیب مهم است: `pick_pilot.py`، `build_plan.py` و `log_interaction.py`
-همه به همان `bgdb.py` تکیه دارند، پس همه با هم کپی می‌شوند. به‌روزرسانی
-`schema/` هم لازم است، وگرنه مهاجرت تازه (مثل `007_pilot.sql`) اجرا نمی‌شود و
-پایگاه از کد عقب می‌ماند.
+اگر هر سه عدد صفر بودند، کپی انجام نشده — آزمون بعدی **نسخهٔ قدیمی** را
+می‌سنجد و سبز شدنش دلیل درستی نیست. برای تعمیر دائمی همان کلون (اختیاری،
+شاخهٔ کاری را عوض نمی‌کند):
+
+```bash
+git -C ~/ZNNY-Xennic-Vault config remote.origin.fetch '+refs/heads/dev:refs/remotes/origin/dev'
+git -C ~/ZNNY-Xennic-Vault fetch origin
+```
 
 ---
 
