@@ -480,7 +480,7 @@ CREATE INDEX IF NOT EXISTS bot_updates_pending_idx
 -- mark_sent بعد از ارسال موفق delivered_at را ست می‌کند و در ارسال ناموفق
 -- status را به 'processed' برمی‌گرداند تا در چرخه بعد دوباره تلاش شود.
 -- امضای تابع تغییر کرده (ستون reply_markup اضافه شده)؛ CREATE OR REPLACE
--- نمی‌تواند نوع خروجی را عوض کند، پس先 DROP می‌کنیم (idempotent).
+-- نمی‌تواند نوع خروجی را عوض کند، پس DROP می‌کنیم (idempotent).
 DROP FUNCTION IF EXISTS iee1405.pending_replies(int);
 
 CREATE OR REPLACE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20)
@@ -514,7 +514,16 @@ END $$;
 CREATE OR REPLACE FUNCTION iee1405.mark_sent(p_update_id bigint, p_response jsonb DEFAULT NULL)
 RETURNS text LANGUAGE plpgsql AS $$
 DECLARE
-    v_ok       boolean := COALESCE((p_response ->> 'ok')::boolean, false);
+    -- تشخیص موفقیت:
+    --  - پاسخ خام HTTP بله: {ok:true, result:{...}} یا {ok:false, ...}
+    --  - نود رسمی baleMessenger (node-telegram-bot-api): خود objeto message را
+    --    برمی‌گرداند ({message_id, chat, from, text, ...}) — فیلد ok ندارد.
+    --    اگر ok غایب باشد و message_id/result موجود باشد، ارسال موفق است;
+    --    وگرنه (ok=false  یا هر شکل دیگر) ناموفق.
+    v_ok       boolean := CASE
+                    WHEN p_response ? 'ok' THEN (p_response ->> 'ok')::boolean
+                    WHEN p_response ? 'message_id' OR p_response ? 'result' THEN true
+                    ELSE false END;
     v_attempts int;
     v_code     text;
 BEGIN
