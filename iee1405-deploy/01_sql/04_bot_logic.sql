@@ -363,6 +363,25 @@ $$;
 -- اگر امضای تابع تغییر کرده باشد، بازسازی لازم است
 DROP FUNCTION IF EXISTS iee1405.bot_dispatch(bigint, bigint, text, jsonb);
 
+-- آیا آینهٔ فهرست نمایشگاه آماده است؟
+--   چرا تابع جدا؟ چون در plpgsql نمی‌توان «EXISTS (SELECT … FROM barghpa.company)»
+--   را با to_regclass کوتاه‌مدار کرد: عبارت یک‌جا پارس می‌شود و اگر اسکیما نبود،
+--   خطای «relation does not exist» می‌دهد (همین باگ در آزمون دیده شد).
+--   VOLATILE لازم است: EXECUTE در تابع STABLE مجاز نیست.
+CREATE OR REPLACE FUNCTION iee1405.mirror_ready() RETURNS boolean
+LANGUAGE plpgsql VOLATILE AS $$
+DECLARE v boolean;
+BEGIN
+    IF to_regclass('barghpa.company') IS NULL THEN
+        RETURN false;
+    END IF;
+    EXECUTE 'SELECT EXISTS (SELECT 1 FROM barghpa.company)' INTO v;
+    RETURN COALESCE(v, false);
+END $$;
+
+COMMENT ON FUNCTION iee1405.mirror_ready() IS
+'آیا اسکیمای آینهٔ barghpa ساخته و بارگذاری شده است؟ (بدون خطا وقتی نیست)';
+
 CREATE OR REPLACE FUNCTION iee1405.bot_dispatch(
     p_update_id bigint,
     p_chat_id   bigint,
@@ -373,6 +392,7 @@ LANGUAGE plpgsql AS $$
 DECLARE
     v_text      text := btrim(COALESCE(p_text, ''));
     v_key       text;   -- نسخهٔ یکسان‌شدهٔ متن برای تشخیص دستور
+    v_dedupe_s  int;    -- پنجرهٔ ضدتکرار راهنما (ثانیه)
     v_cmd       text;
     v_arg       text;
     v_actor     text;
@@ -531,7 +551,7 @@ BEGIN
         IF to_regclass('barghpa.company') IS NULL THEN
             v_reply := 'آینهٔ فهرست نمایشگاه ساخته نشده است. روی سرور: ' ||
                        'bash 03_ops/load_exhibitors.sh';
-        ELSIF NOT EXISTS (SELECT 1 FROM barghpa.company) THEN
+        ELSIF NOT iee1405.mirror_ready() THEN
             v_reply := 'آینهٔ فهرست نمایشگاه خالی است. روی سرور: ' ||
                        'bash 03_ops/load_exhibitors.sh';
         ELSE
@@ -778,8 +798,7 @@ BEGIN
             IF v_cmd IS NOT NULL THEN
                 -- دستور شناخته‌نشده: متن دقیق ورودی بازگفت می‌شود
                 v_reply := iee1405.msg('cmd_unknown', jsonb_build_object('text', v_text));
-            ELSIF v_key <> '' AND to_regclass('barghpa.company') IS NOT NULL
-                  AND EXISTS (SELECT 1 FROM barghpa.company) THEN
+            ELSIF v_key <> '' AND iee1405.mirror_ready() THEN
                 -- در نمایشگاه کافی است نام شرکت تایپ یا دکمه زده شود
                 IF EXISTS (SELECT 1 FROM barghpa.search(v_key, 1)) THEN
                     v_reply := barghpa.bot_reply(v_key);
@@ -806,19 +825,29 @@ BEGIN
         END IF;
     END IF;
 
-    -- ۵.۵.۹) پاسخ تکراری: اگر همان چت در ۱۰ دقیقه گذشته همین متن راهنما را
-    -- گرفته باشد، دوباره فرستاده نمی‌شود. علت واقعی: پس از قطعی، هشت «/start»
-    -- پشت‌سرهم در یک دسته می‌آید و کاربر هشت پیام یکسان می‌گیرد. آپدیت‌ها
-    -- همه ثبت می‌شوند؛ فقط ارسال تکرار نمی‌شود. این قاعده **فقط** برای راهنما
-    -- است، نه پیام‌های تأیید ثبت داده (وگرنه دو ثبت پشت‌سرهم یک تأیید می‌گرفت).
-    IF v_cmd IN ('/start', '/help') AND v_reply IS NOT NULL AND EXISTS (
-        SELECT 1 FROM iee1405.bot_updates u
-         WHERE u.chat_id = p_chat_id
-           AND u.update_id <> p_update_id
-           AND u.reply_text = v_reply
-           AND u.processed_at > clock_timestamp() - interval '10 minutes'
-    ) THEN
-        v_reply := NULL;
+    -- ۵.۵.۹) پاسخ تکراری راهنما — فقط برای «طوفان در یک دسته»
+    --   اصل: پس از قطعی، هشت «/start» در یک دریافت می‌آید و کاربر هشت پیام
+    --   یکسان می‌گیرد؛ آن هشت باید یکی شود.
+    --   اما پنجرهٔ ۱۰ دقیقه‌ای فاجعه بود: هر /start عادی در آن بازه **سکوت**
+    --   می‌گرفت و از دید کاربر یعنی «ربات خراب است». (دقیقاً همان چیزی که بعد
+    --   از فعال‌شدن تشخیص دکمه‌ها گزارش شد: قبلاً /start شناخته نمی‌شد و
+    --   idle_hint می‌گرفت، بعد از رفع، شناخته شد و بی‌صدا ماند.)
+    --   اکنون: پنجرهٔ کوتاه (پیش‌فرض ۴۵ ثانیه، قابل تنظیم در bot_state) و
+    --   فقط برای پاسخ **هم‌متن**. یک /start عادی همیشه پاسخ می‌گیرد.
+    IF v_cmd IN ('/start', '/help') AND v_reply IS NOT NULL THEN
+        v_dedupe_s := COALESCE((SELECT CASE WHEN value ~ '^[0-9]+$' THEN value::int END
+                                  FROM iee1405.bot_state
+                                 WHERE key = 'help_dedupe_seconds'), 45);
+        IF v_dedupe_s > 0 AND EXISTS (
+            SELECT 1 FROM iee1405.bot_updates u
+             WHERE u.chat_id = p_chat_id
+               AND u.update_id <> p_update_id
+               AND u.reply_text = v_reply
+               AND u.processed_at >
+                   clock_timestamp() - make_interval(secs => v_dedupe_s)
+        ) THEN
+            v_reply := NULL;
+        END IF;
     END IF;
 
     -- ۵.۶) ثبت نتیجه در لاگ آپدیت
