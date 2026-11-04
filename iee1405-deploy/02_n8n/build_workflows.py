@@ -19,6 +19,12 @@ CRED_NAME = "Xennic PostgreSQL"
 CRED_ID = "XENNIC-PG-CREDENTIAL"      # پس از ساخت اعتبارنامه در n8n جای‌گذاری شود
 CRED_TYPE = "postgres"
 
+# نود رسمی بله (community node داخل n8n) — ارسال پیام با کیبورد
+BALE_NODE_TYPE = "n8n-nodes-bale-messenger-alpha.baleMessenger"
+BALE_CRED_NAME = "Xennic Bale Bot"
+BALE_CRED_ID = "XENNIC-BALE-CREDENTIAL"
+BALE_CRED_TYPE = "baleMessengerApi"
+
 TAG = {"name": "IEE1405"}
 
 # شناسه ثابت برای اجراهای تکراری (idempotent)
@@ -164,6 +170,44 @@ def send_message_node(name, position, *, text_field="text_body", notes=None):
     )
 
 
+def bale_send_node(name, position, notes=None):
+    """نود رسمی بله (baleMessenger) — ارسال پیام با کیبورد اصلی.
+
+    replyMarkup=replyKeyboard و متن هر دکمه با عبارت از
+    $json.reply_markup.keyboard[r][c].text خوانده می‌شود (همان struktura که
+    iee1405.menu_kb() می‌سازد). کیبوردهای inline پویا (cat:/org:/cmd:) از طریق
+    این نود قابل ارسال نیستند (fixedCollection ثابت) و از گره HTTP می‌روند.
+    """
+    layout = [[(0, 0)], [(1, 0), (1, 1)], [(2, 0), (2, 1)], [(3, 0), (3, 1)]]
+    rows = []
+    for row in layout:
+        buttons = [
+            {"text": "={{ $json.reply_markup.keyboard[%d][%d].text }}" % (r, c)}
+            for (r, c) in row
+        ]
+        rows.append({"row": {"buttons": buttons}})
+    node = {
+        "parameters": {
+            "resource": "message",
+            "operation": "sendMessage",
+            "chatId": "={{ $json.chat_id }}",
+            "text": "={{ $json.text_body }}",
+            "replyMarkup": "replyKeyboard",
+            "replyKeyboard": {"rows": rows},
+        },
+        "id": nid(name),
+        "name": name,
+        "type": BALE_NODE_TYPE,
+        "typeVersion": 1,
+        "position": position,
+        "credentials": {BALE_CRED_TYPE: {"id": BALE_CRED_ID, "name": BALE_CRED_NAME}},
+    }
+    if notes:
+        node["notes"] = notes
+        node["notesInFlow"] = True
+    return node
+
+
 def meta(description):
     return {
         "templateCredsSetupCompleted": False,
@@ -256,7 +300,37 @@ def wf_inbound():
         notes="claim اتمیک با SKIP LOCKED: دو اجرای هم‌زمان هرگز یک پیام را دو بار نمی‌فرستند",
     )
 
-    n_send = send_message_node("💬 ارسال پاسخ", [1760, 0])
+    # تفکیک مسیر ارسال:
+    #  - اگر reply_markup از نوع inline_keyboard باشد (دسته‌بندی، نتایج جست‌وجو،
+    #    دکمه‌های اقدام) → گره HTTP با JSON کامل (تعداد دکمه‌ها پویا است و نود رسمی
+    #    baleMessenger فقط fixedCollection ثابت دارد).
+    #  - در غیر این صورت → نود رسمی بله با کیبورد اصلی (reply keyboard).
+    n_if = {
+        "parameters": {
+            "conditions": {
+                "options": {"caseSensitive": True, "leftValue": "", "typeValidation": "strict"},
+                "combinator": "and",
+                "conditions": [
+                    {
+                        "leftValue": "={{ $json.reply_markup && $json.reply_markup.inline_keyboard ? true : false }}",
+                        "rightValue": True,
+                        "operator": {"type": "boolean", "operation": "true"},
+                    }
+                ],
+            }
+        },
+        "id": nid("🔀 تفکیک کیبورد"),
+        "name": "🔀 تفکیک کیبورد",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.1,
+        "position": [1760, -80],
+        "notes": "inline → HTTP (تعداد دکمه پویا) · منوی ثابت → نود رسمی بله",
+        "notesInFlow": True,
+    }
+    n_send_inline = send_message_node("💬 ارسال inline", [1980, -160],
+        notes="کیبورد inline پویا (cat:/org:/cmd:)؛ reply_markup کامل به‌صورت JSON")
+    n_send = bale_send_node("💬 ارسال پاسخ", [1980, 0],
+        notes="نود رسمی بله (baleMessenger) — کیبورد اصلی reply keyboard")
 
     # update_id از گره «پاسخ‌های آماده ارسال» خوانده می‌شود، نه از $json:
     # خروجی گره ارسال، پاسخ بله است (ok/message_id) و update_id ندارد؛ نسخه
@@ -282,7 +356,7 @@ def wf_inbound():
     n_pollerr["onError"] = "continueRegularOutput"
 
     nodes = [n_sched, n_offset, n_beat, n_get, n_watch, n_split, n_dispatch,
-             n_advance, n_pending, n_send, n_mark, n_pollerr]
+             n_advance, n_pending, n_if, n_send_inline, n_send, n_mark, n_pollerr]
 
     conns = {
         n_sched["name"]:  {"main": [[{"node": n_offset["name"],  "type": "main", "index": 0}]]},
@@ -299,7 +373,12 @@ def wf_inbound():
         n_split["name"]:  {"main": [[{"node": n_dispatch["name"], "type": "main", "index": 0}]]},
         n_dispatch["name"]: {"main": [[{"node": n_advance["name"], "type": "main", "index": 0}]]},
         n_advance["name"]:  {"main": [[{"node": n_pending["name"], "type": "main", "index": 0}]]},
-        n_pending["name"]:  {"main": [[{"node": n_send["name"], "type": "main", "index": 0}]]},
+        n_pending["name"]:  {"main": [[{"node": n_if["name"], "type": "main", "index": 0}]]},
+        n_if["name"]:       {"main": [
+                                [{"node": n_send_inline["name"], "type": "main", "index": 0}],
+                                [{"node": n_send["name"], "type": "main", "index": 0}],
+                            ]},
+        n_send_inline["name"]: {"main": [[{"node": n_mark["name"], "type": "main", "index": 0}]]},
         n_send["name"]:     {"main": [[{"node": n_mark["name"], "type": "main", "index": 0}]]},
     }
 
@@ -340,7 +419,7 @@ def wf_reminders():
         "SELECT chat_id, actor, text_body, iee1405.menu_kb() AS reply_markup\n  FROM iee1405.reminder_items();",
         notes="یک پیام به‌ازای هر مسئول؛ اگر چیزی نیست، هیچ پیامی نمی‌رود",
     )
-    n_send = send_message_node("💬 ارسال یادآور", [440, 0])
+    n_send = bale_send_node("💬 ارسال یادآور", [440, 0], notes="نود رسمی بله — کیبورد اصلی")
     nodes = [n_sched, n_q, n_send]
     return {
         "name": "IEE1405-02 — یادآور پیگیری‌ها",
@@ -375,7 +454,7 @@ def wf_digest():
         "  FROM iee1405.owner_chat_ids() o;",
         notes="متن از v_today_digest ساخته می‌شود (تست‌شده در SQL)",
     )
-    n_send = send_message_node("💬 ارسال خلاصه", [440, 0])
+    n_send = bale_send_node("💬 ارسال خلاصه", [440, 0], notes="نود رسمی بله — کیبورد اصلی")
     nodes = [n_sched, n_q, n_send]
     return {
         "name": "IEE1405-03 — خلاصه پایان روز",
@@ -412,7 +491,7 @@ def wf_health():
         "SELECT chat_id, text_body, iee1405.menu_kb() AS reply_markup\n  FROM iee1405.health_watch();",
         notes="در حالت سالم ساکت است؛ خودترمیمی همیشه اجرا می‌شود",
     )
-    n_send = send_message_node("💬 هشدار", [440, 0])
+    n_send = bale_send_node("💬 هشدار", [440, 0], notes="نود رسمی بله — کیبورد اصلی")
     nodes = [n_sched, n_q, n_send]
     return {
         "name": "IEE1405-04 — پایش سلامت",

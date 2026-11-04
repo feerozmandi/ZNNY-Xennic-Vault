@@ -189,11 +189,11 @@ bash 03_ops/import_workflows.sh import
 bash 03_ops/import_workflows.sh list
 ```
 
-چهار گردش‌کار:
+چهار گردش‌کار (ارسال پیام با نود رسمی `n8n-nodes-bale-messenger-alpha.baleMessenger`؛ دریافت با polling — Trigger رسمی بله فقط webhook است و به دامنه عمومی نیاز دارد):
 
 | فایل | نام در n8n | زمان‌بندی | کار |
 |---|---|---|---|
-| `wf-01-bale-ingest.json` | IEE1405-01 — دریافت پیام‌های بله | هر ۳ ثانیه | getUpdates → ثبت در PG → پاسخ |
+| `wf-01-bale-ingest.json` | IEE1405-01 — دریافت پیام‌های بله | هر ۳ ثانیه | getUpdates (polling) → ثبت در PG → ارسال با **نود رسمی baleMessenger** (یا HTTP برای کیبورد inline) |
 | `wf-02-reminders.json` | IEE1405-02 — یادآور پیگیری‌ها | روزانه ۰۷:۳۰ | پیگیری‌های سررسید تا ۳ روز |
 | `wf-03-digest.json` | IEE1405-03 — خلاصه پایان روز | روزانه ۲۰:۳۰ | آمار روز + نزدیک‌ترین پیگیری‌ها |
 | `wf-04-health.json` | IEE1405-04 — پایش سلامت | هر ۳۰ دقیقه | فقط وقتی مشکل هست هشدار می‌دهد |

@@ -182,6 +182,40 @@ elif [[ -n "$CRED_IN_DB" ]]; then
     c_hint "اگر گردش‌کار خطای credential داد: bash 03_ops/diagnose_n8n.sh"
 fi
 
+# ── اعتبارنامه نود رسمی بله (baleMessengerApi) ─────────────────────────────
+# گره‌های baleMessenger توکن را از credential می‌خوانند، نه از $env؛ پس کارت
+# «Xennic Bale Bot» با id ثابت ساخته می‌شود و توکن از .env (BALE_TOKEN_BOT) پر می‌شود.
+BALE_CRED_ID="XENNIC-BALE-CREDENTIAL"
+BALE_CRED_NAME="Xennic Bale Bot"
+BALE_TOKEN="$(env_get BALE_TOKEN_BOT || true)"
+[[ -z "$BALE_TOKEN" ]] && BALE_TOKEN="$(env_get BALE_TOKEN || true)"
+if [[ -z "$BALE_TOKEN" ]]; then
+    c_bad "BALE_TOKEN_BOT در .env خالی است —نود بله ساخته نمی‌شود"
+    c_hint "bash 03_ops/setup_env.sh"
+else
+    N8N_CT="$N8N_CT" BALE_CRED_ID="$BALE_CRED_ID" BALE_CRED_NAME="$BALE_CRED_NAME" BALE_TOKEN="$BALE_TOKEN" \
+    python3 -c '
+import json, os
+e = os.environ
+cred = [{
+    "id": e["BALE_CRED_ID"],
+    "name": e["BALE_CRED_NAME"],
+    "type": "baleMessengerApi",
+    "data": {"token": e["BALE_TOKEN"]}
+}]
+print(json.dumps(cred, ensure_ascii=False))
+' | $DK exec -i "$N8N_CT" sh -c 'cat > /tmp/iee-bale-cred.json && chmod 600 /tmp/iee-bale-cred.json'
+    if n8n import:credentials --input=/tmp/iee-bale-cred.json 2>&1 | grep -q "Successfully imported"; then
+        c_ok "اعتبارنامه نود بله («$BALE_CRED_NAME») ساخته/به‌روز شد"
+    else
+        c_warn "ایمپورت اعتبارنامه بله ناموفق یا از قبل موجود بود (idempotent)"
+    fi
+    $DK exec -i "$N8N_CT" sh -c 'rm -f /tmp/iee-bale-cred.json' 2>/dev/null || true
+    BALE_IN_DB="$(pgq "$N8N_DB" -c "SELECT count(*) FROM credentials_entity WHERE id = '$BALE_CRED_ID'" 2>/dev/null | tr -d '[:space:]')"
+    [[ "$BALE_IN_DB" == "1" ]] && c_ok "تأیید از دیتابیس n8n: کارت بله موجود است" \
+        || c_warn "کارت بله در دیتابیس n8n دیده نشد — نودهای baleMessenger با خطای credential شکست می‌خورند"
+fi
+
 c_head "۱.۵) آزمون واقعی اتصال (قبل از انتشار)"
 # آیا iee_app با همین رمز می‌تواند وارد شود؟ (خطای «password authentication failed»
 # شایع‌ترین علت شکست گره‌های SQL است و هیچ اثری در bot_state نمی‌گذارد)

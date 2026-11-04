@@ -50,41 +50,77 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.BALE_API_URL }}/sendMessage",
-        "options": {
-          "timeout": 20000
-        },
-        "sendBody": true,
-        "contentType": "form-urlencoded",
-        "specifyBody": "keypair",
-        "bodyParameters": {
-          "parameters": [
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text_body }}",
+        "replyMarkup": "replyKeyboard",
+        "replyKeyboard": {
+          "rows": [
             {
-              "name": "chat_id",
-              "value": "={{ $json.chat_id }}"
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[0][0].text }}"
+                  }
+                ]
+              }
             },
             {
-              "name": "text",
-              "value": "={{ $json.text_body }}"
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[1][0].text }}"
+                  },
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[1][1].text }}"
+                  }
+                ]
+              }
             },
             {
-              "name": "reply_markup",
-              "value": "={{ JSON.stringify($json.reply_markup) }}"
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[2][0].text }}"
+                  },
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[2][1].text }}"
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[3][0].text }}"
+                  },
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[3][1].text }}"
+                  }
+                ]
+              }
             }
           ]
         }
       },
       "id": "5bbda83f-584a-5900-9c44-ca0e2c75c167",
       "name": "💬 هشدار",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-bale-messenger-alpha.baleMessenger",
+      "typeVersion": 1,
       "position": [
         440,
         0
       ],
-      "retryOnFail": false,
-      "onError": "continueRegularOutput"
+      "credentials": {
+        "baleMessengerApi": {
+          "id": "XENNIC-BALE-CREDENTIAL",
+          "name": "Xennic Bale Bot"
+        }
+      },
+      "notes": "نود رسمی بله — کیبورد اصلی",
+      "notesInFlow": true
     }
   ],
   "connections": {

@@ -234,6 +234,38 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.reply_markup && $json.reply_markup.inline_keyboard ? true : false }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        }
+      },
+      "id": "96d50b89-9980-57a7-abae-023a5b40b725",
+      "name": "🔀 تفکیک کیبورد",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [
+        1760,
+        -80
+      ],
+      "notes": "inline → HTTP (تعداد دکمه پویا) · منوی ثابت → نود رسمی بله",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "={{ $env.BALE_API_URL }}/sendMessage",
         "options": {
@@ -259,16 +291,92 @@
           ]
         }
       },
-      "id": "f157ef87-fd8e-5691-b221-cf0d4610405d",
-      "name": "💬 ارسال پاسخ",
+      "id": "c95f204c-52bf-55e7-8c32-60a197ba6b33",
+      "name": "💬 ارسال inline",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1760,
-        0
+        1980,
+        -160
       ],
       "retryOnFail": false,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "notes": "کیبورد inline پویا (cat:/org:/cmd:)؛ reply_markup کامل به‌صورت JSON",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text_body }}",
+        "replyMarkup": "replyKeyboard",
+        "replyKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[0][0].text }}"
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[1][0].text }}"
+                  },
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[1][1].text }}"
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[2][0].text }}"
+                  },
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[2][1].text }}"
+                  }
+                ]
+              }
+            },
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[3][0].text }}"
+                  },
+                  {
+                    "text": "={{ $json.reply_markup.keyboard[3][1].text }}"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "f157ef87-fd8e-5691-b221-cf0d4610405d",
+      "name": "💬 ارسال پاسخ",
+      "type": "n8n-nodes-bale-messenger-alpha.baleMessenger",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        0
+      ],
+      "credentials": {
+        "baleMessengerApi": {
+          "id": "XENNIC-BALE-CREDENTIAL",
+          "name": "Xennic Bale Bot"
+        }
+      },
+      "notes": "نود رسمی بله (baleMessenger) — کیبورد اصلی reply keyboard",
+      "notesInFlow": true
     },
     {
       "parameters": {
@@ -423,7 +531,36 @@
       "main": [
         [
           {
+            "node": "🔀 تفکیک کیبورد",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 تفکیک کیبورد": {
+      "main": [
+        [
+          {
+            "node": "💬 ارسال inline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "💬 ارسال پاسخ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 ارسال inline": {
+      "main": [
+        [
+          {
+            "node": "✅ ثبت ارسال",
             "type": "main",
             "index": 0
           }
