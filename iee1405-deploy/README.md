@@ -449,6 +449,8 @@ bash 03_ops/load_exhibitors.sh --dry-run   # فایل SQL ساخته می‌شو
 | شمار SQLite و آینه نمی‌خواند | بارگذاری نیمه‌کاره | بارگذاری را تکرار کنید؛ تراکنشی است و چیزی نیمه نمی‌ماند |
 | `cannot change return type of existing function` در `04_bot_logic.sql` | پایگاه نسخهٔ قدیمیِ `bot_dispatch_json` را دارد (مثلاً بعد از عوض‌کردن شاخه/چک‌اوت) | `bash 03_ops/deploy_sql.sh` — فایل ۰۴ خودش امضا را `DROP` و بازسازی می‌کند (از این نسخه به بعد) |
 | ربات بی‌صداست: نه خطا، نه پاسخ | یا تابع قدیمی در پایگاه مانده، یا قالب `help` خالی است | `bash 03_ops/check_bot_access.sh` — بخش ۴ همین دو را نشان می‌دهد |
+| `bale_getupdates` هر ۲۰ ثانیه `500 Internal Server Error` و استارت بی‌جواب | `bale_offset` به عددی رفته که بله نمی‌شناسد (مثلاً یک ردیف آزمایشی با شناسهٔ غول‌آسا در `bot_updates`) | `SELECT iee1405.poll_reset(0);` — و ردیف مشکوک را از محاسبه خارج کنید؛ از نسخهٔ ۰.۱.۳۲ خودِ `poll_advance` این را نادیده می‌گیرد |
+| `getUpdates` با `offset=0` سالم است ولی با offset فعلی ۵۰۰ | همان مورد بالا؛ با `offset=0` بله پاسخ ۲۰۰ می‌دهد | `bash 03_ops/test_poll_offset.sql` را ببینید و offset را صفر کنید |
 
 ### بعد از اینکه ربات جواب داد: گام‌های واقعی
 
@@ -791,7 +793,10 @@ docker compose -f ~/xennic-infra/docker-compose.yml exec -T postgres \
 # ۱) بررسی ساختار و سلامت
 PG_DB=xennic bash 03_ops/deploy_sql.sh --verify-only
 
-# ۲) اجرای آزمون‌های محلی (نیاز به پایگاه‌داده آزمایشی ندارد اگر روی VPS اجرا شود)
+# ۲) آزمون offset دریافت (تراکنشی، چیزی نمی‌نویسد)
+python3 03_ops/psqlrun.py 03_ops/test_poll_offset.sql
+
+# ۲.۱) آزمون‌های محلی (نیاز به پایگاه‌داده آزمایشی ندارد اگر روی VPS اجرا شود)
 #    این آزمون‌ها تراکنشی هستند و همه‌چیز را ROLLBACK می‌کنند.
 
 # ۳) آزمون دستی از بله:
