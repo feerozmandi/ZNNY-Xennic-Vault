@@ -80,6 +80,28 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA iee1405
 -- پنل WordPress: فقط نوشتن از طریق توابع/نماها (فاز ۲)
 GRANT SELECT ON ALL TABLES IN SCHEMA crm TO iee_panel;
 
+-- ── آینهٔ فهرست نمایشگاه (اسکیمای barghpa) ─────────────────────────────
+-- چرا این بلوک لازم است: `deploy_sql.sh` فایل 08 (که آینه را می‌سازد) را
+-- **پیش از** این فایل اجرا می‌کند، پس بلوک گرنت داخل 08 نقش هنوز موجود نیست
+-- و بی‌صدا رد می‌شود؛ نتیجه: ربات با «permission denied for schema barghpa»
+-- می‌افتد. اینجا نقش‌ها قطعاً ساخته شده‌اند.
+-- آینه فقط‌خواندنی است: هیچ INSERT/UPDATE/DELETE به هیچ نقشی داده نمی‌شود.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'barghpa') THEN
+        EXECUTE 'REVOKE ALL ON SCHEMA barghpa FROM PUBLIC';
+        EXECUTE 'GRANT USAGE ON SCHEMA barghpa TO iee_app, iee_panel, iee_report';
+        EXECUTE 'GRANT SELECT ON ALL TABLES IN SCHEMA barghpa TO iee_app, iee_panel, iee_report';
+        EXECUTE 'GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA barghpa TO iee_app, iee_report';
+        EXECUTE 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA barghpa '
+                'FROM iee_app, iee_panel, iee_report';
+        EXECUTE 'ALTER DEFAULT PRIVILEGES IN SCHEMA barghpa '
+                'GRANT SELECT ON TABLES TO iee_app, iee_panel, iee_report';
+    ELSE
+        RAISE NOTICE 'اسکیمای barghpa وجود ندارد؛ گرنت آینه رد شد (آینه اختیاری است)';
+    END IF;
+END $$;
+
 -- نقش‌های آینده هم همین دسترسی را بگیرند
 ALTER DEFAULT PRIVILEGES IN SCHEMA crm
     GRANT SELECT ON TABLES TO iee_app, iee_panel, iee_report;

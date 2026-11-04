@@ -25,7 +25,8 @@ INSERT INTO iee1405.bot_messages (key, template, description) VALUES
  ('help',
   E'راهنمای ربات میدانی Xennic\n\n'
   '/new — ثبت شرکت جدید\n'
-  '/find نام — جست‌وجو\n'
+  '/find نام — جست‌وجو در CRM\n'
+  '/c نام|شناسه|سالن — شرکت از فهرست نمایشگاه\n'
   '/org ORG-000123 — پرونده شرکت\n'
   '/log ORG-000123 | خلاصه | اقدام بعدی — ثبت مذاکره\n'
   '/cap ORG-000123 | متن توانمندی — ثبت توانمندی (reported)\n'
@@ -421,15 +422,18 @@ BEGIN
                     WHEN 'پ' THEN '/task'
                     WHEN 'و' THEN '/visit'
                     WHEN 'ر' THEN '/help'
+                    WHEN 'ش' THEN '/c'
+                    WHEN 'س' THEN '/hall'
                     ELSE NULL END;
         IF v_cmd IS NOT NULL THEN v_arg := ''; END IF;
     END IF;
     -- میان‌بر با آرگومان: «ج تابلو»
-    IF v_cmd IS NULL AND v_text ~ '^(ن|ج|م|پ|و)\s' THEN
+    IF v_cmd IS NULL AND v_text ~ '^(ن|ج|م|پ|و|ش|س)\s' THEN
         v_cmd := CASE left(v_text, 1)
                     WHEN 'ن' THEN '/new' WHEN 'ج' THEN '/find'
                     WHEN 'م' THEN '/log' WHEN 'پ' THEN '/task'
-                    WHEN 'و' THEN '/visit' END;
+                    WHEN 'و' THEN '/visit'
+                    WHEN 'ش' THEN '/c' WHEN 'س' THEN '/hall' END;
         v_arg := btrim(substr(v_text, 2));
     END IF;
 
@@ -470,6 +474,21 @@ BEGIN
                 v_reply := iee1405.msg('find_header',
                                        jsonb_build_object('q', v_arg, 'list', v_list));
             END IF;
+        END IF;
+
+    ELSIF v_cmd IN ('/c', '/company', '/شرکت', '/hall') THEN
+        -- فهرست نمایشگاه در اسکیمای آینهٔ `barghpa` است، نه در CRM.
+        -- اگر آن اسکیما هنوز بارگذاری نشده باشد، پیام روشن می‌دهیم نه خطا.
+        IF to_regclass('barghpa.company') IS NULL THEN
+            v_reply := 'آینهٔ فهرست نمایشگاه ساخته نشده است. روی سرور: ' ||
+                       'bash 03_ops/load_exhibitors.sh';
+        ELSIF NOT EXISTS (SELECT 1 FROM barghpa.company) THEN
+            v_reply := 'آینهٔ فهرست نمایشگاه خالی است. روی سرور: ' ||
+                       'bash 03_ops/load_exhibitors.sh';
+        ELSE
+            v_reply := barghpa.bot_reply(CASE WHEN v_cmd = '/hall'
+                                              THEN COALESCE(nullif(v_arg, ''), '')
+                                              ELSE v_arg END);
         END IF;
 
     ELSIF v_cmd = '/org' THEN
