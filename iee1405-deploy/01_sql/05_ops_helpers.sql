@@ -462,6 +462,12 @@ $$;
 ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS delivered_at timestamptz;
 ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS claimed_at timestamptz;
 ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS reply_markup jsonb;
+
+-- مهاجرت: جدول‌های قدیمی با CHECK بدون 'sending'/'failed' ساخته شده‌اند و
+-- CREATE TABLE IF NOT EXISTS آن را اصلاح نمی‌کند؛ پس constraint را بازسازی می‌کنیم.
+ALTER TABLE iee1405.bot_updates DROP CONSTRAINT IF EXISTS bot_updates_status_check;
+ALTER TABLE iee1405.bot_updates ADD CONSTRAINT bot_updates_status_check
+    CHECK (status IN ('received', 'processed', 'skipped', 'error', 'sending', 'failed'));
 CREATE INDEX IF NOT EXISTS bot_updates_pending_idx
     ON iee1405.bot_updates (update_id)
  WHERE delivered_at IS NULL AND reply_text IS NOT NULL;

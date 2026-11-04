@@ -520,6 +520,14 @@ BEGIN
                     WHEN 'و' THEN '/visit' END;
         v_arg := btrim(substr(v_text, 2));
     END IF;
+    -- دکمه‌های کیبورد اصلی متن خود را می‌فرستند («🆕 /new — شرکت جدید»)؛
+    -- اگر متن dekمه حاول یک دستور باشد، همان دستور اجرا می‌شود.
+    IF v_cmd IS NULL AND v_text ~ '/(start|help|new|find|log|visit|task|today|org|cap|cancel)([^a-z]|$)' THEN
+        v_cmd := '/' || (regexp_match(v_text, '/(start|help|new|find|log|visit|task|today|org|cap|cancel)([^a-z]|$)'))[1];
+        v_arg := btrim(regexp_replace(v_text,
+                     '^.*?(/(?:start|help|new|find|log|visit|task|today|org|cap|cancel)([^a-z]|$)).*$', '\\1'));
+        IF v_arg = v_cmd OR v_arg = '' THEN v_arg := ''; END IF;
+    END IF;
 
     SELECT s.state, s.payload INTO v_state, v_payload
       FROM iee1405.session_get(p_chat_id) s;
