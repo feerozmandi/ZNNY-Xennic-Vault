@@ -466,6 +466,38 @@ def main() -> int:
         check("D8.5 CSV برنامه با ستون‌های لازم", len(rows_csv) == n_pilot
               and {"day", "rank", "company", "first_check"} <= set(rows_csv[0]))
 
+        # ── D9: وضعیت پایلوت ──────────────────────────────────────
+        print("\nD9 — وضعیت فهرست پایلوت در برابر تعامل‌های ثبت‌شده")
+        con = bgdb.connect(db)
+        first = con.execute("""SELECT c.name_fa FROM visit_pilot p
+                                 JOIN company c ON c.id=p.company_id
+                                ORDER BY p.rank LIMIT 1""").fetchone()[0]
+        n_pilot = con.execute("SELECT count(*) FROM visit_pilot").fetchone()[0]
+        n_ix0 = con.execute("SELECT count(*) FROM visit_interaction").fetchone()[0]
+        con.close()
+        rep0 = sh("log_interaction.py", "--db", str(db), "--pilot-report")
+        check("D9.1 هر نامزد پایلوت با وضعیتش می‌آید",
+              rep0.count("بی‌تعامل") + rep0.count("دیده شد") >= n_pilot
+              and f"فهرست پایلوت: {n_pilot} شرکت" in rep0, f"{n_pilot} نامزد")
+        sh("log_interaction.py", "--db", str(db), "--company", str(first), "--kind", "visit",
+           "--outcome", "interested", "--next", "ارسال کاتالوگ", "--due", "2026-11-12")
+        rep1 = sh("log_interaction.py", "--db", str(db), "--pilot-report")
+        check("D9.2 شرکت دیده‌شده با نتیجه و اقدام بعدی نشان داده می‌شود",
+              "✅ دیده شد" in rep1 and "interested" in rep1 and "ارسال کاتالوگ" in rep1
+              and "دیده‌شده 1" in rep1)
+        con = bgdb.connect(db)
+        n_ix1 = con.execute("SELECT count(*) FROM visit_interaction").fetchone()[0]
+        con.close()
+        check("D9.3 گزارش وضعیت فقط‌خواندنی است (دامنهٔ تعامل عوض نمی‌شود)",
+              n_ix1 == n_ix0 + 1, f"{n_ix0}→{n_ix1}")
+        scsv = root / "pilot-status.csv"
+        sh("log_interaction.py", "--db", str(db), "--pilot-report", "--pilot-csv", str(scsv))
+        srows = list(csv.DictReader(scsv.open(encoding="utf-8-sig")))
+        check("D9.4 خروجی CSV وضعیت، هر نامزد را یک‌بار دارد",
+              len(srows) == n_pilot
+              and {"rank", "company", "status", "outcome"} <= set(srows[0])
+              and sum(1 for r in srows if r["status"] == "visited") == 1)
+
     finally:
         if "--keep" in sys.argv:
             print(f"\nپوشهٔ آزمون نگه داشته شد: {root}")
