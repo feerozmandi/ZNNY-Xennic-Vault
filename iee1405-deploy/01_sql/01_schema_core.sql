@@ -10,6 +10,50 @@
 CREATE SCHEMA IF NOT EXISTS crm;
 CREATE SCHEMA IF NOT EXISTS iee1405;
 
+-- ─────────────────────────────────────────────────────────────────────
+-- نگهبان امضای توابع
+--   CREATE OR REPLACE FUNCTION فقط وقتی کار می‌کند که نوع خروجی یکی باشد.
+--   اگر نسخهٔ نصب‌شده ستون‌های دیگری برگرداند، کل استقرار با این خطا می‌ایستد:
+--     ERROR: cannot change return type of existing function
+--   و چون هر فایل با ON_ERROR_STOP اجرا می‌شود، **بقیهٔ همان فایل اجرا نمی‌شود**
+--   — یعنی ممکن است اصلاح تازه هرگز نصب نشود. این اتفاق دو بار روی سرور افتاد
+--   (bot_dispatch_json و pending_replies).
+--   این تابع، نسخهٔ کهنه را فقط وقتی حذف می‌کند که امضایش با کد یکی نباشد؛
+--   در حالت عادی هیچ کاری نمی‌کند و پنجرهٔ «تابع وجود ندارد» باز نمی‌شود.
+--   اجرا: SELECT iee1405.drop_stale_result('اسکیما', 'نام', 'TABLE(ستون نوع, …)');
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION iee1405.drop_stale_result(p_schema text, p_name text, p_expected text)
+RETURNS boolean LANGUAGE plpgsql AS $guard$
+DECLARE
+    -- نرمال‌سازی: int ≡ integer، فاصله/خط تازه بی‌اثر، حروف کوچک
+    v_norm text := btrim(regexp_replace(replace(lower(p_expected), 'integer', 'int'),
+                                        '\s+', ' ', 'g'));
+    r record;
+    v_dropped boolean := false;
+BEGIN
+    FOR r IN
+        SELECT p.oid::regprocedure AS sig,
+               pg_get_function_result(p.oid) AS res,
+               pg_get_function_identity_arguments(p.oid) AS args
+          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = p_schema
+           AND p.proname = p_name
+           AND btrim(regexp_replace(replace(lower(pg_get_function_result(p.oid)),
+                                            'integer', 'int'), '\s+', ' ', 'g')) <> v_norm
+    LOOP
+        EXECUTE format('DROP FUNCTION %s', r.sig);
+        -- نام تابع را دستی می‌سازیم: regprocedure اگر اسکیما در search_path
+        -- نباشد، به‌جای نام، OID چاپ می‌کند و پیام بی‌معنا می‌شود.
+        RAISE NOTICE 'امضای کهنه حذف شد: %.%(%) — نوع پیشین: %',
+                     p_schema, p_name, r.args, r.res;
+        v_dropped := true;
+    END LOOP;
+    RETURN v_dropped;
+END $guard$;
+
+COMMENT ON FUNCTION iee1405.drop_stale_result(text, text, text) IS
+'حذف نسخهٔ تابع فقط وقتی نوع خروجی‌اش با کد یکی نیست؛ رفع «cannot change return type»';
+
 -- افزونه‌ها (در صورت نبود دسترسی، اجرای آن‌ها اختیاری است)
 DO $$
 BEGIN
@@ -105,6 +149,31 @@ CREATE OR REPLACE FUNCTION crm.fa_date(p_ts timestamptz) RETURNS text
 LANGUAGE sql STABLE AS $$
     SELECT to_char(p_ts AT TIME ZONE 'Asia/Tehran', 'YYYY-MM-DD')
 $$;
+
+-- ─────────────────────────────────────────────────────────────────────
+-- یکسان‌سازی ورودی برای تشخیص دستور ربات
+--   چرا جدا از norm_text؟ چون دکمه‌های بله متن را با نویسه‌های جهت‌دهی و
+--   نامرئی (U+200E/200F، U+202A–E، U+2066–9) و گاهی اعداد فارسی می‌فرستند.
+--   نتیجهٔ واقعی روی سرور: دکمه‌ای که «/c» می‌فرستد به «دستور ناشناخته»
+--   می‌رسید و کاربر فقط «برای شروع: /new …» می‌دید.
+--   این تابع فقط برای **تشخیص** است؛ متن اصلی پیام دست‌نخورده ذخیره می‌شود.
+-- ─────────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION crm.cmd_text(p text) RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+    SELECT btrim(regexp_replace(
+             translate(
+               translate(COALESCE(p, ''),
+                         '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩',
+                         '01234567890123456789'),
+               E'\u064A\u0643\u200C\u200D\u0640',
+               E'\u06CC\u06A9   '),
+             '[' || E'\u200B\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u00A0'
+                   || E'\t\n\r]' || '+', ' ', 'g'))
+$$;
+
+COMMENT ON FUNCTION crm.cmd_text(text) IS
+'یکسان‌سازی ورودی برای تشخیص دستور: حذف نویسه‌های نامرئی/جهت‌دهی، ارقام فارسی،
+ی/ک عربی و نیم‌فاصله. متن اصلی پیام تغییر نمی‌کند.';
 
 -- ─────────────────────────────────────────────────────────────────────
 -- 3) کاربران سامانه

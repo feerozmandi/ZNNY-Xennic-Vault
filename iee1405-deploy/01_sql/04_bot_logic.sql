@@ -111,7 +111,16 @@ INSERT INTO iee1405.bot_messages (key, template, description) VALUES
   'لغو جلسه'),
  ('idle_hint',
   E'برای شروع: /new (ثبت شرکت) یا /find نام (جست‌وجو).\nراهنما: /help',
-  'راهنمای حالت عادی')
+  'راهنمای حالت عادی'),
+ ('find_need_q',
+  E'نام شرکت را بعد از دستور بنویسید. مثال:\n/find ترانسفو\nیا مستقیم نام را بفرستید.',
+  'درخواست عبارت جست‌وجو'),
+ ('cmd_unknown',
+  E'دستور «{text}» را نمی‌شناسم.\nراهنما: /help\nجست‌وجوی نمایشگاه: /c نام شرکت',
+  'دستور ناشناخته — متن ورودی بازگفت می‌شود تا عیب‌یابی دکمه‌ها ممکن باشد'),
+ ('not_understood',
+  E'متوجه نشدم: «{text}»\nنام شرکت را بفرستید، یا /c برای فهرست نمایشگاه، یا /help.',
+  'متن نامفهوم — با بازگفت متن، برای تشخیص برچسب دکمه')
 -- قالب‌ها را دست نزن (اپراتور می‌تواند متن را بدون استقرار عوض کند)، اما
 -- قالب خالی/سفید را ترمیم کن؛ وگرنه ربات بی‌صدا پاسخی خالی می‌فرستد.
 ON CONFLICT (key) DO UPDATE
@@ -212,6 +221,8 @@ BEGIN
 END $$;
 
 -- جست‌وجوی شرکت (کد، نام، غرفه) — حداکثر ۸ نتیجه
+SELECT iee1405.drop_stale_result('iee1405', 'search_orgs',
+       'TABLE(code text, legal_name text, booth text)');
 CREATE OR REPLACE FUNCTION iee1405.search_orgs(p_q text, p_limit int DEFAULT 8)
 RETURNS TABLE (code text, legal_name text, booth text) LANGUAGE sql STABLE AS $$
     WITH ex AS (SELECT id FROM iee1405.exhibitions WHERE code = 'IEE1405')
@@ -334,6 +345,8 @@ RETURNS void LANGUAGE sql AS $$
            expires_at = EXCLUDED.expires_at
 $$;
 
+SELECT iee1405.drop_stale_result('iee1405', 'session_get',
+       'TABLE(state text, payload jsonb)');
 CREATE OR REPLACE FUNCTION iee1405.session_get(p_chat_id bigint)
 RETURNS TABLE (state text, payload jsonb) LANGUAGE sql STABLE AS $$
     SELECT CASE WHEN s.expires_at < now() THEN 'idle' ELSE s.state END,
@@ -359,6 +372,7 @@ CREATE OR REPLACE FUNCTION iee1405.bot_dispatch(
 LANGUAGE plpgsql AS $$
 DECLARE
     v_text      text := btrim(COALESCE(p_text, ''));
+    v_key       text;   -- نسخهٔ یکسان‌شدهٔ متن برای تشخیص دستور
     v_cmd       text;
     v_arg       text;
     v_actor     text;
@@ -416,13 +430,27 @@ BEGIN
     UPDATE crm.users SET last_seen_at = now() WHERE username = v_actor;
 
     -- ۵.۳) تفکیک دستور و آرگومان
-    IF v_text LIKE '/%' THEN
-        v_cmd := lower(split_part(v_text, ' ', 1));
-        v_arg := btrim(substr(v_text, length(split_part(v_text, ' ', 1)) + 1));
+    -- ⚠️ ورودی **قبل از هر تصمیمی** یکسان می‌شود. چرا؟ دکمه‌های بله متن را با
+    -- نویسه‌های جهت‌دهی/نامرئی می‌فرستند (U+200E/200F، U+202A–E، U+2066–9)،
+    -- گاهی با «@نام‌ربات» و گاهی با ارقام فارسی. نتیجهٔ واقعی روی سرور: هر دکمه
+    -- به «برای شروع: /new …» می‌رسید چون هیچ شرطی با متن آلوده جور درنمی‌آمد.
+    v_key := crm.cmd_text(v_text);
+
+    -- نخستین نشانهٔ «/دستور» در متن، هرجای متن که باشد (برچسب دکمه‌ها ممکن است
+    -- با ایموجی یا متن فارسی شروع شوند: «📊 امروز /today»)
+    IF v_key LIKE '%/%' THEN
+        v_cmd := lower(substring(v_key FROM '/[^[:space:]]+'));
+        IF v_cmd IS NOT NULL THEN
+            v_cmd := split_part(v_cmd, '@', 1);        -- /start@xennicnotifierbot
+            v_arg := btrim(substr(v_key,
+                                  strpos(v_key, substring(v_key FROM '/[^[:space:]]+')) +
+                                  length(substring(v_key FROM '/[^[:space:]]+'))));
+        END IF;
     END IF;
-    -- میان‌برهای فارسی
+
+    -- میان‌برهای یک‌حرفی و واژه‌های فارسی (برچسب دکمه‌های بدون اسلش)
     IF v_cmd IS NULL THEN
-        v_cmd := CASE lower(v_text)
+        v_cmd := CASE v_key
                     WHEN 'ن' THEN '/new'
                     WHEN 'ج' THEN '/find'
                     WHEN 'م' THEN '/log'
@@ -431,17 +459,31 @@ BEGIN
                     WHEN 'ر' THEN '/help'
                     WHEN 'ش' THEN '/c'
                     WHEN 'س' THEN '/hall'
+                    WHEN 'شروع' THEN '/start'
+                    WHEN 'استارت' THEN '/start'
+                    WHEN 'راهنما' THEN '/help'
+                    WHEN 'کمک' THEN '/help'
+                    WHEN 'دستورها' THEN '/help'
+                    WHEN 'جستجو' THEN '/find'
+                    WHEN 'جست وجو' THEN '/find'
+                    WHEN 'جستجوی شرکت' THEN '/find'
+                    WHEN 'پیدا' THEN '/find'
+                    WHEN 'امروز' THEN '/today'
+                    WHEN 'لغو' THEN '/cancel'
+                    WHEN 'انصراف' THEN '/cancel'
+                    WHEN 'سالن' THEN '/hall'
+                    WHEN 'شرکت' THEN '/c'
                     ELSE NULL END;
         IF v_cmd IS NOT NULL THEN v_arg := ''; END IF;
     END IF;
     -- میان‌بر با آرگومان: «ج تابلو»
-    IF v_cmd IS NULL AND v_text ~ '^(ن|ج|م|پ|و|ش|س)\s' THEN
-        v_cmd := CASE left(v_text, 1)
+    IF v_cmd IS NULL AND v_key ~ '^(ن|ج|م|پ|و|ش|س)[[:space:]]' THEN
+        v_cmd := CASE left(v_key, 1)
                     WHEN 'ن' THEN '/new' WHEN 'ج' THEN '/find'
                     WHEN 'م' THEN '/log' WHEN 'پ' THEN '/task'
                     WHEN 'و' THEN '/visit'
                     WHEN 'ش' THEN '/c' WHEN 'س' THEN '/hall' END;
-        v_arg := btrim(substr(v_text, 2));
+        v_arg := btrim(substr(v_key, 2));
     END IF;
 
     SELECT s.state, s.payload INTO v_state, v_payload
@@ -463,7 +505,7 @@ BEGIN
 
     ELSIF v_cmd = '/find' THEN
         IF v_arg = '' THEN
-            v_reply := iee1405.msg('unknown');
+            v_reply := iee1405.msg('find_need_q');
         ELSE
             SELECT string_agg((rn)::text || ') ' || code || ' — ' || legal_name ||
                               CASE WHEN booth <> '' THEN ' [' || booth || ']' ELSE '' END,
@@ -731,7 +773,36 @@ BEGIN
             END IF;
 
         ELSE
-            v_reply := iee1405.msg('idle_hint');
+            -- متن آزاد در حالت عادی. قبلاً همه‌چیز «برای شروع: /new …» می‌گرفت
+            -- که هم گمراه‌کننده بود و هم عیب‌یابی دکمه‌ها را ناممکن می‌کرد.
+            IF v_cmd IS NOT NULL THEN
+                -- دستور شناخته‌نشده: متن دقیق ورودی بازگفت می‌شود
+                v_reply := iee1405.msg('cmd_unknown', jsonb_build_object('text', v_text));
+            ELSIF v_key <> '' AND to_regclass('barghpa.company') IS NOT NULL
+                  AND EXISTS (SELECT 1 FROM barghpa.company) THEN
+                -- در نمایشگاه کافی است نام شرکت تایپ یا دکمه زده شود
+                IF EXISTS (SELECT 1 FROM barghpa.search(v_key, 1)) THEN
+                    v_reply := barghpa.bot_reply(v_key);
+                ELSE
+                    v_reply := iee1405.msg('not_understood',
+                                           jsonb_build_object('text', v_text));
+                END IF;
+            ELSIF v_key <> '' THEN
+                -- آینه بارگذاری نشده؛ جست‌وجوی CRM
+                IF EXISTS (SELECT 1 FROM iee1405.search_orgs(v_key, 1)) THEN
+                    v_reply := iee1405.msg('find_header', jsonb_build_object('q', v_text));
+                    v_reply := v_reply || E'\n' ||
+                               (SELECT string_agg(rn::text || ') ' || code || ' — ' || legal_name,
+                                                  E'\n' ORDER BY rn)
+                                  FROM (SELECT code, legal_name, row_number() OVER () AS rn
+                                          FROM iee1405.search_orgs(v_key, 8)) s);
+                ELSE
+                    v_reply := iee1405.msg('not_understood',
+                                           jsonb_build_object('text', v_text));
+                END IF;
+            ELSE
+                v_reply := iee1405.msg('idle_hint');
+            END IF;
         END IF;
     END IF;
 
@@ -792,6 +863,8 @@ COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb) IS
 -- پایین‌تر بازساخته می‌شود؛ بین این دو خط هیچ اجرایی معنا ندارد.
 DROP FUNCTION IF EXISTS iee1405.bot_dispatch_json(jsonb);
 
+SELECT iee1405.drop_stale_result('iee1405', 'bot_dispatch_json',
+       'TABLE(chat_id bigint, status text, reply_text text, org_code text)');
 CREATE OR REPLACE FUNCTION iee1405.bot_dispatch_json(p_update jsonb)
 RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text)
 LANGUAGE plpgsql AS $$

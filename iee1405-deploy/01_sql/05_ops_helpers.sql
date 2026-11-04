@@ -284,6 +284,8 @@ END $$;
 -- ─────────────────────────────────────────────────────────────────────
 -- 4) یادآور پیگیری‌ها (WF-02) — یک ردیف به‌ازای هر گیرنده
 -- ─────────────────────────────────────────────────────────────────────
+SELECT iee1405.drop_stale_result('iee1405', 'reminder_items',
+       'TABLE(chat_id bigint, actor text, text_body text)');
 CREATE OR REPLACE FUNCTION iee1405.reminder_items()
 RETURNS TABLE (chat_id bigint, actor text, text_body text)
 LANGUAGE sql STABLE AS $$
@@ -316,6 +318,8 @@ $$;
 -- ─────────────────────────────────────────────────────────────────────
 -- 5) گیرنده گزارش مدیریتی
 -- ─────────────────────────────────────────────────────────────────────
+SELECT iee1405.drop_stale_result('iee1405', 'owner_chat_ids',
+       'TABLE(chat_id bigint)');
 CREATE OR REPLACE FUNCTION iee1405.owner_chat_ids()
 RETURNS TABLE (chat_id bigint) LANGUAGE sql STABLE AS $$
     SELECT u.bale_chat_id FROM crm.users u
@@ -393,6 +397,8 @@ $$;
 --  ۲) هشدار فاصله نداشت: هر ۳۰ دقیقه همان پیام تکرار می‌شد (۴۸ پیام در روز).
 --     حالا یک claim اتمی روی bot_state، حداکثر یک هشدار در هر بازه.
 -- ─────────────────────────────────────────────────────────────────────
+SELECT iee1405.drop_stale_result('iee1405', 'health_watch',
+       'TABLE(chat_id bigint, text_body text)');
 CREATE OR REPLACE FUNCTION iee1405.health_watch(
     p_min_interval interval DEFAULT '3 hours'
 ) RETURNS TABLE (chat_id bigint, text_body text)
@@ -445,6 +451,8 @@ RETURNS void LANGUAGE sql AS $$
      WHERE key = 'health_alert_last_at';
 $$;
 
+SELECT iee1405.drop_stale_result('iee1405', 'health_alert_rows',
+       'TABLE(chat_id bigint, text_body text)');
 CREATE OR REPLACE FUNCTION iee1405.health_alert_rows()
 RETURNS TABLE (chat_id bigint, text_body text)
 LANGUAGE sql STABLE AS $$
@@ -478,6 +486,8 @@ CREATE INDEX IF NOT EXISTS bot_updates_pending_idx
     ON iee1405.bot_updates (update_id)
  WHERE delivered_at IS NULL AND reply_text IS NOT NULL;
 
+SELECT iee1405.drop_stale_result('iee1405', 'pending_replies',
+       'TABLE(update_id bigint, chat_id bigint, text_body text, attempt int)');
 CREATE OR REPLACE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20)
 RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int)
 LANGUAGE sql STABLE AS $$
