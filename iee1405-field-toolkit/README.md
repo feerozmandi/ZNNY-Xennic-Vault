@@ -4,7 +4,7 @@
 > وضعیت: **مرحلهٔ A روی دادهٔ واقعی اجرا شد (۱۴۰۵/۰۸/۱۲). مرحلهٔ B آماده و آزمون‌شده
 > (۹۵ بررسی)، و در سرور اجرا شد (۲۹۷ شرکت / ۴۹۷ تماس / ۳۰۰ مشارکت). مرحلهٔ C
 > با تأیید مالک: **۲۰ نامزد در ۱۰ سالن**، و برنامهٔ ۴ روزهٔ بازدید ساخته شد.**
-> تاریخ: ۱۴۰۵/۰۸/۱۲ (2026-11-03) · ابزار: v0.8
+> تاریخ: ۱۴۰۵/۰۸/۱۲ · بازبینی: ۱۴۰۵/۰۸/۱۳ (2026-11-04) · ابزار: v0.8
 > در v0.7 دو نقصِ فهرست واقعی (سالن‌های بی‌نامزد و سه شرکتِ یک خانواده) برطرف شد؛
 > در v0.8 حلقهٔ بازخورد بسته شد: `--pilot-report` می‌گوید کدام نامزد دیده شد.
 
@@ -48,27 +48,36 @@
 
 `tools/` یک کپی است، نه لینک. اگر نسخهٔ قدیمی آنجا بماند، پرچم‌های تازه با
 `unrecognized arguments` رد می‌شوند — همین اتفاق در اجرای اول v0.7 افتاد.
-این بلوک فایل‌ها را از شاخهٔ `arena/…` بیرون می‌کشد و شاخهٔ فعلی مخزن را
-دست نمی‌زند:
+
+این بلوک **همهٔ** فایل‌های پایتون و پوشهٔ `schema/` را از شاخهٔ پایدار `dev`
+بیرون می‌کشد و شاخهٔ فعلی مخزن را دست نمی‌زند. پیش‌تر چهار فایل دستی کپی می‌شد؛
+`build_html.py`، `log_interaction.py` و `schema/` (که مهاجرت‌ها را دارد) از قلم
+می‌افتادند. نام شاخه را هم دستی نوشته بودیم که پس از ادغام حذف شد و همان بلوک
+با `couldn't find remote ref` شکست.
 
 ```bash
 V=~/ZNNY-Xennic-Vault
-B=arena/011e185b-znny-xennic-vault
+B=dev                                                # شاخهٔ پایدار
 T=~/xennic-data/barghpa-26-iee1405/tools
-BK=~/xennic-data/barghpa-26-iee1405/backups/tools-v0.6
+BK=~/xennic-data/barghpa-26-iee1405/backups/tools-$(date -u +%Y%m%dT%H%M%SZ)
 
-mkdir -p $BK && cp $T/*.py $BK/                      # نسخهٔ قبلی حفظ می‌شود
-git -C "$V" fetch origin
-for f in bgdb.py pick_pilot.py build_plan.py test_toolkit.py; do
-  git -C "$V" show "origin/$B:iee1405-field-toolkit/$f" > "$T/$f"
+mkdir -p "$BK" && cp -a "$T"/*.py "$T"/schema "$BK"/     # نسخهٔ قبلی حفظ می‌شود
+git -C "$V" fetch origin "$B" || echo "‼️ fetch نشد — ادامه ندهید"
+for f in $(git -C "$V" ls-tree --name-only "origin/$B:iee1405-field-toolkit" | grep '\.py$'); do
+  git -C "$V" show "origin/$B:iee1405-field-toolkit/$f" > "$T/$f" || echo "‼️ $f"
 done
-grep -c cover-halls $T/pick_pilot.py                 # باید ۳ یا بیشتر باشد
-python3 $T/test_toolkit.py 2>&1 | tail -2            # باید «۹۵ موفق / ۰ ناموفق»
+for f in $(git -C "$V" ls-tree --name-only "origin/$B:iee1405-field-toolkit/schema"); do
+  git -C "$V" show "origin/$B:iee1405-field-toolkit/schema/$f" > "$T/schema/$f" || echo "‼️ schema/$f"
+done
+grep -c cover-halls "$T/pick_pilot.py"               # باید ۳ یا بیشتر باشد
+python3 "$T/test_toolkit.py" 2>&1 | tail -2          # باید «۹۵ موفق / ۰ ناموفق»
 ```
 
-اگر `grep` صفر داد، یعنی فایل از شاخهٔ درست نیامده — ادامه ندهید.
-`build_plan.py` و `pick_pilot.py` هر دو به همان `bgdb.py` تکیه دارند، پس
-هر سه با هم کپی می‌شوند؛ فقط `pick_pilot.py` را عوض نکنید.
+اگر `grep` صفر داد یا آزمون سبز نشد، یعنی فایل از شاخهٔ درست نیامده — ادامه
+ندهید. ترتیب مهم است: `pick_pilot.py`، `build_plan.py` و `log_interaction.py`
+همه به همان `bgdb.py` تکیه دارند، پس همه با هم کپی می‌شوند. به‌روزرسانی
+`schema/` هم لازم است، وگرنه مهاجرت تازه (مثل `007_pilot.sql`) اجرا نمی‌شود و
+پایگاه از کد عقب می‌ماند.
 
 ---
 
