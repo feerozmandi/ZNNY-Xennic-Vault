@@ -235,6 +235,11 @@ def main():
     check("پیام آزمون مسیر جایگزین در صف است", len(pend) == 1, str(len(pend)))
     fb_id, fb_chat, fb_text = pend[0][0], pend[0][1], pend[0][2]
 
+    # قفل ارسال: اجرای دوم نباید همان ردیف را دوباره بردارد (پیام تکراری)
+    dup = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+    check("اجرای هم‌زمان همان پیام را دو بار برنمی‌دارد (قفل ارسال)", len(dup) == 0,
+          str(len(dup)))
+
     bad = ('{"ok":false,"error_code":400,'
            '"description":"Bad Request: reply_markup"}')
     psql(query_of("✅ ثبت ارسال", wf), [fb_id, bad])

@@ -35,6 +35,8 @@ DECLARE
     sample text;
     markup text;
     btn text;
+    base_err bigint;
+    cur_err bigint;
     fails int := 0;
 
     -- چت، متن، انتظارِ «چه چیزی در پاسخ باشد»، توضیح
@@ -274,6 +276,33 @@ BEGIN
     END LOOP;
     IF fails = 0 THEN
         RAISE NOTICE '✅ T13 · همهٔ برچسب‌های منو به دستور معتبر نگاشت می‌شوند';
+    END IF;
+
+    -- ── T14: «اطلاع» با «خطا» قاطی نشود ─────────────────────────────
+    -- روی سرور ۲۵ ردیف offset_guard (شناسهٔ خارج از محدودهٔ بله) ساخته شد و
+    -- health_text همیشه «⚠️ خطای باز ربات: ۲۵» می‌داد — هشدار دروغ. این ردیف
+    -- اطلاع است و نباید در شمارش خطا بیاید؛ ولی باید دیده شود.
+    -- نکته: نتیجهٔ تابع اول در متغیر گرفته می‌شود. نوشتن
+    -- RAISE NOTICE '… % …', fn(interval '1 hour') مستقیم، پارسر سادهٔ RAISE را
+    -- می‌شکند («mismatched parentheses») — یک بار همین‌جا وقت گرفت.
+    SELECT iee1405.recent_error_count(interval '1 hour') INTO base_err;
+    INSERT INTO iee1405.bot_errors (stage, message)
+    VALUES ('offset_guard', 'آزمون T14 — این ردیف خطا نیست');
+    SELECT iee1405.recent_error_count(interval '1 hour') INTO cur_err;
+    IF cur_err <> base_err THEN
+        fails := fails + 1;
+        RAISE NOTICE '❌ T14 · ردیف offset_guard به‌اشتباه خطا شمرده شد (% → %)',
+                     base_err, cur_err;
+    ELSE
+        INSERT INTO iee1405.bot_errors (stage, message)
+        VALUES ('send', 'آزمون T14 — این ردیف خطاست');
+        SELECT iee1405.recent_error_count(interval '1 hour') INTO cur_err;
+        IF cur_err <> base_err + 1 THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T14 · خطای واقعی شمرده نشد (% → %)', base_err, cur_err;
+        ELSE
+            RAISE NOTICE '✅ T14 · «اطلاع» خطا شمرده نمی‌شود، «خطای واقعی» می‌شود';
+        END IF;
     END IF;
 
     IF fails > 0 THEN

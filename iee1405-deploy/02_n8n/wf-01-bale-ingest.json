@@ -8,20 +8,20 @@
           "interval": [
             {
               "field": "seconds",
-              "secondsInterval": 20
+              "secondsInterval": 5
             }
           ]
         }
       },
-      "id": "46fb1037-c664-566a-9c7a-897ed7819a36",
-      "name": "⏱ هر ۲۰ ثانیه",
+      "id": "eae41bcd-c7da-5e0a-bac0-a305ac20de63",
+      "name": "⏱ هر ۵ ثانیه",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.3,
       "position": [
         0,
         0
       ],
-      "notes": "هر 20 ثانیه",
+      "notes": "هر 5 ثانیه",
       "notesInFlow": false
     },
     {
@@ -94,7 +94,7 @@
             },
             {
               "name": "timeout",
-              "value": "0"
+              "value": "4"
             }
           ]
         }
@@ -109,7 +109,7 @@
       ],
       "retryOnFail": false,
       "onError": "continueErrorOutput",
-      "notes": "long-poll = 0 تا اجرای زمان‌بند معطل نماند",
+      "notes": "long-poll = ۴ ثانیه (کمتر از بازهٔ زمان‌بند تا هم‌پوشانی نشود)",
       "notesInFlow": true
     },
     {
@@ -211,7 +211,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT update_id, chat_id, text_body, reply_markup\n  FROM iee1405.pending_replies(20);",
+        "query": "SELECT update_id, chat_id, text_body, reply_markup\n  FROM iee1405.pending_replies(20, true);",
         "options": {}
       },
       "id": "2fb96d13-281e-5156-ad5d-2c58f7560267",
@@ -422,7 +422,7 @@
     }
   ],
   "connections": {
-    "⏱ هر ۲۰ ثانیه": {
+    "⏱ هر ۵ ثانیه": {
       "main": [
         [
           {

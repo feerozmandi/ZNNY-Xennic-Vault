@@ -86,13 +86,15 @@ case_run "S1 · bot_dispatch_json سه‌ستونی — فایل ۰۴" \
     "pg_get_function_result('iee1405.bot_dispatch_json(jsonb)'::regprocedure)" \
     "TABLE(chat_id bigint, status text, reply_text text, org_code text)"
 
+# نسخهٔ کهنه یک‌آرگومانی است؛ نسخهٔ تازه «(limit, claim)» است. نگهبان باید
+# نسخهٔ کهنه را حذف کند و نسخهٔ تازه را بسازد، بی‌آنکه دو هم‌پوشان بمانند.
 case_run "S2 · pending_replies سه‌ستونی — فایل ۰۵" \
     "DROP FUNCTION IF EXISTS iee1405.pending_replies(int);
      CREATE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20)
        RETURNS TABLE (update_id bigint, chat_id bigint, body text)
        LANGUAGE sql AS 'SELECT NULL::bigint, NULL::bigint, NULL::text';" \
     "01_sql/05_ops_helpers.sql" \
-    "pg_get_function_result('iee1405.pending_replies(int)'::regprocedure)" \
+    "pg_get_function_result('iee1405.pending_replies(int, boolean)'::regprocedure)" \
     "TABLE(update_id bigint, chat_id bigint, text_body text, attempt integer, reply_markup text)"
 
 case_run "S3 · barghpa.search با ستون دیگر — فایل ۰۸" \

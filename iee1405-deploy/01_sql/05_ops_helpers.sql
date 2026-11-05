@@ -240,6 +240,10 @@ RETURNS bigint LANGUAGE sql STABLE AS $$
     SELECT count(*)
       FROM iee1405.bot_errors e
      WHERE e.occurred_at > now() - p_window
+       -- offset_guard **اطلاع** است، نه خطا: نگهبان offset یک بار برای هر ردیف
+       -- دستی/آزمایشی ثبتش می‌کند. شمردنش باعث می‌شد health_text همیشه
+       -- «⚠️ خطای باز ربات: ۲۵» نشان دهد و هشدار سلامت بی‌دلیل بالا بیاید.
+       AND e.stage <> 'offset_guard'
        AND (e.stage <> 'bale_getupdates'
             OR e.occurred_at > COALESCE((SELECT value::timestamptz
                                            FROM iee1405.bot_state
@@ -359,6 +363,14 @@ BEGIN
     IF iee1405.recent_error_count(interval '1 hour') > 0 THEN
         v_issues := v_issues || E'\n⚠️ خطای باز ربات: ' ||
                     iee1405.recent_error_count(interval '1 hour');
+    END IF;
+    -- اطلاع، نه هشدار: این ردیف‌ها خطا نیستند و در شمارش بالا نمی‌آیند،
+    -- ولی پنهان هم نمی‌مانند.
+    IF (SELECT count(*) FROM iee1405.bot_errors
+         WHERE stage = 'offset_guard' AND occurred_at > now() - interval '24 hours') > 0 THEN
+        v_issues := v_issues || E'\nℹ️ شناسهٔ خارج از محدودهٔ بله (در offset شمرده نشد): ' ||
+                    (SELECT count(*) FROM iee1405.bot_errors
+                      WHERE stage = 'offset_guard' AND occurred_at > now() - interval '24 hours');
     END IF;
     IF v_dq.tasks_overdue > 0 THEN
         v_issues := v_issues || E'\n⚠️ پیگیری گذشته از موعد: ' || v_dq.tasks_overdue;
@@ -500,6 +512,14 @@ CREATE INDEX IF NOT EXISTS bot_updates_pending_idx
 -- درخواست را با خطای ۴۰۰ رد کند.
 ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS reply_markup jsonb;
 
+-- ── قفل ارسال (sending_at) ───────────────────────────────────────────
+-- چرا؟ از نسخهٔ ۰.۱.۳۸ زمان‌بند دریافت ۵ ثانیه است و getUpdates هم تا ۴ ثانیه
+-- منتظر می‌ماند؛ پس دو اجرا می‌توانند هم‌پوشانی داشته باشند. بدون قفل، هر دو
+-- یک ردیف صف را برمی‌داشتند و کاربر **دو پیام تکراری** می‌گرفت.
+-- قاعده: هر اجرا ردیف‌ها را هنگام برداشتن «قفل» می‌کند؛ اگر اجرایی در میانهٔ
+-- کار بمیرد، قفل پس از ۹۰ ثانیه خودش باز می‌شود (خودترمیمی، بدون دخالت).
+ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS sending_at timestamptz;
+
 -- منوی ثابت پایین صفحه. برچسب دکمه‌ها عمداً همان واژه‌هایی است که
 -- `iee1405.bot_dispatch` می‌شناسد (شروع، امروز، راهنما، جست‌وجو، …)، پس فشردن
 -- دکمه دقیقاً همان کاری را می‌کند که تایپ آن واژه.
@@ -538,9 +558,47 @@ COMMENT ON FUNCTION iee1405.current_keyboard() IS
 
 SELECT iee1405.drop_stale_result('iee1405', 'pending_replies',
        'TABLE(update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup text)');
-CREATE OR REPLACE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20)
+-- ⚠️ نسخهٔ یک‌آرگومانی باید صریح حذف شود: «CREATE OR REPLACE» با آرگومان تازه
+-- یک **هم‌پوشان** می‌سازد، نه جای‌گزین، و آن‌وقت فراخوانی یک‌آرگومانی با
+-- «function name is not unique» می‌شکند. (همین‌جا یک بار رخ داد.)
+DROP FUNCTION IF EXISTS iee1405.pending_replies(integer);
+CREATE OR REPLACE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20,
+                                                   p_claim boolean DEFAULT false)
 RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup text)
-LANGUAGE sql STABLE AS $$
+LANGUAGE plpgsql AS $$
+BEGIN
+    -- p_claim = true فقط از گردش‌کار n8n: ردیف‌ها را هنگام برداشتن قفل می‌کند
+    -- تا دو اجرای هم‌زمان یک پیام را دو بار نفرستند. ابزارهای عیب‌یابی و آزمون‌ها
+    -- پیش‌فرض (false) را می‌گیرند و هیچ اثری روی صف نمی‌گذارند.
+    IF p_claim THEN
+        RETURN QUERY
+        WITH pick AS (
+            SELECT u.update_id
+              FROM iee1405.bot_updates u
+             WHERE u.reply_text IS NOT NULL
+               AND u.delivered_at IS NULL
+               AND u.status IN ('received', 'processed', 'skipped')
+               AND (u.sending_at IS NULL
+                    OR u.sending_at < clock_timestamp() - interval '90 seconds')
+             ORDER BY u.update_id
+             LIMIT p_limit
+             FOR UPDATE SKIP LOCKED
+        ), claimed AS (
+            UPDATE iee1405.bot_updates u
+               SET sending_at = clock_timestamp()
+              FROM pick
+             WHERE u.update_id = pick.update_id
+            RETURNING u.update_id, u.chat_id, u.reply_text, u.raw, u.reply_markup
+        )
+        SELECT c.update_id, c.chat_id, c.reply_text,
+               COALESCE((c.raw -> '_attempts')::int, 0),
+               COALESCE(c.reply_markup::text, iee1405.current_keyboard())
+          FROM claimed c
+         ORDER BY c.update_id;
+        RETURN;
+    END IF;
+
+    RETURN QUERY
     SELECT u.update_id, u.chat_id, u.reply_text,
            COALESCE((u.raw -> '_attempts')::int, 0),
            COALESCE(u.reply_markup::text, iee1405.current_keyboard())
@@ -549,8 +607,11 @@ LANGUAGE sql STABLE AS $$
        AND u.delivered_at IS NULL
        AND u.status IN ('received', 'processed', 'skipped')
      ORDER BY u.update_id
-     LIMIT p_limit
-$$;
+     LIMIT p_limit;
+END $$;
+
+COMMENT ON FUNCTION iee1405.pending_replies IS
+'پاسخ‌های ارسال‌نشده؛ با p_claim=true قفل ارسال هم گرفته می‌شود (ضد ارسال تکراری)';
 
 -- ثبت نتیجه ارسال. چرا پاسخ بله هم ورودی است؟ چون «ارسال شد» را نباید از
 -- متن خطای n8n حدس زد: بله برای خیلی از خطاها کد ۲۰۰ با ok:false می‌دهد.
@@ -580,7 +641,9 @@ BEGIN
                        '?');
     UPDATE iee1405.bot_updates
        SET raw = jsonb_set(COALESCE(raw, '{}'::jsonb), '{_attempts}',
-                           to_jsonb(COALESCE((raw ->> '_attempts')::int, 0) + 1), true)
+                           to_jsonb(COALESCE((raw ->> '_attempts')::int, 0) + 1), true),
+           -- قفل ارسال آزاد شود، وگرنه تلاش بعدی تا ۹۰ ثانیه معطل می‌ماند
+           sending_at = NULL
      WHERE update_id = p_update_id
      RETURNING COALESCE((raw ->> '_attempts')::int, 0) INTO v_attempts;
 
