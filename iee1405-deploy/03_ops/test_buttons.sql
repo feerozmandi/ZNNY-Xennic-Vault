@@ -44,6 +44,7 @@ DECLARE
     row_len int;
     first_name text;
     page2_name text;
+    iv_n bigint;
     fails int := 0;
 
     -- چت، متن، انتظارِ «چه چیزی در پاسخ باشد»، توضیح
@@ -405,6 +406,138 @@ BEGIN
         END IF;
     ELSE
         RAISE NOTICE '⏭  T15–T18 رد شد — آینهٔ barghpa بارگذاری نشده است';
+    END IF;
+
+    -- ── T19: کارت شرکت: حوزهٔ فعالیت + دکمهٔ مصاحبه ─────────────────
+    IF iee1405.mirror_ready() THEN
+        SELECT c.text_body INTO reply FROM iee1405.co_card((SELECT min(id) FROM barghpa.company)) c;
+        SELECT c.markup::jsonb INTO mk FROM iee1405.co_card((SELECT min(id) FROM barghpa.company)) c;
+        IF reply NOT LIKE '%حوزه فعالیت%' THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T19 · حوزهٔ فعالیت روی کارت نیست';
+        ELSIF NOT (mk @> '[{"callback_data":"i:1"}]'::jsonb)
+              AND NOT (mk::text LIKE '%"i:%') THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T19 · دکمهٔ مصاحبه روی کارت نیست';
+        ELSE
+            RAISE NOTICE '✅ T19 · کارت: حوزهٔ فعالیت زیر نام + دکمهٔ «🎤 مصاحبه»';
+        END IF;
+
+        -- ── T20: پاسخ به دکمه، شناسهٔ پیام را برای ویرایش می‌آورد ────
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 990901,
+            'callback_query', jsonb_build_object(
+                'data', 'l:2',
+                'message', jsonb_build_object('message_id', 4242,
+                                              'chat', jsonb_build_object('id', 990008))))) d;
+        SELECT u.edit_message_id INTO row_len FROM iee1405.bot_updates u WHERE u.update_id = 990901;
+        IF row_len IS DISTINCT FROM 4242 THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T20 · شناسهٔ پیام برای ویرایش ثبت نشد: %', coalesce(row_len::text, 'NULL');
+        ELSE
+            RAISE NOTICE '✅ T20 · پاسخ دکمه، پیام را ویرایش می‌کند (نه پیام تازه)';
+        END IF;
+    ELSE
+        RAISE NOTICE '⏭  T19/T20 رد شد — آینه بارگذاری نشده است';
+    END IF;
+
+    -- ── T21: مصاحبهٔ کامل از ورودی بله ──────────────────────────────
+    IF iee1405.mirror_ready()
+       AND to_regprocedure('iee1405.iv_step(bigint, text, text, text, jsonb)') IS NOT NULL THEN
+        DELETE FROM iee1405.interviews WHERE chat_id = 990010;
+        INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active)
+        VALUES ('btn-10', 'آزمون مصاحبه', 'owner', 990010, true)
+        ON CONFLICT (username) DO UPDATE SET bale_chat_id = 990010, is_active = true;
+        PERFORM iee1405.session_set(990010, 'btn-10', 'idle', '{}'::jsonb);
+
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 991001,
+            'callback_query', jsonb_build_object(
+                'data', 'i:' || (SELECT min(id) FROM barghpa.company),
+                'message', jsonb_build_object('message_id', 5001,
+                                              'chat', jsonb_build_object('id', 990010)))));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 991002,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990010),
+                                          'text', 'حسن نوری')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 991003,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990010),
+                                          'text', 'مدیر بازرگانی')));
+        FOR i IN 1..6 LOOP
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object(
+                'update_id', 991010 + i,
+                'message', jsonb_build_object('chat', jsonb_build_object('id', 990010),
+                                              'text', 'پاسخ آزمایشی ' || i)));
+        END LOOP;
+
+        SELECT count(*), max(interviewee_name), max(interviewee_role), max(state)
+          INTO base_err, first_name, page2_name, btn
+          FROM iee1405.interviews WHERE chat_id = 990010;
+
+        IF base_err <> 1 THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T21 · مصاحبه ثبت نشد (% ردیف)', base_err;
+        ELSIF first_name IS DISTINCT FROM 'حسن نوری' OR page2_name IS DISTINCT FROM 'مدیر بازرگانی' THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T21 · نام/سمت درست ثبت نشد: % — %',
+                         coalesce(first_name, 'NULL'), coalesce(page2_name, 'NULL');
+        ELSIF btn <> 'done' THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T21 · مصاحبه کامل نشد (وضعیت: %)', btn;
+        ELSE
+            RAISE NOTICE '✅ T21 · مصاحبه: نام → سمت → ۶ پاسخ → ثبت کامل';
+        END IF;
+
+        -- ── T22: پایان زودهنگام هم ثبت می‌شود (نه دور ریخته) ───────
+        PERFORM iee1405.session_set(990010, 'btn-10', 'idle', '{}'::jsonb);
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 991101,
+            'callback_query', jsonb_build_object(
+                'data', 'i:' || (SELECT min(id) FROM barghpa.company),
+                'message', jsonb_build_object('message_id', 5002,
+                                              'chat', jsonb_build_object('id', 990010)))));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 991102,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990010),
+                                          'text', 'رضا کاظمی')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 991103,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990010),
+                                          'text', 'کارشناس')));
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 991104,
+            'callback_query', jsonb_build_object(
+                'data', 'x:e',
+                'message', jsonb_build_object('message_id', 5003,
+                                              'chat', jsonb_build_object('id', 990010))))) d;
+        IF reply NOT LIKE '%نیمه‌کاره%'
+           OR NOT EXISTS (SELECT 1 FROM iee1405.interviews
+                           WHERE chat_id = 990010 AND state = 'partial') THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T22 · پایان زودهنگام ثبت نشد: %', left(coalesce(reply, 'خالی'), 40);
+        ELSE
+            RAISE NOTICE '✅ T22 · «پایان زودهنگام» مصاحبه را نیمه‌کاره ثبت کرد';
+        END IF;
+        -- ── T23: سؤال اختصاصی شرکت (خروجی هوش مصنوعی) ───────────────
+        DELETE FROM iee1405.iv_company_q
+         WHERE question = 'آزمون: چند نمونه در ماه تولید می‌کنید؟';
+        INSERT INTO iee1405.iv_company_q (company_ref, question, source)
+        VALUES ((SELECT min(id) FROM barghpa.company),
+                'آزمون: چند نمونه در ماه تولید می‌کنید؟', 'ai');
+        SELECT count(*) INTO base_err
+          FROM iee1405.iv_questions((SELECT min(id) FROM barghpa.company)) q
+         WHERE q.code = 'custom' AND q.q = 'آزمون: چند نمونه در ماه تولید می‌کنید؟';
+        IF base_err <> 1 THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T23 · سؤال اختصاصی شرکت در فهرست سؤال‌ها نیامد';
+        ELSE
+            RAISE NOTICE '✅ T23 · سؤال اختصاصی شرکت (منبع ai) در فهرست آمد';
+        END IF;
+        DELETE FROM iee1405.iv_company_q
+         WHERE question = 'آزمون: چند نمونه در ماه تولید می‌کنید؟';
+    ELSE
+        RAISE NOTICE '⏭  T21/T22/T23 رد شد — آینه یا تابع مصاحبه موجود نیست';
     END IF;
 
     IF fails > 0 THEN

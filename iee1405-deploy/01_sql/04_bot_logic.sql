@@ -362,6 +362,7 @@ $$;
 -- ─────────────────────────────────────────────────────────────────────
 -- اگر امضای تابع تغییر کرده باشد، بازسازی لازم است
 DROP FUNCTION IF EXISTS iee1405.bot_dispatch(bigint, bigint, text, jsonb);
+DROP FUNCTION IF EXISTS iee1405.bot_dispatch(bigint, bigint, text, jsonb, bigint);
 
 -- آیا آینهٔ فهرست نمایشگاه آماده است؟
 --   چرا تابع جدا؟ چون در plpgsql نمی‌توان «EXISTS (SELECT … FROM barghpa.company)»
@@ -386,7 +387,11 @@ CREATE OR REPLACE FUNCTION iee1405.bot_dispatch(
     p_update_id bigint,
     p_chat_id   bigint,
     p_text      text,
-    p_raw       jsonb DEFAULT '{}'::jsonb
+    p_raw       jsonb DEFAULT '{}'::jsonb,
+    -- اگر پاسخ به یک دکمهٔ شیشه‌ای است: شناسهٔ همان پیام. خروجی در ستون
+    -- edit_message_id می‌نشیند و گرهٔ ارسال به‌جای sendMessage، editMessageText
+    -- می‌زند تا پیام تازه ساخته نشود.
+    p_edit_message_id bigint DEFAULT NULL
 ) RETURNS TABLE (chat_id bigint, status text, reply_text text, org_code text)
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -537,6 +542,29 @@ BEGIN
       FROM iee1405.session_get(p_chat_id) s;
     v_state   := COALESCE(v_state, 'idle');
     v_payload := COALESCE(v_payload, '{}'::jsonb);
+
+    -- ۵.۳.۸) مصاحبهٔ غرفه
+    -- کل جریان در iee1405.iv_step است (شروع → نام → سمت → سؤال‌ها → ثبت)، چون
+    -- آزمودن یک تابع خالص ساده‌تر از آزمودن هفت حالت درون این تابع بلند است.
+    -- اگر تابع نصب نشده باشد (استقرار ناقص)، هیچ‌چیز نمی‌شکند و پیام عادی می‌آید.
+    IF to_regprocedure('iee1405.iv_step(bigint, text, text, text, jsonb)') IS NOT NULL
+       AND (v_state LIKE 'iv!_%' ESCAPE '!'
+            OR v_text ~ '^(i|x):') THEN
+        SELECT s.reply, s.markup, s.state, s.payload
+          INTO v_reply, v_markup, v_state, v_payload
+          FROM iee1405.iv_step(p_chat_id, v_actor, v_text, v_state, v_payload) s;
+
+        PERFORM iee1405.session_set(p_chat_id, v_actor, v_state, v_payload);
+
+        UPDATE iee1405.bot_updates
+           SET status = 'processed', reply_text = v_reply, actor = v_actor,
+               processed_at = now(), reply_markup = v_markup,
+               edit_message_id = COALESCE(p_edit_message_id, edit_message_id)
+         WHERE update_id = p_update_id;
+
+        RETURN QUERY SELECT p_chat_id, 'ok'::text, v_reply, NULL::text;
+        RETURN;
+    END IF;
 
     -- ۵.۳.۹) دکمه‌های شیشه‌ای (callback_query)
     -- بله دادهٔ دکمه را در `callback_query.data` می‌فرستد و bot_dispatch_json آن را
@@ -1022,7 +1050,9 @@ BEGIN
        SET status = 'processed', reply_text = v_reply, actor = v_actor, processed_at = now(),
            -- دکمه‌های شیشه‌ای همین پاسخ؛ اگر NULL بماند، گرهٔ ارسال صفحه‌کلید پایین
            -- صفحه (current_keyboard) را می‌فرستد.
-           reply_markup = COALESCE(v_markup, reply_markup)
+           reply_markup = COALESCE(v_markup, reply_markup),
+           -- اگر این پاسخ به یک دکمه بود، همان پیام ویرایش می‌شود (پیام تازه نه)
+           edit_message_id = COALESCE(p_edit_message_id, edit_message_id)
      WHERE update_id = p_update_id;
 
     RETURN QUERY SELECT p_chat_id, 'ok'::text, v_reply, v_org_code;
@@ -1042,7 +1072,7 @@ EXCEPTION WHEN OTHERS THEN
         NULL::text;
 END $$;
 
-COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb) IS
+COMMENT ON FUNCTION iee1405.bot_dispatch(bigint, bigint, text, jsonb, bigint) IS
 'پردازش یک آپدیت بله: احراز هویت، idempotency، مسیریابی دستور، ثبت در پایگاه‌داده، تولید پاسخ';
 
 -- ─────────────────────────────────────────────────────────────────────
@@ -1072,6 +1102,7 @@ DECLARE
     v_chat_id   bigint;
     v_text      text;
     v_kind      text;
+    v_edit_id   bigint;   -- شناسهٔ پیامی که دکمه‌اش زده شده (برای ویرایش)
     v_msg       jsonb;
 BEGIN
     IF p_update IS NULL OR jsonb_typeof(p_update) <> 'object' THEN
@@ -1108,6 +1139,8 @@ BEGIN
     IF v_kind = 'callback_query' THEN
         v_chat_id := nullif(p_update #>> '{callback_query,message,chat,id}', '')::bigint;
         v_text    := COALESCE(p_update #>> '{callback_query,data}', '');
+        -- همان پیامی که دکمه رویش زده شده؛ گرهٔ ارسال آن را ویرایش می‌کند
+        v_edit_id := nullif(p_update #>> '{callback_query,message,message_id}', '')::bigint;
     ELSIF v_msg IS NOT NULL THEN
         v_chat_id := nullif(v_msg #>> '{chat,id}', '')::bigint;
         v_text    := COALESCE(v_msg ->> 'text', v_msg ->> 'caption', '');
@@ -1138,7 +1171,7 @@ BEGIN
 
     RETURN QUERY
     SELECT d.chat_id, d.status, d.reply_text, d.org_code
-      FROM iee1405.bot_dispatch(v_update_id, v_chat_id, v_text, p_update) d;
+      FROM iee1405.bot_dispatch(v_update_id, v_chat_id, v_text, p_update, v_edit_id) d;
 END $$;
 
 COMMENT ON FUNCTION iee1405.bot_dispatch_json(jsonb) IS

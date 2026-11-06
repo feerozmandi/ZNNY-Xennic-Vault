@@ -211,7 +211,7 @@
       "parameters": {
         "operation": "executeQuery",
         "resource": "database",
-        "query": "SELECT update_id, chat_id, text_body, reply_markup\n  FROM iee1405.pending_replies(20, true);",
+        "query": "SELECT update_id, chat_id, text_body, reply_markup, edit_message_id\n  FROM iee1405.pending_replies(20, true);",
         "options": {}
       },
       "id": "2fb96d13-281e-5156-ad5d-2c58f7560267",
@@ -230,6 +230,122 @@
       },
       "executeOnce": true,
       "notes": "ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "33f66f9b-b968-555a-98c5-8f10b2383d6d",
+              "leftValue": "={{ $json.edit_message_id !== null && $json.edit_message_id !== undefined }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5f6c2c40-3e2f-5946-9c89-a81578637a87",
+      "name": "🔀 روش ارسال",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1650,
+        0
+      ],
+      "notes": "دکمه زده شده؟ → پیام را ویرایش کن؛ وگرنه پیام تازه بفرست",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BALE_API_URL }}/editMessageText",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "message_id",
+              "value": "={{ $json.edit_message_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text_body }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ $json.reply_markup }}"
+            }
+          ]
+        }
+      },
+      "id": "4f129a9c-120f-5f35-a80e-5579a4b1146f",
+      "name": "✏️ ویرایش پیام",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1650,
+        200
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput",
+      "notes": "همان پیام، متن و دکمه‌های تازه؛ کاربر پیام تکراری نمی‌بیند",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "73af2fa2-6df9-5f67-b330-e3b8465a0dd9",
+              "leftValue": "={{ $json.ok === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "557899d5-2ec9-5960-a9c1-645e18e1d550",
+      "name": "🔀 بررسی ویرایش",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1870,
+        200
+      ],
+      "notes": "اگر ویرایش رد شد (پیام قدیمی/ناموجود) پیام تازه فرستاده می‌شود",
       "notesInFlow": true
     },
     {
@@ -521,7 +637,54 @@
       "main": [
         [
           {
+            "node": "🔀 روش ارسال",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 روش ارسال": {
+      "main": [
+        [
+          {
+            "node": "✏️ ویرایش پیام",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "💬 ارسال پاسخ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✏️ ویرایش پیام": {
+      "main": [
+        [
+          {
+            "node": "🔀 بررسی ویرایش",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 بررسی ویرایش": {
+      "main": [
+        [
+          {
+            "node": "✅ ثبت ارسال",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "💬 ارسال دوباره بدون دکمه",
             "type": "main",
             "index": 0
           }

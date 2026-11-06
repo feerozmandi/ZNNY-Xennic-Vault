@@ -216,6 +216,7 @@ REFERENCE_ONLY = {"n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.manualTrigge
 HTTP_OUTPUTS = {
     "/getUpdates": {"ok", "result", "error_code", "description"},
     "/sendMessage": {"ok", "result", "error_code", "description"},
+    "/editMessageText": {"ok", "result", "error_code", "description"},
     "/setWebhook": {"ok", "description"},
     "/deleteWebhook": {"ok", "description"},
 }

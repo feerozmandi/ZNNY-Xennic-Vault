@@ -296,7 +296,7 @@ def wf_inbound():
         "📤 پاسخ‌های آماده ارسال", [1540, 0],
         # p_claim = true: ردیف‌ها هنگام برداشتن قفل می‌شوند تا دو اجرای هم‌زمان
         # یک پیام را دو بار نفرستند (با بازهٔ ۵ ثانیه‌ای این حالت واقعی است).
-        "SELECT update_id, chat_id, text_body, reply_markup\n"
+        "SELECT update_id, chat_id, text_body, reply_markup, edit_message_id\n"
         "  FROM iee1405.pending_replies(20, true);",
         execute_once=True,   # حیاتی: بدون این، به تعداد آیتم‌ها پیام تکراری می‌رود
         notes="ارسال تضمین‌شده: اگر بله خطا داد، پیام در اجرای بعدی دوباره فرستاده می‌شود",
@@ -305,6 +305,31 @@ def wf_inbound():
     # reply_markup با پیام می‌رود؛ اگر تابع پایگاه این ستون را برنگرداند،
     # گرهٔ بالادستی با «column reply_markup does not exist» می‌شکند و ربات
     # کامل ساکت می‌شود (این اتفاق واقعاً افتاد).
+    # ── ویرایش به‌جای پیام تازه ─────────────────────────────────────
+    # خواستهٔ مالک: «با دکمهٔ قبل و بعد، پیام ارسالی به‌روز شود، نه پیام جدید».
+    # پاسخ‌هایی که از یک دکمهٔ شیشه‌ای می‌آیند `edit_message_id` دارند؛ همان
+    # پیام ویرایش می‌شود. بقیه مثل قبل پیام تازه می‌گیرند.
+    n_route = if_node(
+        "🔀 روش ارسال", [1650, 0],
+        "$json.edit_message_id !== null && $json.edit_message_id !== undefined",
+        notes="دکمه زده شده؟ → پیام را ویرایش کن؛ وگرنه پیام تازه بفرست",
+    )
+
+    n_edit = bale_call(
+        "✏️ ویرایش پیام", [1650, 200], "editMessageText",
+        body_params={
+            "chat_id": "={{ $json.chat_id }}",
+            "message_id": "={{ $json.edit_message_id }}",
+            "text": "={{ $json.text_body }}",
+            "reply_markup": "={{ $json.reply_markup }}",
+        },
+        notes="همان پیام، متن و دکمه‌های تازه؛ کاربر پیام تکراری نمی‌بیند",
+    )
+    n_edit_check = if_node(
+        "🔀 بررسی ویرایش", [1870, 200], "$json.ok === true",
+        notes="اگر ویرایش رد شد (پیام قدیمی/ناموجود) پیام تازه فرستاده می‌شود",
+    )
+
     n_send = send_message_node("💬 ارسال پاسخ", [1760, 0], with_markup=True)
 
     # اگر بله همین پیام را با دکمه نپذیرد (مثلاً 400 روی reply_markup)، پیام
@@ -350,8 +375,8 @@ def wf_inbound():
     n_pollerr["onError"] = "continueRegularOutput"
 
     nodes = [n_sched, n_offset, n_beat, n_get, n_watch, n_split, n_dispatch,
-             n_advance, n_pending, n_send, n_check, n_resend, n_mark, n_mark_fb,
-             n_pollerr]
+             n_advance, n_pending, n_route, n_edit, n_edit_check, n_send, n_check,
+             n_resend, n_mark, n_mark_fb, n_pollerr]
 
     conns = {
         n_sched["name"]:  {"main": [[{"node": n_offset["name"],  "type": "main", "index": 0}]]},
@@ -368,7 +393,18 @@ def wf_inbound():
         n_split["name"]:  {"main": [[{"node": n_dispatch["name"], "type": "main", "index": 0}]]},
         n_dispatch["name"]: {"main": [[{"node": n_advance["name"], "type": "main", "index": 0}]]},
         n_advance["name"]:  {"main": [[{"node": n_pending["name"], "type": "main", "index": 0}]]},
-        n_pending["name"]:  {"main": [[{"node": n_send["name"], "type": "main", "index": 0}]]},
+        n_pending["name"]:  {"main": [[{"node": n_route["name"], "type": "main", "index": 0}]]},
+        # خروجی ۰ = دکمه زده شده → ویرایش · خروجی ۱ = پیام تازه
+        n_route["name"]:    {"main": [
+                                [{"node": n_edit["name"], "type": "main", "index": 0}],
+                                [{"node": n_send["name"], "type": "main", "index": 0}],
+                          ]},
+        n_edit["name"]:     {"main": [[{"node": n_edit_check["name"], "type": "main", "index": 0}]]},
+        # ویرایش موفق → ثبت ارسال؛ ویرایش ناموفق → ارسال تازه بدون دکمه
+        n_edit_check["name"]: {"main": [
+                                [{"node": n_mark["name"], "type": "main", "index": 0}],
+                                [{"node": n_resend["name"], "type": "main", "index": 0}],
+                          ]},
         n_check["name"]:    {"main": [
                                 [{"node": n_mark["name"], "type": "main", "index": 0}],
                                 [{"node": n_resend["name"], "type": "main", "index": 0}],

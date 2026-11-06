@@ -179,11 +179,83 @@ else
     fail "صفحهٔ فهرست خروجی درست نداد: ${LIST:0:80}"
 fi
 
-CARD="$(q "SET ROLE iee_app; SELECT text_body || '«|»' || COALESCE(markup, '') FROM iee1405.co_card((SELECT min(id) FROM barghpa.company));" 2>&1 | tail -1)"
+CARD="$(q "SET ROLE iee_app; SELECT replace(text_body, E'\\n', ' ¶ ') || '«|»' || COALESCE(markup, '') FROM iee1405.co_card((SELECT min(id) FROM barghpa.company));" 2>&1 | tail -1)"
 if [[ "$CARD" == *"l:"* ]]; then
     pass "کارت شرکت + دکمهٔ بازگشت با نقش ربات کار می‌کند"
 else
     fail "کارت شرکت یا دکمهٔ بازگشت ناقص است: ${CARD:0:80}"
+fi
+if [[ "$CARD" == *"حوزه فعالیت"* ]]; then
+    pass "حوزهٔ فعالیت روی کارت، زیر نام شرکت می‌آید"
+else
+    fail "حوزهٔ فعالیت روی کارت نیست" "bash 03_ops/deploy_sql.sh   (01_sql/08_exhibitor_mirror.sql)"
+fi
+
+# ── ۳.۶) مصاحبهٔ غرفه (دکمه، پرسش‌ها، ثبت) ───────────────────────────
+# اگر جدول مصاحبه یا تابع گام مصاحبه نباشد، دکمهٔ «🎤 مصاحبه در غرفه» در بله
+# یا خطا می‌دهد یا بی‌صدا می‌ماند. سنجش با نقش ربات انجام می‌شود، نه postgres.
+c_head "۳.۶) مصاحبهٔ غرفه"
+
+IVN="$(q "SET ROLE iee_app; SELECT count(*) || '/' || count(*) FILTER (WHERE ask_default) FROM iee1405.iv_bank;" 2>&1 | tail -1)"
+if [[ "$IVN" =~ ^([0-9]+)/([0-9]+)$ && "${BASH_REMATCH[2]:-0}" -ge 5 ]]; then
+    pass "بانک سؤال مصاحبه با نقش ربات خوانده شد (${IVN} سؤال · پیش‌فرض)"
+elif [[ "$IVN" == *"does not exist"* ]]; then
+    fail "بانک سؤال مصاحبه نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/10_interview.sql)"
+elif [[ "$IVN" == *"permission denied"* ]]; then
+    fail "نقش ربات به بانک سؤال مصاحبه دسترسی ندارد" "bash 03_ops/deploy_sql.sh   (گرنت انتهای فایل ۰۹ و ۱۰)"
+else
+    fail "بانک سؤال مصاحبه خروجی درست نداد: ${IVN:0:80}"
+fi
+
+if [[ "$CARD" == *"i:"* ]]; then
+    pass "دکمهٔ «🎤 مصاحبه در غرفه» روی کارت شرکت هست"
+else
+    fail "دکمهٔ مصاحبه روی کارت شرکت نیست" "bash 03_ops/deploy_sql.sh   (01_sql/09_company_list.sql)"
+fi
+
+# گام اول مصاحبه باید «نام مصاحبه‌شونده» را بپرسد و وضعیت را iv_name کند.
+IV_STEP="$(q "SET ROLE iee_app; SELECT state || '«|»' || left(regexp_replace(reply, '\\s+', ' ', 'g'), 200)
+                 FROM iee1405.iv_step(0, 'probe', 'i:' || (SELECT min(id) FROM barghpa.company),
+                                      'idle', '{}'::jsonb);" 2>&1 | tail -1)"
+if [[ "$IV_STEP" == iv_name* && "$IV_STEP" == *"نام مصاحبه"* ]]; then
+    pass "شروع مصاحبه اول نام مصاحبه‌شونده را می‌پرسد (وضعیت iv_name)"
+elif [[ "$IV_STEP" == *"permission denied"* ]]; then
+    fail "نقش ربات به تابع گام مصاحبه دسترسی ندارد" "bash 03_ops/deploy_sql.sh"
+elif [[ "$IV_STEP" == *"does not exist"* ]]; then
+    fail "تابع گام مصاحبه نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/10_interview.sql)"
+else
+    fail "شروع مصاحبه خروجی درست نداد: ${IV_STEP:0:80}"
+fi
+
+IV_TAB="$(q "SET ROLE iee_app; SELECT count(*) FROM iee1405.interviews;" 2>&1 | tail -1)"
+if [[ "$IV_TAB" =~ ^[0-9]+$ ]]; then
+    pass "جدول مصاحبه‌ها با نقش ربات در دسترس است ($IV_TAB مورد ثبت‌شده)"
+elif [[ "$IV_TAB" == *"permission denied"* ]]; then
+    fail "نقش ربات به جدول مصاحبه‌ها دسترسی ندارد" "bash 03_ops/deploy_sql.sh   (گرنت انتهای فایل ۱۰)"
+else
+    fail "جدول مصاحبه‌ها خوانده نشد: ${IV_TAB:0:80}"
+fi
+
+# ── ۳.۷) ویرایش پیام به‌جای پیام تازه ─────────────────────────────────
+c_head "۳.۷) ویرایش پیام به‌جای پیام تازه"
+
+EDIT_COL="$(q "SELECT string_agg(attname, ',' ORDER BY attnum)
+                 FROM pg_attribute
+                WHERE attrelid = 'iee1405.bot_updates'::regclass
+                  AND attname = 'edit_message_id' AND NOT attisdropped" 2>&1 | tail -1)"
+if [[ "$EDIT_COL" == "edit_message_id" ]]; then
+    pass "ستون edit_message_id در bot_updates هست"
+else
+    fail "ستون edit_message_id نیست؛ دکمه‌ها پیام تازه می‌فرستند" \
+         "bash 03_ops/deploy_sql.sh   (01_sql/05_ops_helpers.sql)"
+fi
+
+PR_RES="$(q "SELECT pg_get_function_result('iee1405.pending_replies(int, boolean)'::regprocedure)" 2>&1 | tail -1)"
+if [[ "$PR_RES" == *"edit_message_id"* ]]; then
+    pass "pending_replies شناسهٔ پیام برای ویرایش را برمی‌گرداند (ستون ۶)"
+else
+    fail "pending_replies ستون edit_message_id را ندارد: $PR_RES" \
+         "bash 03_ops/deploy_sql.sh   (01_sql/05_ops_helpers.sql)"
 fi
 
 # ── ۴) نسخهٔ تابع ربات (نه نسخهٔ قدیمیِ جامانده در پایگاه) ─────────────

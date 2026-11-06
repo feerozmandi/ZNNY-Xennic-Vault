@@ -15,7 +15,7 @@
 #
 # موارد:
 #   S1  04_bot_logic.sql      · bot_dispatch_json سه‌ستونی  (باگ واقعی سرور)
-#   S2  05_ops_helpers.sql    · pending_replies چهارستونی بدون reply_markup
+#   S2  05_ops_helpers.sql    · pending_replies سه‌ستونی بدون reply_markup
 #        (همان خطای «column "reply_markup" does not exist» روی سرور)
 #   S3  08_exhibitor_mirror.sql · barghpa.search با ستون دیگر
 #   S4  اجرای دوبارهٔ ۰۵ بدون نسخهٔ کهنه → هیچ حذفی نباید رخ دهد (بی‌اثر بودن)
@@ -95,7 +95,18 @@ case_run "S2 · pending_replies سه‌ستونی — فایل ۰۵" \
        LANGUAGE sql AS 'SELECT NULL::bigint, NULL::bigint, NULL::text';" \
     "01_sql/05_ops_helpers.sql" \
     "pg_get_function_result('iee1405.pending_replies(int, boolean)'::regprocedure)" \
-    "TABLE(update_id bigint, chat_id bigint, text_body text, attempt integer, reply_markup text)"
+    "TABLE(update_id bigint, chat_id bigint, text_body text, attempt integer, reply_markup text, edit_message_id bigint)"
+
+# نسخهٔ ۰.۱.۳۹ (پنج ستون، بدون edit_message_id) هم همان‌جا افتاده روی سرور است؛
+# نگهبان باید حذفش کند وگرنه n8n یا ستون ششم را نمی‌بیند یا به نسخهٔ کهنه می‌چسبد.
+case_run "S2b · pending_replies پنج‌ستونی (نسخهٔ ۰.۱.۳۹) — فایل ۰۵" \
+    "DROP FUNCTION IF EXISTS iee1405.pending_replies(int, boolean);
+     CREATE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20, p_claim boolean DEFAULT true)
+       RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt integer, reply_markup text)
+       LANGUAGE sql AS 'SELECT NULL::bigint, NULL::bigint, NULL::text, NULL::int, NULL::text';" \
+    "01_sql/05_ops_helpers.sql" \
+    "pg_get_function_result('iee1405.pending_replies(int, boolean)'::regprocedure)" \
+    "TABLE(update_id bigint, chat_id bigint, text_body text, attempt integer, reply_markup text, edit_message_id bigint)"
 
 case_run "S3 · barghpa.search با ستون دیگر — فایل ۰۸" \
     "DROP FUNCTION IF EXISTS barghpa.search(text, int);
@@ -105,6 +116,16 @@ case_run "S3 · barghpa.search با ستون دیگر — فایل ۰۸" \
     "01_sql/08_exhibitor_mirror.sql" \
     "pg_get_function_result('barghpa.search(text, int)'::regprocedure)" \
     "TABLE(company_id bigint, name_fa text, halls text, contact_count integer, provenance text)"
+
+# S5: iv_step (مصاحبه) — اگر روزی ستون‌های خروجی‌اش عوض شود، استقرار نباید بشکند
+case_run "S5 · iv_step با ستون دیگر — فایل ۱۰" \
+    "DROP FUNCTION IF EXISTS iee1405.iv_step(bigint, text, text, text, jsonb);
+     CREATE FUNCTION iee1405.iv_step(p_chat bigint, p_actor text, p_text text,
+                                     p_state text DEFAULT 'idle', p_payload jsonb DEFAULT '{}')
+       RETURNS TABLE (reply_text text) LANGUAGE sql AS 'SELECT NULL::text';" \
+    "01_sql/10_interview.sql" \
+    "pg_get_function_result('iee1405.iv_step(bigint, text, text, text, jsonb)'::regprocedure)" \
+    "TABLE(reply text, markup text, state text, payload jsonb)"
 
 # S4: بدون نسخهٔ کهنه، نگهبان نباید چیزی را حذف کند (بی‌اثر بودن در حالت عادی)
 S4="$(

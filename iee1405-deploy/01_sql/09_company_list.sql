@@ -210,9 +210,22 @@ BEGIN
 
     v_text := barghpa.card(p_id);
 
+    -- خلاصهٔ مصاحبه‌های قبلی همین شرکت (اگر باشد) زیر کارت
+    IF to_regprocedure('iee1405.iv_summary(bigint)') IS NOT NULL THEN
+        v_text := v_text || E'\n' || COALESCE(iee1405.iv_summary(p_id), '');
+    END IF;
+    IF to_regprocedure('iee1405.iv_step(bigint, text, text, text, jsonb)') IS NOT NULL THEN
+        v_text := v_text || E'\n' || '🎤 برای شروع مصاحبه، دکمهٔ زیر را بزنید.';
+    END IF;
+
     RETURN QUERY SELECT
         v_text,
         jsonb_build_object('inline_keyboard', jsonb_build_array(
+            -- ردیف مصاحبه، مستقل و درشت‌تر از بقیه: هدف اصلی بازدید همین است
+            jsonb_build_array(
+                jsonb_build_object('text', '🎤 مصاحبه در غرفه',
+                                   'callback_data', 'i:' || p_id)
+            ),
             jsonb_build_array(
                 jsonb_build_object('text', '↩ بازگشت به فهرست',
                                    'callback_data', 'l:' || GREATEST(COALESCE(p_back_page, 1), 1)),
@@ -286,6 +299,12 @@ BEGIN
     SELECT * INTO c FROM iee1405.co_card(p.ids[1]) x;
     IF c.text_body IS NULL OR c.markup NOT LIKE '%l:%' THEN
         RAISE EXCEPTION 'کارت شرکت یا دکمهٔ بازگشت ناقص است';
+    END IF;
+    IF c.markup NOT LIKE '%i:%' THEN
+        RAISE EXCEPTION 'دکمهٔ مصاحبه روی کارت نیست: %', left(c.markup, 80);
+    END IF;
+    IF c.text_body NOT LIKE '%حوزه فعالیت%' THEN
+        RAISE EXCEPTION 'حوزهٔ فعالیت روی کارت نیست (فایل ۰۸ به‌روز نشده؟)';
     END IF;
 
     RAISE NOTICE '✅ فهرست شرکت‌ها: % صفحه · دو ستون · ناوبری قبل/بعد · کارت سالم', n_pages;
