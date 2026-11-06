@@ -527,9 +527,9 @@ CREATE OR REPLACE FUNCTION iee1405.menu_keyboard()
 RETURNS text LANGUAGE sql IMMUTABLE AS $$
     SELECT jsonb_build_object(
         'keyboard', jsonb_build_array(
-            jsonb_build_array('📊 امروز',   '🔎 جست‌وجو'),
-            jsonb_build_array('🏢 شرکت جدید', '📈 آمار نمایشگاه'),
-            jsonb_build_array('❓ راهنما')
+            jsonb_build_array('📊 امروز',      '🏢 لیست شرکت‌ها'),
+            jsonb_build_array('🔎 جست‌وجو',    '📈 آمار نمایشگاه'),
+            jsonb_build_array('➕ شرکت جدید',  '❓ راهنما')
         ),
         'resize_keyboard',    true
     )::text
