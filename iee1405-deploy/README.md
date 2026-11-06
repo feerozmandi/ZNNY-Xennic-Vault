@@ -533,14 +533,43 @@ ON CONFLICT (code) DO UPDATE SET text_fa = EXCLUDED.text_fa;
 `custom` پرسیده می‌شوند. هیچ سؤالی خودکار ساخته نمی‌شود — هر چه در این جدول باشد
 پرسیده می‌شود و هر چه نباشد، نه.
 
-**گام ۱ — بافت شرکت را بگیرید.** این کوئری برای هر شرکت یک شیء JSON می‌دهد
-(در `psql` اجرا کنید و خروجی را کپی کنید):
+**گام ۱ — بافت شرکت را بگیرید.** یک دستور، بدون کوئری بلند:
+
+```bash
+cd ~/ZNNY-Xennic-Vault/iee1405-deploy
+
+bash 03_ops/prompt_company.sh --list 10            # فهرست: شناسه + نام + حوزه فعالیت
+bash 03_ops/prompt_company.sh "ایران ترانسفو"      # جست‌وجو با بخشی از نام
+bash 03_ops/prompt_company.sh --id 12 --json       # فقط JSON (برای کپی)
+bash 03_ops/prompt_company.sh --id 12 --prompt     # JSON + متن آمادهٔ درخواست به هوش مصنوعی
+bash 03_ops/prompt_company.sh --questions --id 12  # سؤال‌ها همان‌طور که ربات می‌پرسد
+```
+
+خروجی `--id 12 --json` چیزی شبیه این است:
+
+```json
+{
+    "id": 12,
+    "name": "…",
+    "flags": "tavanir_vendor",
+    "halls": "38A، 38B",
+    "activity": "…",
+    "pilot_check": null
+}
+```
+
+> [!tip] چرا اسکریپت، نه کوئری چسبانده‌شده
+> کوئری چندخطی با نقطه‌دارهایی مثل `c.id` و `c.name_fa` در چت و ترمینال دو بار
+> خراب شد (تبدیل به پیوند)، و روی سرورِ نسخهٔ ۰.۱.۳۹ پیام گمراه‌کنندهٔ
+> `column c.activity does not exist` داد. `prompt_company.sh` هر دو را حل
+> می‌کند: پیش از هر چیز می‌سنجد ستون `activity` هست یا نه و اگر نبود، می‌گوید
+> «SQL نسخهٔ ۰.۱.۴۰ اعمال نشده — `bash 03_ops/deploy_sql.sh`».
+
+اگر خواستید همان کوئری را دستی بزنید، این است (همان چیزی که اسکریپت اجرا می‌کند):
 
 ```sql
 SELECT jsonb_pretty(jsonb_build_object(
-         'id', c.id,
-         'name', c.name_fa,
-         'activity', c.activity,
+         'id', c.id, 'name', c.name_fa, 'activity', c.activity,
          'halls', (SELECT string_agg(DISTINCT p.hall, '، ')
                      FROM barghpa.participation p WHERE p.company_id = c.id),
          'flags', (SELECT string_agg(f.flag, ',')
@@ -548,7 +577,7 @@ SELECT jsonb_pretty(jsonb_build_object(
          'pilot_check', (SELECT pi.first_check FROM barghpa.pilot pi
                           WHERE pi.company_id = c.id)))
   FROM barghpa.company c
- WHERE c.name_fa ILIKE '%ایران ترانسفو%';   -- یا: WHERE c.id = 12
+ WHERE c.id = 12;
 ```
 
 **گام ۲ — این درخواست را به هوش مصنوعی بدهید** (همراه با خروجی گام ۱):
@@ -587,12 +616,15 @@ ON CONFLICT (company_ref, question) DO NOTHING;
 
 بازبینی پیش از رفتن سرِ غرفه:
 
+```bash
+# سؤال‌های همان شرکت، دقیقاً همان‌طور که ربات می‌پرسد
+bash 03_ops/prompt_company.sh --questions --id 12
+```
+
 ```sql
+-- کدام شرکت‌ها سؤال اختصاصی دارند
 SELECT company_ref, count(*) AS سؤال, min(created_at) AS ساخته‌شده
   FROM iee1405.iv_company_q WHERE active GROUP BY 1 ORDER BY 1;
-
--- سؤال‌های یک شرکت، دقیقاً همان‌طور که ربات می‌پرسد
-SELECT ord, code, q FROM iee1405.iv_questions(12) ORDER BY ord;
 
 -- سؤالی که به کار نمی‌آید، خاموش شود (پاک نمی‌شود، سابقه می‌ماند)
 UPDATE iee1405.iv_company_q SET active = false WHERE id = 41;
@@ -638,6 +670,36 @@ bash 03_ops/load_exhibitors.sh --dry-run   # فایل SQL ساخته می‌شو
 | پیام‌ها می‌رسند ولی دکمه‌های پایین صفحه نیستند | گردش‌کار قدیمی پارامتر `reply_markup` را نمی‌فرستد، یا دکمه‌ها خاموش شده‌اند | بخش ۴.۶ بالا؛ سپس `SELECT iee1405.current_keyboard();` و `SELECT value FROM iee1405.bot_state WHERE key = 'keyboard_enabled';` |
 | ربات به `/start` هیچ جوابی نمی‌دهد (نه خطا، نه پیام) | قاعدهٔ ضدتکرار راهنما: اگر همین متن راهنما در پنجرهٔ اخیر ارسال شده باشد، ارسال تکرار نمی‌شود | از نسخهٔ ۰.۱.۳۵ پنجره ۴۵ ثانیه است (قبلاً ۱۰ دقیقه بود و مثل خرابی دیده می‌شد). `bash 03_ops/why_silent.sh` علت را دقیق می‌گوید |
 | «چرا ربات جواب نداد؟» | — | `bash 03_ops/why_silent.sh` — زنجیره را از آخر به اول می‌سنجد: آیا آپدیت رسید، پاسخ ساخته شد، اگر نه چرا، اگر بله چرا نرفت، و در آخر یک آزمون زندهٔ تراکنشی |
+| `column c.activity does not exist` (یا هر ستون تازه‌ای در آینه) | ستون‌های نسخهٔ تازه در آینه ساخته نشده‌اند — یعنی `01_sql/08_exhibitor_mirror.sql` نسخهٔ ۰.۱.۴۰ اجرا نشده | `bash 03_ops/deploy_sql.sh` سپس `bash 03_ops/prompt_company.sh --list 5`. برای پیشگیری از همین پیام گمراه‌کننده، `prompt_company.sh` پیش از هر کوئری ستون را می‌سنجد و می‌گوید «SQL نسخهٔ ۰.۱.۴۰ اعمال نشده» |
+| کارت شرکت می‌گوید «حوزه فعالیت: ثبت‌نشده» برای همه | ستون ساخته شده ولی **داده** نیامده: `barghpa` از SQLite قدیمی بارگذاری شده که ستون «نوع فعالیت» را ندارد | ابزار را از مخزن به‌روز کنید، اکسل را دوباره به SQLite ببرید و آینه را بازبارگذاری کنید — سه دستور، در بخش «حوزه فعالیت پس از استقرار» پایین‌تر |
+
+### حوزه فعالیت پس از استقرار (سه دستور)
+
+`deploy_sql.sh` **ستون** را می‌سازد، ولی **داده** از SQLite می‌آید. اگر آینه از
+یک SQLite قدیمی بارگذاری شده باشد (ساخته‌شده پیش از ۰.۱.۴۰)، ستون خالی می‌ماند و
+کارت «ثبت‌نشده» نشان می‌دهد. ترتیب درست:
+
+```bash
+D=~/xennic-data/barghpa-26-iee1405
+T=$D/tools
+
+# ۱) ابزار تازه را از مخزن کپی کنید (تابع update_tools در README ابزار میدانی)
+#    اگر نسخهٔ قدیمی بماند، ستون «نوع فعالیت» خوانده نمی‌شود.
+git -C ~/ZNNY-Xennic-Vault fetch origin dev
+grep -c activity "$T/import_barghpa.py"     # باید بزرگ‌تر از صفر باشد؛ صفر = کپی انجام نشده
+
+# ۲) اکسل را دوباره به SQLite ببرید (یادداشت‌ها و تماس‌ها حفظ می‌شوند؛ مهاجرت ۰۰۸ خودکار اجرا می‌شود)
+python3 "$T/import_barghpa.py" --src "$D/raw" --db "$D/db/barghpa_iee1405.sqlite" --dry-run
+python3 "$T/import_barghpa.py" --src "$D/raw" --db "$D/db/barghpa_iee1405.sqlite" --write
+
+# ۳) آینه را بازبارگذاری کنید (تراکنشی، با پشتیبان و selftest)
+cd ~/ZNNY-Xennic-Vault/iee1405-deploy
+bash 03_ops/load_exhibitors.sh
+bash 03_ops/prompt_company.sh --list 5      # ستون «حوزه_فعالیت» باید پر باشد
+```
+
+انتظار: در بازسازی فهرست، **۲۹۷ از ۲۹۷** شرکت حوزهٔ فعالیت دارند (اگر منبع برای
+شرکتی خالی باشد، همان خالی می‌ماند — استنتاج نمی‌شود).
 
 ### بعد از اینکه ربات جواب داد: گام‌های واقعی
 
