@@ -24,7 +24,15 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-BIN = Path("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin")
+import pgserver
+
+_BIN_CANDIDATES = [
+    Path(os.environ["PG_BIN"]) if os.environ.get("PG_BIN") else None,
+    Path("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin"),
+    Path(pgserver.__file__).resolve().parent / "pginstall" / "bin",
+]
+BIN = next((b for b in _BIN_CANDIDATES if b and (b / "psql").exists()),
+           _BIN_CANDIDATES[1])
 PASS, FAIL = [], []
 
 
@@ -34,7 +42,7 @@ def check(name, cond, detail=""):
 
 
 def psql(sql: str) -> str:
-    import pgserver
+    import pgserver  # noqa: F401  (برای get_server)
     srv = pgserver.get_server("/tmp/pgdata", cleanup_mode=None)
     base = srv.get_uri()
     uri = None

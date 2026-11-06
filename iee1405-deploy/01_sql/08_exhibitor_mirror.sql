@@ -312,9 +312,12 @@ BEGIN
            'شرکت: ' || c || ' · تماس: ' || k || ' · مشارکت: ' || p ||
            E'\n' || 'پرچم: ' || f || ' · پایلوت: ' || pl || E'\n' ||
            'اطمینان تماس: ' || v_official || ' رسمی، ' || v_guessed || ' حدسی' ||
-           E'\n' || 'بارگذاری: ' || to_char(v_last AT TIME ZONE 'Asia/Tehran',
-                                          'YYYY-MM-DD HH24:MI') ||
-           coalesce(' از ' || v_file, '');
+           -- COALESCE لازم است: اگر آینه دستی (بدون load_batch) بارگذاری شده باشد،
+           -- to_char(NULL) کل رشته را NULL می‌کرد و /c پاسخ **خالی** می‌داد؛
+           -- بله ۴۰۰ می‌داد و کاربر سکوت می‌دید.
+           E'\n' || 'بارگذاری: ' || COALESCE(to_char(v_last AT TIME ZONE 'Asia/Tehran',
+                                                    'YYYY-MM-DD HH24:MI'), 'نامشخص') ||
+           COALESCE(' از ' || v_file, '');
 END $$;
 
 -- ورودی ربات: رشته → پاسخ

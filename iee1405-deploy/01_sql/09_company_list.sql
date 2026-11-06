@@ -136,11 +136,147 @@ END $$;
 COMMENT ON FUNCTION iee1405.co_page_of IS
 'یک صفحه از فهرست شرکت‌ها: متن شماره‌دار + دکمه‌های شیشه‌ای دو‌ستونی + ناوبری';
 
+-- ── ۲.۵) شرکت‌های ثبت‌شده در ربات (CRM) ───────────────────────────────
+-- گزارش مالک: «با ثبت شرکت جدید، در لیست شرکت‌ها ثبت نمی‌گردد و در جست‌وجو بالا
+-- نمی‌آید.» درست بود: `/new` در `crm.organizations` می‌نویسد و فهرست/جست‌وجو
+-- فقط آینهٔ `barghpa` (کاتالوگ نمایشگاه) را می‌خواندند — دو منبع جدا.
+--
+-- این تابع، شرکت‌های CRM را که برای همین نمایشگاه مشارکت دارند برمی‌گرداند،
+-- با دکمهٔ `o:<code>`. هیچ چیزی در آینه نوشته نمی‌شود و آینه هم دست‌نخورده
+-- می‌ماند؛ فقط نمایش یکی می‌شود.
+-- شرکت‌هایی که نامشان در آینه هم هست حذف می‌شوند؛ وگرنه هر شرکت دو بار
+-- دیده می‌شد (یک بار از کاتالوگ، یک بار از CRM).
+SELECT iee1405.drop_stale_result('iee1405', 'co_crm_rows',
+       'TABLE(n integer, code text, name text, place text, btn jsonb)');
+CREATE OR REPLACE FUNCTION iee1405.co_crm_rows(p_q text DEFAULT NULL, p_max int DEFAULT 8)
+RETURNS TABLE (n int, code text, name text, place text, btn jsonb)
+LANGUAGE plpgsql STABLE AS $$
+DECLARE
+    v_names text[];
+BEGIN
+    IF to_regclass('crm.organizations') IS NULL
+       OR to_regclass('iee1405.participations') IS NULL THEN
+        RETURN;
+    END IF;
+
+    -- فهرست نام‌های آینه در یک آرایه؛ تا کوئری هیچ ارجاع سختی به barghpa نداشته باشد
+    IF to_regclass('barghpa.company') IS NOT NULL THEN
+        SELECT array_agg(c.name_norm) INTO v_names FROM barghpa.company c;
+    END IF;
+
+    RETURN QUERY
+    SELECT row_number() OVER (ORDER BY s.added DESC, s.code)::int AS n,
+           s.code::text,
+           s.name::text,
+           s.place::text,
+           jsonb_build_object('text', '🆕 ' || iee1405.co_label(s.name, 22),
+                              'callback_data', 'o:' || s.code)
+      FROM (SELECT o.code,
+                   COALESCE(NULLIF(btrim(o.display_name), ''), o.legal_name) AS name,
+                   CASE WHEN p.booth_number IS NOT NULL
+                        THEN COALESCE(p.hall || '-', '') || p.booth_number
+                        ELSE COALESCE(p.hall, '—') END AS place,
+                   COALESCE(p.created_at, o.created_at) AS added
+              FROM crm.organizations o
+              -- LEFT JOIN عمدی: شرکتی که با /new ثبت شده ولی تا مرحلهٔ غرفه نرفته
+              -- هم باید در فهرست باشد؛ وگرنه همان شکایت «ثبت شد ولی نیست» برمی‌گردد.
+              LEFT JOIN iee1405.participations p ON p.organization_id = o.id
+              LEFT JOIN iee1405.exhibitions ex
+                ON ex.id = p.exhibition_id AND ex.code = 'IEE1405'
+             WHERE o.deleted_at IS NULL
+               AND (p.organization_id IS NOT NULL
+                    OR (ex.id IS NOT NULL)
+                    -- یا از راه ربات ثبت شده باشد (حتی اگر جریان نیمه‌کاره مانده)
+                    OR EXISTS (SELECT 1 FROM crm.audit_events ae
+                                WHERE ae.entity = 'organization' AND ae.entity_id = o.id
+                                  AND ae.action = 'create'
+                                  AND COALESCE(ae.diff ->> 'via', '') = 'bale'))
+               AND (p_q IS NULL OR btrim(COALESCE(p_q, '')) = ''
+                    OR crm.norm_text(COALESCE(NULLIF(btrim(o.display_name), ''), o.legal_name))
+                         LIKE '%' || crm.norm_text(p_q) || '%'
+                    OR upper(o.code) = upper(btrim(COALESCE(p_q, ''))))
+               AND NOT (crm.norm_text(COALESCE(NULLIF(btrim(o.display_name), ''), o.legal_name))
+                        = ANY (COALESCE(v_names, ARRAY[]::text[])))) s
+     ORDER BY s.added DESC, s.code
+     LIMIT GREATEST(COALESCE(p_max, 8), 1);
+END $$;
+
+COMMENT ON FUNCTION iee1405.co_crm_rows IS
+'شرکت‌های ثبت‌شده در ربات (CRM + مشارکت IEE1405) با دکمهٔ o:<code>؛ تکراری‌های آینه حذف می‌شوند';
+
+-- ── ۲.۶) افزودن بخش «ثبت‌شده در ربات» به یک صفحه ─────────────────────
+-- یک جا نوشته می‌شود تا فهرست و جست‌وجو *یک* رفتار داشته باشند: بخش CRM در
+-- صفحهٔ اول، بالای متن، با دکمه‌های خودش پیش از ردیف ناوبری.
+SELECT iee1405.drop_stale_result('iee1405', 'co_merge_crm',
+       'TABLE(text_body text, markup text)');
+CREATE OR REPLACE FUNCTION iee1405.co_merge_crm(
+    p_text text, p_markup jsonb, p_page int, p_q text DEFAULT NULL)
+RETURNS TABLE (text_body text, markup text)
+LANGUAGE plpgsql STABLE AS $$
+DECLARE
+    r      record;
+    v_n    int := 0;
+    v_txt  text := '';
+    v_rows jsonb := '[]'::jsonb;
+    v_b1   jsonb;
+    v_arr  jsonb;
+    v_nav  jsonb;
+    v_head jsonb;
+    v_mk   jsonb;
+BEGIN
+    IF COALESCE(p_page, 1) <> 1 THEN
+        RETURN QUERY SELECT p_text, p_markup::text;
+        RETURN;
+    END IF;
+
+    FOR r IN SELECT * FROM iee1405.co_crm_rows(p_q, 8) LOOP
+        v_n := v_n + 1;
+        v_txt := v_txt || CASE WHEN v_n = 1 THEN '' ELSE E'\n' END ||
+                 '🆕 ' || r.name || ' · ' || r.place;
+        IF v_n % 2 = 1 THEN
+            v_b1 := r.btn;
+        ELSE
+            v_rows := v_rows || jsonb_build_array(jsonb_build_array(v_b1, r.btn));
+            v_b1 := NULL;
+        END IF;
+    END LOOP;
+
+    IF v_n = 0 THEN
+        RETURN QUERY SELECT p_text, p_markup::text;
+        RETURN;
+    END IF;
+    IF v_n % 2 = 1 THEN
+        v_rows := v_rows || jsonb_build_array(jsonb_build_array(v_b1));
+    END IF;
+
+    -- دکمه‌های CRM پیش از ردیف ناوبری می‌نشینند، نه بعد از آن
+    v_arr := p_markup -> 'inline_keyboard';
+    IF v_arr IS NULL OR jsonb_typeof(v_arr) <> 'array' OR jsonb_array_length(v_arr) = 0 THEN
+        v_mk := jsonb_build_object('inline_keyboard', v_rows);
+    ELSE
+        v_nav  := v_arr -> (jsonb_array_length(v_arr) - 1);
+        v_head := v_arr - (jsonb_array_length(v_arr) - 1);
+        v_mk   := jsonb_set(p_markup, '{inline_keyboard}',
+                            v_head || v_rows || jsonb_build_array(v_nav), true);
+    END IF;
+
+    RETURN QUERY SELECT
+        '🆕 ثبت‌شده در ربات (' || iee1405.fa_out(v_n::text) || '):' || E'\n' ||
+        v_txt || E'\n' || '────────────' || E'\n' || COALESCE(p_text, ''),
+        v_mk::text;
+END $$;
+
+COMMENT ON FUNCTION iee1405.co_merge_crm IS
+'بخش «ثبت‌شده در ربات» را با دکمه‌های o:<code> به صفحهٔ اول فهرست/جست‌وجو اضافه می‌کند';
+
 -- ── ۳) همهٔ شرکت‌ها، الفبایی ─────────────────────────────────────────
 CREATE OR REPLACE FUNCTION iee1405.co_page(p_page int DEFAULT 1, p_size int DEFAULT 8)
 RETURNS TABLE (text_body text, markup text, page int, pages int, ids bigint[])
 LANGUAGE plpgsql STABLE AS $$
-DECLARE v_ids bigint[];
+DECLARE
+    v_ids bigint[];
+    v_rec record;
+    v_m   record;
 BEGIN
     IF to_regclass('barghpa.company') IS NULL OR NOT iee1405.mirror_ready() THEN
         RETURN QUERY SELECT 'آینهٔ فهرست نمایشگاه آماده نیست. روی سرور: bash 03_ops/load_exhibitors.sh',
@@ -152,8 +288,13 @@ BEGIN
     -- باید کنار هم بیایند، وگرنه فهرست برای کاربر «نامرتب» دیده می‌شود.
     SELECT array_agg(c.id ORDER BY c.name_norm, c.id) INTO v_ids FROM barghpa.company c;
 
-    RETURN QUERY SELECT * FROM iee1405.co_page_of(v_ids, '🏢 فهرست شرکت‌های نمایشگاه',
-                                                  p_page, p_size) x;
+    SELECT * INTO v_rec FROM iee1405.co_page_of(v_ids, '🏢 فهرست شرکت‌های نمایشگاه',
+                                                p_page, p_size) x;
+    SELECT * INTO v_m FROM iee1405.co_merge_crm(v_rec.text_body, v_rec.markup::jsonb,
+                                                v_rec.page, NULL) y;
+
+    RETURN QUERY SELECT v_m.text_body, v_m.markup,
+                        v_rec.page, v_rec.pages, v_rec.ids;
 END $$;
 
 COMMENT ON FUNCTION iee1405.co_page IS
@@ -166,7 +307,12 @@ CREATE OR REPLACE FUNCTION iee1405.co_search(
     p_q text, p_page int DEFAULT 1, p_size int DEFAULT 8, p_max int DEFAULT 24)
 RETURNS TABLE (text_body text, markup text, page int, pages int, ids bigint[])
 LANGUAGE plpgsql STABLE AS $$
-DECLARE v_ids bigint[];
+DECLARE
+    v_ids bigint[];
+    v_rec record;
+    v_m   record;
+    v_crm_text text;
+    v_crm_mk   text;
 BEGIN
     IF to_regclass('barghpa.company') IS NULL OR NOT iee1405.mirror_ready() THEN
         RETURN QUERY SELECT 'آینهٔ فهرست نمایشگاه آماده نیست. روی سرور: bash 03_ops/load_exhibitors.sh',
@@ -178,17 +324,37 @@ BEGIN
       FROM (SELECT company_id, row_number() OVER () AS rn
               FROM barghpa.search(btrim(COALESCE(p_q, '')), GREATEST(COALESCE(p_max, 24), 1))) s;
 
+    -- ── هیچ نتیجه‌ای در آینه نبود؟ شاید در ربات ثبت شده باشد ───────────
+    -- همین جاست که گزارش مالک رخ می‌داد: شرکت با `/new` در CRM ثبت می‌شد و
+    -- جست‌وجو (که فقط آینه را می‌دید) می‌گفت «پیدا نشد».
     IF v_ids IS NULL OR array_length(v_ids, 1) = 0 THEN
+        IF EXISTS (SELECT 1 FROM iee1405.co_crm_rows(p_q, 8)) THEN
+            SELECT m.text_body, m.markup INTO v_crm_text, v_crm_mk
+              FROM iee1405.co_merge_crm(
+                     '🔎 جست‌وجو: «' || btrim(COALESCE(p_q, '')) || '»' || E'\n' ||
+                     'در فهرست نمایشگاه نبود؛ در شرکت‌های ثبت‌شده در ربات پیدا شد.' ||
+                     E'\n' || 'فهرست کامل: /list',
+                     NULL::jsonb, 1, p_q) m;
+            RETURN QUERY SELECT v_crm_text, v_crm_mk, 1, 1, ARRAY[]::bigint[];
+            RETURN;
+        END IF;
+
         RETURN QUERY SELECT '🔎 جست‌وجو: «' || btrim(COALESCE(p_q, '')) || '»' || E'\n' ||
-                            'شرکتی با این نام پیدا نشد. املای دیگر، یا فقط بخشی از نام را بنویسید.' ||
+                            'شرکتی با این نام نه در فهرست نمایشگاه بود و نه در شرکت‌های ثبت‌شده در ربات.' ||
+                            E'\n' || 'املای دیگر، یا فقط بخشی از نام را بنویسید.' ||
                             E'\n' || 'فهرست کامل: /list',
                             iee1405.co_keyboard(ARRAY[]::bigint[], 1, 1),
                             1, 1, ARRAY[]::bigint[];
         RETURN;
     END IF;
 
-    RETURN QUERY SELECT * FROM iee1405.co_page_of(
+    SELECT * INTO v_rec FROM iee1405.co_page_of(
         v_ids, '🔎 نتیجهٔ جست‌وجو: «' || btrim(COALESCE(p_q, '')) || '»', p_page, p_size) x;
+    SELECT * INTO v_m FROM iee1405.co_merge_crm(v_rec.text_body, v_rec.markup::jsonb,
+                                                v_rec.page, p_q) y;
+
+    RETURN QUERY SELECT v_m.text_body, v_m.markup,
+                        v_rec.page, v_rec.pages, v_rec.ids;
 END $$;
 
 COMMENT ON FUNCTION iee1405.co_search IS
@@ -307,5 +473,14 @@ BEGIN
         RAISE EXCEPTION 'حوزهٔ فعالیت روی کارت نیست (فایل ۰۸ به‌روز نشده؟)';
     END IF;
 
-    RAISE NOTICE '✅ فهرست شرکت‌ها: % صفحه · دو ستون · ناوبری قبل/بعد · کارت سالم', n_pages;
+    -- بخش «ثبت‌شده در ربات»: اگر در متن آمده، دکمه‌اش هم باید باشد
+    IF to_regprocedure('iee1405.co_crm_rows(text, integer)') IS NULL
+       OR to_regprocedure('iee1405.co_merge_crm(text, jsonb, integer, text)') IS NULL THEN
+        RAISE EXCEPTION 'توابع بخش «ثبت‌شده در ربات» ساخته نشدند';
+    END IF;
+    IF p.text_body LIKE '%ثبت‌شده در ربات%' AND NOT (p.markup LIKE '%"o:ORG-%') THEN
+        RAISE EXCEPTION 'متن «ثبت‌شده در ربات» هست ولی دکمهٔ o: نیست: %', left(p.markup, 120);
+    END IF;
+
+    RAISE NOTICE '✅ فهرست شرکت‌ها: % صفحه · دو ستون · ناوبری قبل/بعد · کارت سالم · بخش «ثبت‌شده در ربات»', n_pages;
 END $$;
