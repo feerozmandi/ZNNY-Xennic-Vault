@@ -520,6 +520,13 @@ ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS reply_markup jsonb;
 -- کار بمیرد، قفل پس از ۹۰ ثانیه خودش باز می‌شود (خودترمیمی، بدون دخالت).
 ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS sending_at timestamptz;
 
+-- ── ویرایش به‌جای پیام تازه (edit_message_id) ─────────────────────────
+-- خواستهٔ مالک: «با کلیک دکمهٔ قبل و بعد باید پیام ارسالی به‌روز شود، نه پیام
+-- جدید بیاید». بله `editMessageText` دارد؛ برای آن باید شناسهٔ همان پیام را
+-- بدانیم. این ستون از `callback_query.message.message_id` پر می‌شود و اگر NULL
+-- باشد یعنی «پیام تازه بفرست» — همان رفتار قبلی.
+ALTER TABLE iee1405.bot_updates ADD COLUMN IF NOT EXISTS edit_message_id bigint;
+
 -- منوی ثابت پایین صفحه. برچسب دکمه‌ها عمداً همان واژه‌هایی است که
 -- `iee1405.bot_dispatch` می‌شناسد (شروع، امروز، راهنما، جست‌وجو، …)، پس فشردن
 -- دکمه دقیقاً همان کاری را می‌کند که تایپ آن واژه.
@@ -557,14 +564,15 @@ COMMENT ON FUNCTION iee1405.current_keyboard() IS
 'صفحه‌کلید جاری با درنظرگرفتن کلید خاموش/روشن؛ هرگز NULL نیست';
 
 SELECT iee1405.drop_stale_result('iee1405', 'pending_replies',
-       'TABLE(update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup text)');
+       'TABLE(update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup text, edit_message_id bigint)');
 -- ⚠️ نسخهٔ یک‌آرگومانی باید صریح حذف شود: «CREATE OR REPLACE» با آرگومان تازه
 -- یک **هم‌پوشان** می‌سازد، نه جای‌گزین، و آن‌وقت فراخوانی یک‌آرگومانی با
 -- «function name is not unique» می‌شکند. (همین‌جا یک بار رخ داد.)
 DROP FUNCTION IF EXISTS iee1405.pending_replies(integer);
 CREATE OR REPLACE FUNCTION iee1405.pending_replies(p_limit int DEFAULT 20,
                                                    p_claim boolean DEFAULT false)
-RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int, reply_markup text)
+RETURNS TABLE (update_id bigint, chat_id bigint, text_body text, attempt int,
+               reply_markup text, edit_message_id bigint)
 LANGUAGE plpgsql AS $$
 BEGIN
     -- p_claim = true فقط از گردش‌کار n8n: ردیف‌ها را هنگام برداشتن قفل می‌کند
@@ -588,11 +596,13 @@ BEGIN
                SET sending_at = clock_timestamp()
               FROM pick
              WHERE u.update_id = pick.update_id
-            RETURNING u.update_id, u.chat_id, u.reply_text, u.raw, u.reply_markup
+            RETURNING u.update_id, u.chat_id, u.reply_text, u.raw, u.reply_markup,
+                      u.edit_message_id
         )
         SELECT c.update_id, c.chat_id, c.reply_text,
                COALESCE((c.raw -> '_attempts')::int, 0),
-               COALESCE(c.reply_markup::text, iee1405.current_keyboard())
+               COALESCE(c.reply_markup::text, iee1405.current_keyboard()),
+               c.edit_message_id
           FROM claimed c
          ORDER BY c.update_id;
         RETURN;
@@ -601,7 +611,8 @@ BEGIN
     RETURN QUERY
     SELECT u.update_id, u.chat_id, u.reply_text,
            COALESCE((u.raw -> '_attempts')::int, 0),
-           COALESCE(u.reply_markup::text, iee1405.current_keyboard())
+           COALESCE(u.reply_markup::text, iee1405.current_keyboard()),
+           u.edit_message_id
       FROM iee1405.bot_updates u
      WHERE u.reply_text IS NOT NULL
        AND u.delivered_at IS NULL
@@ -639,6 +650,18 @@ BEGIN
                        p_response ->> 'error_code',
                        p_response ->> 'message',
                        '?');
+
+    -- ویرایش پیامی که متنش عوض نشده، در بله خطای «message is not modified»
+    -- می‌دهد. این خطا یعنی «همان چیزی که می‌خواستی، همین حالا روی صفحه است»
+    -- — نه شکست. اگر شکست حساب شود، پیام تا پنج بار دوباره ویرایش می‌شود و
+    -- آخر سر رها می‌شود.
+    IF (p_response::text ILIKE '%not modified%') THEN
+        UPDATE iee1405.bot_updates
+           SET delivered_at = clock_timestamp(), status = 'processed',
+               sending_at = NULL
+         WHERE update_id = p_update_id;
+        RETURN 'unchanged';
+    END IF;
     UPDATE iee1405.bot_updates
        SET raw = jsonb_set(COALESCE(raw, '{}'::jsonb), '{_attempts}',
                            to_jsonb(COALESCE((raw ->> '_attempts')::int, 0) + 1), true),

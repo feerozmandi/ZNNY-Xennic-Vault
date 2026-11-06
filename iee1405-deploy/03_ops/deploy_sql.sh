@@ -123,8 +123,10 @@ if [[ "$MODE" != "--no-backup" && "${EXISTING:-0}" != "0" ]]; then
 fi
 
 # ── اجرای فایل‌ها (ترتیب مهم است) ─────────────────────────────────────
+# ۱۰ پیش از ۰۹ اجرا می‌شود: خودآزمون ۰۹ وجود دکمهٔ «🎤 مصاحبه» را که از ۱۰
+# می‌آید بررسی می‌کند؛ ۱۰ به ۰۹ وابسته نیست (همین ترتیب روی پایگاه تازه تست شد).
 for f in 01_schema_core.sql 02_seed_reference.sql 03_views.sql 04_bot_logic.sql 05_ops_helpers.sql \
-         07_import_indexes.sql 08_exhibitor_mirror.sql 09_company_list.sql; do
+         07_import_indexes.sql 08_exhibitor_mirror.sql 10_interview.sql 09_company_list.sql; do
     run_file "$SQL_DIR/$f"
 done
 

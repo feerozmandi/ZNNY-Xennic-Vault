@@ -77,7 +77,7 @@ def q_company(rows, prune: bool) -> list[str]:
         out.append(
             "INSERT INTO barghpa.company\n"
             "  (id, name_fa, name_norm, name_en, slug, website, about_fa, province_label,\n"
-            "   provenance_class, official_site, google_search, verified, source_row)\n"
+            "   provenance_class, official_site, google_search, activity, verified, source_row)\n"
             "VALUES\n" + ",\n".join(
                 "  (" + ", ".join([
                     esc(r["id"]), esc(r["name_fa"]),
@@ -86,6 +86,7 @@ def q_company(rows, prune: bool) -> list[str]:
                     esc(r["slug"]), esc(r["website"]), esc(r["about_fa"]),
                     esc(r["province_label"]), esc(r["provenance_class"] or "unknown"),
                     esc(r["official_site"]), esc(r["google_search"]),
+                    esc(r["activity"]),
                     esc(int(r["verified"] or 0) == 1), esc(r["source_row"]),
                 ]) + ")" for r in part) +
             "\nON CONFLICT (id) DO UPDATE SET\n"
@@ -94,6 +95,7 @@ def q_company(rows, prune: bool) -> list[str]:
             "  about_fa = EXCLUDED.about_fa, province_label = EXCLUDED.province_label,\n"
             "  provenance_class = EXCLUDED.provenance_class,\n"
             "  official_site = EXCLUDED.official_site, google_search = EXCLUDED.google_search,\n"
+            "  activity = EXCLUDED.activity,\n"
             "  verified = EXCLUDED.verified OR barghpa.company.verified,\n"
             "  source_row = EXCLUDED.source_row;")
     if prune:
@@ -197,7 +199,7 @@ def main() -> int:
     companies = rows_of(con, f"""
         SELECT c.id, c.name_fa, c.name_norm, c.name_en, c.slug, c.website, c.about_fa,
                c.province_label, c.verified, c.source_row,
-               c.provenance_class, c.official_site, c.google_search
+               c.provenance_class, c.official_site, c.google_search, c.activity
           FROM company c ORDER BY c.id{lim}""")
     ids = {r["id"] for r in companies}
     ph = ",".join("?" * len(ids)) or "NULL"

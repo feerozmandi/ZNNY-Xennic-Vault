@@ -385,21 +385,25 @@ def run(src: Path, db: Path, *, write: bool, captured_on: str,
                              official_site=COALESCE(NULLIF(official_site,''),?),
                              provenance_class=COALESCE(NULLIF(provenance_class,''),?),
                              google_search=COALESCE(NULLIF(google_search,''),?),
+                             activity=COALESCE(NULLIF(activity,''),?),
                              updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')
                            WHERE id=?""",
                         (cell("name_en"), cell("slug"), website, cell("about"),
                          cell("province"), page, prov_src, prov_urls, logo, official,
-                         prov_cls if prov_cls != "unknown" else None, gsearch, cid))
+                         prov_cls if prov_cls != "unknown" else None, gsearch,
+                         cell("type") or None, cid))
         else:
             cid = con.execute("""INSERT INTO company
                 (name_fa, name_norm, name_en, slug, website, about_fa,
                  province_label, company_page, provenance_source, provenance_urls,
                  logo_url, official_site, provenance_class, google_search,
+                 activity,
                  source_id, source_row)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (name, nm, cell("name_en") or None, cell("slug") or None,
                  website, cell("about") or None, cell("province") or None,
                  page, prov_src, prov_urls, logo, official, prov_cls, gsearch,
+                 cell("type") or None,
                  src_id, idx)).lastrowid
             stats["companies_new"] += 1
 

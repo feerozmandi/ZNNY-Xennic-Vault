@@ -271,6 +271,95 @@ def main():
     psql("UPDATE iee1405.bot_state SET value = '0' WHERE key = 'markup_failures';")
     psql("UPDATE iee1405.bot_state SET value = '45' WHERE key = 'help_dedupe_seconds';")
 
+    has_mirror = psql("SELECT iee1405.mirror_ready()")[0][0] == "t"
+
+    # ── ویرایش به‌جای پیام تازه (callback) ──
+    if has_mirror:
+        psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
+             "WHERE chat_id = $1;", [OWNER_CHAT])
+        psql(query_of("🧠 پردازش در PostgreSQL", wf),
+             [json.dumps(msg(8201, OWNER_CHAT, "/list"), ensure_ascii=False)])
+        first = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+        check("فهرست برای آزمون ویرایش در صف است", len(first) == 1, str(len(first)))
+        if first:
+            psql(query_of("✅ ثبت ارسال", wf),
+                 [int(first[0][0]), '{"ok":true,"result":{"message_id":21}}'])
+            cb = {"update_id": 8202,
+                  "callback_query": {"id": "cb9", "data": "l:2",
+                                     "from": {"id": OWNER_CHAT},
+                                     "message": {"message_id": 21,
+                                                 "chat": {"id": OWNER_CHAT, "type": "private"}}}}
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(cb, ensure_ascii=False)])
+            row = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("پاسخ به دکمه، شناسهٔ همان پیام را برای ویرایش دارد",
+                  row and row[0][4] == "21", row[0][4] if row else "—")
+
+            # همان شناسه در گرهٔ «روش ارسال» باید شاخهٔ ویرایش را انتخاب کند
+            edit_expr = node("🔀 روش ارسال", wf)["parameters"]["conditions"]["conditions"][0]["leftValue"]
+            check("گرهٔ «روش ارسال» بر پایهٔ edit_message_id تصمیم می‌گیرد",
+                  "edit_message_id" in edit_expr, edit_expr[:60])
+
+            # «message is not modified» باید تحویل حساب شود، نه شکست
+            psql(query_of("✅ ثبت ارسال", wf),
+                 [int(row[0][0]),
+                  '{"ok":false,"error_code":400,"description":"Bad Request: message is not modified"}'])
+            left_after = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("«message is not modified» شکست حساب نمی‌شود (پیام دوباره فرستاده نمی‌شود)",
+                  len(left_after) == 0, str(len(left_after)))
+
+    # ── مصاحبهٔ غرفه از مسیر واقعی گردش‌کار ──
+    if has_mirror:
+        co_id = psql("SELECT min(id) FROM barghpa.company")[0][0]
+        psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
+             "WHERE chat_id = $1;", [OWNER_CHAT])
+        psql("DELETE FROM iee1405.interviews;")
+        start = {"update_id": 8301,
+                 "callback_query": {"id": "cb10", "data": "i:" + co_id,
+                                    "from": {"id": OWNER_CHAT},
+                                    "message": {"message_id": 31,
+                                                "chat": {"id": OWNER_CHAT, "type": "private"}}}}
+        psql(query_of("🧠 پردازش در PostgreSQL", wf), [json.dumps(start, ensure_ascii=False)])
+        q = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+        check("دکمهٔ «مصاحبه» اول نام مصاحبه‌شونده را می‌پرسد",
+              q and "نام مصاحبه" in q[0][2], q[0][2][:40] if q else "—")
+        if q:
+            check("پیام پرسش نام، همان پیام کارت را ویرایش می‌کند",
+                  q[0][4] == "31", q[0][4])
+            psql(query_of("✅ ثبت ارسال", wf),
+                 [int(q[0][0]), '{"ok":true,"result":{"message_id":31}}'])
+
+        # به ترتیب همان شش سؤال پیش‌فرض: فعالیت · توان · ظرفیت · گلوگاه · همکاری · پیگیری
+        scripted = ["سارا موسوی", "کارشناس فروش",
+                    "تولید تابلوی فشار متوسط",
+                    "تابلوهای MV و پست کمپکت",
+                    "تا ۳۶ کیلوولت، ۲۰ عدد در ماه",
+                    "رله حفاظتی را وارد می‌کنیم",
+                    "نمایندگی",
+                    "آقای رضایی ۰۹۱۲۰۰۰۰۰۰۰"]
+        for i, txt in enumerate(scripted):
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(msg(8310 + i, OWNER_CHAT, txt), ensure_ascii=False)])
+            pend = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            for r in pend:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":40}}'])
+
+        iv = psql("SELECT interviewee_name, interviewee_role, jsonb_array_length(answers), "
+                  "state, cooperation FROM iee1405.interviews")
+        check("مصاحبه در پایگاه ثبت شد", len(iv) == 1, str(len(iv)))
+        if iv:
+            check("نام و سمت مصاحبه‌شونده ثبت شد",
+                  iv[0][0] == "سارا موسوی" and iv[0][1] == "کارشناس فروش",
+                  f"{iv[0][0]} — {iv[0][1]}")
+            check("همهٔ سؤال‌ها پاسخ گرفتند",
+                  iv[0][2] == "6", iv[0][2])
+            check("مصاحبه کامل علامت خورد", iv[0][3] == "done", iv[0][3])
+            check("علاقهٔ همکاری از پاسخ «coop» برداشته شد",
+                  iv[0][4] == "نمایندگی", str(iv[0][4]))
+        card = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+        psql("DELETE FROM iee1405.interviews;")
+
     # ── idempotency: همان آپدیت دوباره ──
     before = len(psql("SELECT update_id FROM iee1405.bot_updates"))
     psql(query_of("🧠 پردازش در PostgreSQL", wf),
@@ -540,7 +629,6 @@ def main():
     # ── فهرست دکمه‌ای شرکت‌ها در همان مسیر واقعی گردش‌کار ──
     # این بخش عمداً از گره‌های خودِ wf-01 استفاده می‌کند (نه فراخوانی مستقیم تابع)
     # تا اثبات شود دکمه‌ها از همان لوله به صف ارسال می‌رسند.
-    has_mirror = psql("SELECT iee1405.mirror_ready()")[0][0] == "t"
     if has_mirror:
         psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
              "WHERE chat_id = $1;", [OWNER_CHAT])

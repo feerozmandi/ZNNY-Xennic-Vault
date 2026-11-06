@@ -99,6 +99,15 @@ CREATE TABLE IF NOT EXISTS barghpa.pilot (
 );
 
 -- ── نمای کارت: یک ردیف برای هر شرکت، بدون ضرب کارتزین
+-- ── حوزه فعالیت (از ستون «نوع فعالیت» منبع) ──────────────────────────
+-- در بازدید، اولین چیزی که از یک غرفه می‌پرسیم همین است: تولیدکننده‌اید یا
+-- بازرگان؟ در نسخهٔ قبل این داده در فایل منبع بود و در آینه نبود — یعنی روی
+-- کارت دیده نمی‌شد. مقدار عیناً منتقل می‌شود؛ خالی می‌ماند اگر منبع خالی بود.
+ALTER TABLE barghpa.company ADD COLUMN IF NOT EXISTS activity text;
+
+COMMENT ON COLUMN barghpa.company.activity IS
+'نوع فعالیت از منبع («تولید» / «بازرگانی» / «خدمات» …) — دست‌نخورده، بدون استنباط';
+
 CREATE OR REPLACE VIEW barghpa.v_card AS
 SELECT c.id AS company_id, c.name_fa, c.name_en, c.slug, c.website, c.about_fa,
        c.province_label, c.provenance_class, c.official_site, c.google_search,
@@ -126,7 +135,10 @@ SELECT c.id AS company_id, c.name_fa, c.name_en, c.slug, c.website, c.about_fa,
          WHERE ct.company_id = c.id)                                           AS contact_confidence,
        (SELECT string_agg(f.flag, ',') FROM barghpa.company_flag f
          WHERE f.company_id = c.id)                                            AS flags,
-       (SELECT pi.rank FROM barghpa.pilot pi WHERE pi.company_id = c.id)       AS pilot_rank
+       (SELECT pi.rank FROM barghpa.pilot pi WHERE pi.company_id = c.id)       AS pilot_rank,
+       -- ⚠️ ستون تازه همیشه در **پایان** فهرست: CREATE OR REPLACE VIEW نمی‌تواند
+       -- ترتیب ستون‌های موجود را عوض کند و فقط افزودن در انتها مجاز است.
+       c.activity
   FROM barghpa.company c;
 
 -- ── توابع ربات ────────────────────────────────────────────────────────
@@ -207,6 +219,10 @@ BEGIN
     END IF;
 
     out := '🏭 ' || v.name_fa || E'\n';
+    -- حوزه فعالیت دقیقاً زیر نام، چون در بازدید اولین سؤال همین است.
+    out := out || '🏷 حوزه فعالیت: ' ||
+           COALESCE(NULLIF(btrim(v.activity), ''),
+                    'ثبت‌نشده (با به‌روزرسانی داده پر می‌شود)') || E'\n';
     out := out || 'سالن: ' || coalesce(v.halls, 'ثبت‌نشده');
     IF v.booths IS NOT NULL THEN
         out := out || ' | غرفه: ' || v.booths;
