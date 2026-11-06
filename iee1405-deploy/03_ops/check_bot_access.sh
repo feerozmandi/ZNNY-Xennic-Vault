@@ -158,6 +158,34 @@ else
     fail "پرس‌وجوی سالن کار نکرد: $HALL"
 fi
 
+# ── ۳.۵) فهرست دکمه‌ای شرکت‌ها (inline keyboard) ─────────────────────
+# اگر این تابع‌ها نباشند یا گرنت نداشته باشند، دکمهٔ «لیست شرکت‌ها» در بله
+# پیام خطا می‌دهد. سنجش، خودِ خروجی است نه وجود تابع.
+c_head "۳.۵) فهرست دکمه‌ای شرکت‌ها"
+
+LIST="$(q "SET ROLE iee_app; SELECT text_body || '«|»' || COALESCE(markup, '') FROM iee1405.co_page(1);" 2>&1 | tail -1)"
+if [[ "$LIST" == *"inline_keyboard"* && "$LIST" == *"c:"* ]]; then
+    pass "صفحهٔ فهرست با نقش ربات ساخته شد (دکمهٔ شیشه‌ای دو‌ستونی)"
+    if [[ "$LIST" == *"صفحه بعد"* && "$LIST" == *"صفحه قبل"* ]]; then
+        pass "ردیف ناوبری «صفحه قبل/بعد» در همان صفحه هست"
+    else
+        fail "دکمه‌های صفحه قبل/بعد در صفحه‌کلید نیست" "bash 03_ops/deploy_sql.sh   (فایل ۰۹)"
+    fi
+elif [[ "$LIST" == *"does not exist"* ]]; then
+    fail "تابع فهرست شرکت‌ها نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/09_company_list.sql)"
+elif [[ "$LIST" == *"permission denied"* ]]; then
+    fail "نقش ربات به فهرست شرکت‌ها دسترسی ندارد" "bash 03_ops/deploy_sql.sh   (گرنت انتهای فایل ۰۹)"
+else
+    fail "صفحهٔ فهرست خروجی درست نداد: ${LIST:0:80}"
+fi
+
+CARD="$(q "SET ROLE iee_app; SELECT text_body || '«|»' || COALESCE(markup, '') FROM iee1405.co_card((SELECT min(id) FROM barghpa.company));" 2>&1 | tail -1)"
+if [[ "$CARD" == *"l:"* ]]; then
+    pass "کارت شرکت + دکمهٔ بازگشت با نقش ربات کار می‌کند"
+else
+    fail "کارت شرکت یا دکمهٔ بازگشت ناقص است: ${CARD:0:80}"
+fi
+
 # ── ۴) نسخهٔ تابع ربات (نه نسخهٔ قدیمیِ جامانده در پایگاه) ─────────────
 c_head "۴) نسخهٔ تابع ربات"
 

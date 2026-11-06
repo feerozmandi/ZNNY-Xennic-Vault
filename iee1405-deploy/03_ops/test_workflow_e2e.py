@@ -527,12 +527,73 @@ def main():
 
     psql("INSERT INTO iee1405.bot_errors (stage, message) VALUES ('e2e-health', 'x');")
     psql("SELECT iee1405.health_alert_reset();")   # بازه سکوت را صفر می‌کنیم
+    # هشدار سلامت به **همهٔ** دارندگان نقش owner می‌رود، پس انتظار = تعداد آن‌ها.
+    n_owners = psql("SELECT count(*) FROM crm.users WHERE role = 'owner' "
+                    "AND is_active AND bale_chat_id IS NOT NULL")[0][0]
     h1 = psql("SELECT count(*) FROM iee1405.health_watch();")[0][0]
     h2 = psql("SELECT count(*) FROM iee1405.health_watch();")[0][0]
-    check("با وجود خطا یک هشدار می‌آید", h1 == "1", h1)
+    check("با وجود خطا برای هر owner یک هشدار می‌آید", h1 == n_owners, f"{h1} از {n_owners}")
     check("اجرای بعدی همان هشدار را تکرار نمی‌کند (بازه ۳ ساعت)", h2 == "0", h2)
     h3 = psql("SELECT count(*) FROM iee1405.health_watch('0 seconds');")[0][0]
-    check("پس از پایان بازه، هشدار دوباره مجاز است", h3 == "1", h3)
+    check("پس از پایان بازه، هشدار دوباره مجاز است", h3 == n_owners, f"{h3} از {n_owners}")
+
+    # ── فهرست دکمه‌ای شرکت‌ها در همان مسیر واقعی گردش‌کار ──
+    # این بخش عمداً از گره‌های خودِ wf-01 استفاده می‌کند (نه فراخوانی مستقیم تابع)
+    # تا اثبات شود دکمه‌ها از همان لوله به صف ارسال می‌رسند.
+    has_mirror = psql("SELECT iee1405.mirror_ready()")[0][0] == "t"
+    if has_mirror:
+        psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
+             "WHERE chat_id = $1;", [OWNER_CHAT])
+        psql(query_of("🧠 پردازش در PostgreSQL", wf),
+             [json.dumps(msg(8101, OWNER_CHAT, "🏢 لیست شرکت‌ها"), ensure_ascii=False)])
+        page = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+        check("دکمهٔ «لیست شرکت‌ها» یک پاسخ در صف گذاشت", len(page) == 1, str(len(page)))
+        if page:
+            p1_uid, p1_chat, p1_text, p1_markup = int(page[0][0]), int(page[0][1]), page[0][2], page[0][3]
+            check("پاسخ فهرست، دکمهٔ شیشه‌ای دو‌ستونی دارد",
+                  "inline_keyboard" in (p1_markup or "") and "c:" in (p1_markup or ""),
+                  (p1_markup or "")[:70])
+            # دکمهٔ «صفحه بعد» را مثل بله به گردش‌کار می‌دهیم
+            nxt = None
+            import re as _re
+            m = _re.search(r'"callback_data":\s*"(l:\d+)"', p1_markup or "")
+            # آخرین l:<n> در JSON ردیف ناوبری، همان «صفحه بعد» است
+            all_l = _re.findall(r'"callback_data":\s*"(l:\d+)"', p1_markup or "")
+            if all_l:
+                nxt = all_l[-1]
+            psql(query_of("✅ ثبت ارسال", wf),
+                 [p1_uid, '{"ok":true,"result":{"message_id":11}}'])
+            if nxt:
+                cb = {"update_id": 8102,
+                      "callback_query": {"id": "cb1", "data": nxt,
+                                         "from": {"id": OWNER_CHAT},
+                                         "message": {"message_id": 11,
+                                                     "chat": {"id": OWNER_CHAT, "type": "private"}}}}
+                rows = psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                            [json.dumps(cb, ensure_ascii=False)])
+                page2 = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+                check("دکمهٔ «صفحه بعد» از مسیر گردش‌کار عبور کرد و پاسخ ساخت",
+                      len(page2) == 1, str(len(page2)))
+                if page2:
+                    check("صفحهٔ دوم واقعاً صفحهٔ دیگری است",
+                          page2[0][2] != p1_text, page2[0][2][:40])
+                    psql(query_of("✅ ثبت ارسال", wf),
+                         [int(page2[0][0]), '{"ok":true,"result":{"message_id":12}}'])
+            else:
+                check("دکمهٔ ناوبری در صفحه‌کلید پیدا شد", False, (p1_markup or "")[:60])
+
+        # انتخاب با شماره: مسیر بی‌دکمه (اگر بله callback_query ندهد)
+        psql(query_of("🧠 پردازش در PostgreSQL", wf),
+             [json.dumps(msg(8103, OWNER_CHAT, "3"), ensure_ascii=False)])
+        numbered = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+        check("شمارهٔ شرکت (مسیر بی‌دکمه) کارت ساخت",
+              len(numbered) == 1 and "🏭" in numbered[0][2],
+              numbered[0][2][:40] if numbered else "—")
+        for r in numbered:
+            psql(query_of("✅ ثبت ارسال", wf),
+                 [int(r[0]), '{"ok":true,"result":{"message_id":13}}'])
+    else:
+        check("آینه بارگذاری شده (برای آزمون فهرست)", False, "barghpa خالی است")
 
     # خودترمیمی باید حتی در حالت سالم هم اجرا شود
     psql("DELETE FROM iee1405.bot_errors;")

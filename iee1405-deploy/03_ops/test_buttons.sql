@@ -23,7 +23,9 @@ INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active) VA
     ('btn-4', 'آزمون دکمه ۴', 'owner', 990004, true),
     ('btn-5', 'آزمون دکمه ۵', 'owner', 990005, true),
     ('btn-6', 'آزمون دکمه ۶', 'owner', 990006, true),
-    ('btn-7', 'آزمون دکمه ۷', 'owner', 990007, true)
+    ('btn-7', 'آزمون دکمه ۷', 'owner', 990007, true),
+    ('btn-8', 'آزمون فهرست شرکت‌ها', 'owner', 990008, true),
+    ('btn-9', 'آزمون جست‌وجوی نمایشگاه', 'owner', 990009, true)
 ON CONFLICT (username) DO UPDATE SET bale_chat_id = EXCLUDED.bale_chat_id,
                                      is_active = true;
 
@@ -37,6 +39,11 @@ DECLARE
     btn text;
     base_err bigint;
     cur_err bigint;
+    mk jsonb;
+    nav jsonb;
+    row_len int;
+    first_name text;
+    page2_name text;
     fails int := 0;
 
     -- چت، متن، انتظارِ «چه چیزی در پاسخ باشد»، توضیح
@@ -303,6 +310,101 @@ BEGIN
         ELSE
             RAISE NOTICE '✅ T14 · «اطلاع» خطا شمرده نمی‌شود، «خطای واقعی» می‌شود';
         END IF;
+    END IF;
+
+    -- ── T15: دکمهٔ «لیست شرکت‌ها» → صفحهٔ دکمه‌ای دو‌ستونی + ناوبری ──
+    IF iee1405.mirror_ready() THEN
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 990801,
+            'message', jsonb_build_object(
+                'chat', jsonb_build_object('id', 990008),
+                'text', '🏢 لیست شرکت‌ها'))) d;
+
+        SELECT reply_markup INTO mk FROM iee1405.bot_updates WHERE update_id = 990801;
+
+        IF reply IS NULL OR reply NOT LIKE '%فهرست شرکت%' THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T15 · دکمهٔ لیست شرکت‌ها پاسخ فهرست نداد: %',
+                         left(coalesce(reply, '(خالی)'), 40);
+        ELSIF mk IS NULL OR NOT (mk ? 'inline_keyboard') THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T15 · دکمه‌های شیشه‌ای ساخته نشد: %', left(coalesce(mk::text, 'NULL'), 60);
+        ELSE
+            SELECT max(jsonb_array_length(rowj)) INTO row_len
+              FROM jsonb_array_elements(mk -> 'inline_keyboard') AS rowj;
+            SELECT (mk -> 'inline_keyboard') -> -1 INTO nav;
+            IF row_len > 2 THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T15 · ردیفی با % دکمه (باید دو‌ستونی باشد)', row_len;
+            ELSIF jsonb_array_length(nav) <> 2
+                  OR NOT (nav @> '[{"text":"◀ صفحه قبل"}]'::jsonb)
+                  OR NOT (nav @> '[{"text":"صفحه بعد ▶"}]'::jsonb) THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T15 · ردیف آخر دکمه‌های قبل/بعد نیست: %', nav;
+            ELSE
+                RAISE NOTICE '✅ T15 · فهرست شرکت‌ها: دو ستون + ردیف «قبل/بعد»';
+            END IF;
+        END IF;
+
+        -- ── T16: دکمهٔ «صفحه بعد» (callback_query) صفحه را عوض می‌کند ──
+        SELECT (mk -> 'inline_keyboard') -> -1 -> 0 ->> 'callback_data' INTO first_name;  -- l:1
+        row_len := 0;
+        SELECT split_part(reply, E'\n', 2) INTO page2_name;   -- عنوان صفحهٔ ۱
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 990802,
+            'callback_query', jsonb_build_object(
+                'data', ((mk -> 'inline_keyboard') -> -1 -> 1 ->> 'callback_data'),
+                'message', jsonb_build_object('chat', jsonb_build_object('id', 990008))))) d;
+        IF reply IS NULL OR split_part(reply, E'\n', 2) = page2_name THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T16 · دکمهٔ «صفحه بعد» صفحه را عوض نکرد (%)',
+                         left(coalesce(reply, '(خالی)'), 40);
+        ELSE
+            RAISE NOTICE '✅ T16 · دکمهٔ «صفحه بعد» صفحه را عوض کرد (%)',
+                         btrim(split_part(reply, E'\n', 2));
+        END IF;
+
+        -- ── T17: انتخاب با شماره (مسیر بی‌دکمه) همان کارت را می‌دهد ──
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 990803,
+            'message', jsonb_build_object(
+                'chat', jsonb_build_object('id', 990008),
+                'text', '2'))) d;
+        IF reply IS NULL OR reply NOT LIKE '%🏭%' THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T17 · شماره در فهرست کارت نداد: %',
+                         left(coalesce(reply, '(خالی)'), 40);
+        ELSE
+            RAISE NOTICE '✅ T17 · شمارهٔ شرکت در فهرست، کارت را باز کرد (مسیر بی‌دکمه)';
+        END IF;
+
+        -- ── T18: دکمهٔ «🔎 جست‌وجو» → پرسش، بعد نتیجهٔ دکمه‌ای ─────────
+        SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+            'update_id', 990804,
+            'message', jsonb_build_object(
+                'chat', jsonb_build_object('id', 990009),
+                'text', '🔎 جست‌وجو'))) d;
+        IF reply IS NULL OR reply NOT LIKE '%نام شرکت%' THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T18 · دکمهٔ جست‌وجو پرسش نکرد: %',
+                         left(coalesce(reply, '(خالی)'), 40);
+        ELSE
+            SELECT d.reply_text INTO reply FROM iee1405.bot_dispatch_json(jsonb_build_object(
+                'update_id', 990805,
+                'message', jsonb_build_object(
+                    'chat', jsonb_build_object('id', 990009),
+                    'text', left(sample, 12)))) d;
+            SELECT reply_markup INTO mk FROM iee1405.bot_updates WHERE update_id = 990805;
+            IF reply IS NULL OR mk IS NULL OR NOT (mk ? 'inline_keyboard') THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T18 · نتیجهٔ جست‌وجو دکمه ندارد: %',
+                             left(coalesce(reply, '(خالی)'), 40);
+            ELSE
+                RAISE NOTICE '✅ T18 · جست‌وجو → نتیجهٔ دکمه‌ای (نه فهرست متنی)';
+            END IF;
+        END IF;
+    ELSE
+        RAISE NOTICE '⏭  T15–T18 رد شد — آینهٔ barghpa بارگذاری نشده است';
     END IF;
 
     IF fails > 0 THEN

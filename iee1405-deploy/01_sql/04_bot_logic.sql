@@ -416,6 +416,13 @@ DECLARE
     v_list      text;
     v_codes     jsonb;
     v_reply     text;
+    v_markup    jsonb;  -- دکمه‌های شیشه‌ای همین پاسخ (اگر داشته باشد)
+    v_page      int;    -- صفحهٔ فهرست شرکت‌ها
+    v_pages     int;
+    v_ids       bigint[]; -- شناسه‌های همین صفحه (برای انتخاب با شماره)
+    v_sids      bigint[]; -- همهٔ شناسه‌های نتیجهٔ جست‌وجو (برای صفحهٔ بعد)
+    v_cid       bigint;   -- شناسهٔ شرکتی که دکمه‌اش زده شده
+    v_mirror    boolean;
     v_code_in   text;
     v_inter_id  uuid;
     v_task_id   uuid;
@@ -485,13 +492,14 @@ BEGIN
                     WHEN 'ر' THEN '/help'
                     WHEN 'ش' THEN '/c'
                     WHEN 'س' THEN '/hall'
+                    WHEN 'ف' THEN '/list'
                     WHEN 'شروع' THEN '/start'
                     WHEN 'استارت' THEN '/start'
                     WHEN 'راهنما' THEN '/help'
                     WHEN 'کمک' THEN '/help'
                     WHEN 'دستورها' THEN '/help'
                     WHEN 'جستجو' THEN '/find'
-                    WHEN 'جست وجو' THEN '/find'
+                    WHEN 'جست وجو' THEN '/search'
                     WHEN 'جستجوی شرکت' THEN '/find'
                     WHEN 'پیدا' THEN '/find'
                     WHEN 'لغو' THEN '/cancel'
@@ -499,6 +507,12 @@ BEGIN
                     WHEN 'سالن' THEN '/hall'
                     WHEN 'شرکت' THEN '/c'
                     -- برچسب دکمه‌های منوی ثابت (iee1405.menu_keyboard)
+                    -- نیم‌فاصله پیش از این‌جا به فاصله تبدیل شده
+                    -- («شرکت‌ها» → «شرکت ها»)، پس هر دو شکل نوشته می‌شود.
+                    WHEN 'لیست شرکت ها' THEN '/list'
+                    WHEN 'لیست شرکت‌ها' THEN '/list'
+                    WHEN 'فهرست شرکت ها' THEN '/list'
+                    WHEN 'فهرست شرکت‌ها' THEN '/list'
                     WHEN 'امروز' THEN '/today'
                     WHEN 'آمار نمایشگاه' THEN '/c'
                     WHEN 'فهرست نمایشگاه' THEN '/c'
@@ -511,7 +525,8 @@ BEGIN
     -- میان‌بر با آرگومان: «ج تابلو»
     IF v_cmd IS NULL AND v_lbl ~ '^(ن|ج|م|پ|و|ش|س)[[:space:]]' THEN
         v_cmd := CASE left(v_lbl, 1)
-                    WHEN 'ن' THEN '/new' WHEN 'ج' THEN '/find'
+                    WHEN 'ن' THEN '/new' WHEN 'ج' THEN '/search'
+                    WHEN 'ف' THEN '/list'
                     WHEN 'م' THEN '/log' WHEN 'پ' THEN '/task'
                     WHEN 'و' THEN '/visit'
                     WHEN 'ش' THEN '/c' WHEN 'س' THEN '/hall' END;
@@ -523,8 +538,57 @@ BEGIN
     v_state   := COALESCE(v_state, 'idle');
     v_payload := COALESCE(v_payload, '{}'::jsonb);
 
+    -- ۵.۳.۹) دکمه‌های شیشه‌ای (callback_query)
+    -- بله دادهٔ دکمه را در `callback_query.data` می‌فرستد و bot_dispatch_json آن را
+    -- به‌جای متن می‌گذارد. سه پیشوند:
+    --   c:<id>    کارت یک شرکت
+    --   l:<page>  صفحهٔ فهرست شرکت‌ها
+    --   s:<page>  صفحهٔ نتیجهٔ جست‌وجو (شناسه‌ها در نشست همین چت)
+    -- اگر بله روزی callback_query را تحویل نداد، همین کارها با شماره و /list
+    -- انجام می‌شود؛ برای همین متن هر صفحه شماره‌گذاری‌شده است.
+    IF v_text ~ '^[cls]:' THEN
+        v_mirror := to_regprocedure('iee1405.co_page(integer, integer)') IS NOT NULL
+                    AND iee1405.mirror_ready();
+
+        IF NOT v_mirror THEN
+            v_reply := 'فهرست شرکت‌های نمایشگاه روی این سرور آماده نیست. ' ||
+                       'روی سرور: bash 03_ops/load_exhibitors.sh';
+
+        ELSIF v_text LIKE 'c:%' THEN
+            v_cid := NULLIF(substring(v_text FROM 3), '')::bigint;
+            SELECT b.text_body, b.markup::jsonb INTO v_reply, v_markup
+              FROM iee1405.co_card(v_cid, COALESCE((v_payload ->> 'page')::int, 1)) b;
+
+        ELSIF v_text LIKE 'l:%' THEN
+            SELECT b.text_body, b.markup::jsonb, b.page, b.pages, b.ids
+              INTO v_reply, v_markup, v_page, v_pages, v_ids
+              FROM iee1405.co_page(COALESCE(NULLIF(substring(v_text FROM 3), '')::int, 1)) b;
+            PERFORM iee1405.session_set(p_chat_id, v_actor, 'co_list',
+                        jsonb_build_object('ids', to_jsonb(v_ids),
+                                           'page', v_page, 'pages', v_pages));
+
+        ELSE   -- s:<page> صفحهٔ نتیجهٔ جست‌وجو
+            v_sids := ARRAY(SELECT jsonb_array_elements_text(v_payload -> 'all'))::bigint[];
+            IF v_sids IS NULL OR array_length(v_sids, 1) IS NULL THEN
+                v_reply  := 'فهرست کامل شرکت‌های نمایشگاه: /list';
+                v_markup := iee1405.co_keyboard(ARRAY[]::bigint[], 1, 1, false)::jsonb;
+            ELSE
+                SELECT b.text_body, b.markup::jsonb, b.page, b.pages, b.ids
+                  INTO v_reply, v_markup, v_page, v_pages, v_ids
+                  FROM iee1405.co_page_of(
+                        v_sids,
+                        '🔎 نتیجهٔ جست‌وجو: «' || COALESCE(v_payload ->> 'q', '') || '»',
+                        CASE WHEN substring(v_text FROM 3) ~ '^[0-9]+$'
+                             THEN substring(v_text FROM 3)::int ELSE 1 END) b;
+                PERFORM iee1405.session_set(p_chat_id, v_actor, 'co_results',
+                            jsonb_build_object('all', to_jsonb(v_sids), 'ids', to_jsonb(v_ids),
+                                               'q', COALESCE(v_payload ->> 'q', ''),
+                                               'page', v_page, 'pages', v_pages));
+            END IF;
+        END IF;
+
     -- ۵.۴) دستورها
-    IF v_cmd IN ('/start', '/help') THEN
+    ELSIF v_cmd IN ('/start', '/help') THEN
         v_reply := iee1405.msg('help');
 
     ELSIF v_cmd = '/cancel' THEN
@@ -570,6 +634,48 @@ BEGIN
             v_reply := barghpa.bot_reply(CASE WHEN v_cmd = '/hall'
                                               THEN COALESCE(nullif(v_arg, ''), '')
                                               ELSE v_arg END);
+        END IF;
+
+    ELSIF v_cmd = '/list' THEN
+        -- فهرست دکمه‌ای شرکت‌ها؛ `/list 3` مستقیم به صفحهٔ ۳ می‌رود
+        IF to_regprocedure('iee1405.co_page(integer, integer)') IS NULL
+           OR NOT iee1405.mirror_ready() THEN
+            v_reply := 'فهرست شرکت‌های نمایشگاه روی این سرور آماده نیست. ' ||
+                       'روی سرور: bash 03_ops/load_exhibitors.sh';
+        ELSE
+            SELECT b.text_body, b.markup::jsonb, b.page, b.pages, b.ids
+              INTO v_reply, v_markup, v_page, v_pages, v_ids
+              FROM iee1405.co_page(CASE WHEN v_arg ~ '^[0-9]+$' THEN v_arg::int ELSE 1 END) b;
+            PERFORM iee1405.session_set(p_chat_id, v_actor, 'co_list',
+                        jsonb_build_object('ids', to_jsonb(v_ids),
+                                           'page', v_page, 'pages', v_pages));
+        END IF;
+
+    ELSIF v_cmd = '/search' THEN
+        -- جست‌وجوی شرکت‌های نمایشگاه با نتیجهٔ دکمه‌ای.
+        -- `/find` برای CRM جدا ماند؛ این یکی فقط آینه را می‌گردد چون در نمایشگاه
+        -- ۹۹٪ جست‌وجوها «کدام شرکت، کدام سالن» است.
+        IF NOT iee1405.mirror_ready() THEN
+            v_reply := 'آینهٔ فهرست نمایشگاه آماده نیست. روی سرور: bash 03_ops/load_exhibitors.sh';
+        ELSIF v_arg = '' THEN
+            PERFORM iee1405.session_set(p_chat_id, v_actor, 'co_search', '{}'::jsonb);
+            v_reply := '🔎 نام شرکت (یا بخشی از آن) را بنویسید.' || E'\n' ||
+                       'مثال: ترانسفو · یا ارقام فارسی؛ نیازی به / نیست.' || E'\n' ||
+                       'فهرست کامل: /list';
+        ELSE
+            v_sids := ARRAY(SELECT s.company_id FROM barghpa.search(v_arg, 24) s);
+            IF v_sids IS NULL OR array_length(v_sids, 1) IS NULL THEN
+                v_reply  := '🔎 «' || v_arg || '» → شرکتی پیدا نشد.' || E'\n' ||
+                            'بخشی از نام را بنویسید، یا فهرست کامل: /list';
+                v_markup := iee1405.co_keyboard(ARRAY[]::bigint[], 1, 1, false)::jsonb;
+            ELSE
+                SELECT b.text_body, b.markup::jsonb, b.page, b.pages, b.ids
+                  INTO v_reply, v_markup, v_page, v_pages, v_ids
+                  FROM iee1405.co_page_of(v_sids, '🔎 نتیجهٔ جست‌وجو: «' || v_arg || '»', 1) b;
+                PERFORM iee1405.session_set(p_chat_id, v_actor, 'co_results',
+                            jsonb_build_object('all', to_jsonb(v_sids), 'ids', to_jsonb(v_ids),
+                                               'q', v_arg, 'page', v_page, 'pages', v_pages));
+            END IF;
         END IF;
 
     ELSIF v_cmd = '/org' THEN
@@ -792,6 +898,38 @@ BEGIN
                             ELSE v_hall || '-' || v_number
                          END));
 
+        ELSIF v_state = 'co_list' AND v_text ~ '^[0-9]{1,2}$' THEN
+            -- کاربر شمارهٔ شرکت را فرستاده (مسیر بی‌دکمه؛ همان نتیجهٔ دکمه)
+            v_ids := ARRAY(SELECT jsonb_array_elements_text(v_payload -> 'ids'))::bigint[];
+            v_cid := v_ids[v_text::int];
+            IF v_cid IS NULL THEN
+                v_reply := 'شمارهٔ بیرون از این صفحه است. فهرست: /list';
+            ELSE
+                SELECT b.text_body, b.markup::jsonb INTO v_reply, v_markup
+                  FROM iee1405.co_card(v_cid, COALESCE((v_payload ->> 'page')::int, 1)) b;
+            END IF;
+
+        ELSIF v_state = 'co_search' THEN
+            -- دکمهٔ «🔎 جست‌وجو» زده شده و کاربر نام را نوشته است
+            IF NOT iee1405.mirror_ready() THEN
+                v_reply := 'آینهٔ فهرست نمایشگاه آماده نیست. روی سرور: bash 03_ops/load_exhibitors.sh';
+            ELSE
+                v_sids := ARRAY(SELECT s.company_id FROM barghpa.search(v_text, 24) s);
+                IF v_sids IS NULL OR array_length(v_sids, 1) IS NULL THEN
+                    v_reply  := '🔎 «' || v_text || '» → شرکتی پیدا نشد. املای دیگر، یا بخشی از نام.' ||
+                                E'\n' || 'فهرست کامل: /list';
+                    v_markup := iee1405.co_keyboard(ARRAY[]::bigint[], 1, 1, false)::jsonb;
+                    PERFORM iee1405.session_set(p_chat_id, v_actor, 'idle', '{}'::jsonb);
+                ELSE
+                    SELECT b.text_body, b.markup::jsonb, b.page, b.pages, b.ids
+                      INTO v_reply, v_markup, v_page, v_pages, v_ids
+                      FROM iee1405.co_page_of(v_sids, '🔎 نتیجهٔ جست‌وجو: «' || v_text || '»', 1) b;
+                    PERFORM iee1405.session_set(p_chat_id, v_actor, 'co_results',
+                                jsonb_build_object('all', to_jsonb(v_sids), 'ids', to_jsonb(v_ids),
+                                                   'q', v_text, 'page', v_page, 'pages', v_pages));
+                END IF;
+            END IF;
+
         ELSIF v_state = 'pick_org' AND v_text ~ '^[0-9]{1,2}$' THEN
             v_codes := v_payload -> 'codes';
             v_code_in := v_codes ->> ((v_text::int) - 1);
@@ -812,11 +950,28 @@ BEGIN
                 v_reply := iee1405.msg('cmd_unknown', jsonb_build_object('text', v_text));
             ELSIF v_key <> '' AND iee1405.mirror_ready() THEN
                 -- در نمایشگاه کافی است نام شرکت تایپ یا دکمه زده شود
-                IF EXISTS (SELECT 1 FROM barghpa.search(v_key, 1)) THEN
-                    v_reply := barghpa.bot_reply(v_key);
-                ELSE
+                v_count := (SELECT count(*) FROM barghpa.search(v_key, 24));
+                IF v_count = 0 THEN
                     v_reply := iee1405.msg('not_understood',
                                            jsonb_build_object('text', v_text));
+                ELSIF v_count = 1 THEN
+                    -- یک شرکت: مستقیم کارت (سریع‌ترین مسیر در سالن)
+                    v_reply := barghpa.bot_reply(v_key);
+                    IF to_regprocedure('iee1405.co_keyboard(bigint[], integer, integer, boolean)')
+                       IS NOT NULL THEN
+                        v_markup := iee1405.co_keyboard(
+                            ARRAY(SELECT s.company_id FROM barghpa.search(v_key, 1) s),
+                            1, 1, false)::jsonb;
+                    END IF;
+                ELSE
+                    -- چند شرکت: فهرست دکمه‌ای، مثل /search
+                    v_sids := ARRAY(SELECT s.company_id FROM barghpa.search(v_key, 24) s);
+                    SELECT b.text_body, b.markup::jsonb, b.page, b.pages, b.ids
+                      INTO v_reply, v_markup, v_page, v_pages, v_ids
+                      FROM iee1405.co_page_of(v_sids, '🔎 نتیجهٔ جست‌وجو: «' || v_text || '»', 1) b;
+                    PERFORM iee1405.session_set(p_chat_id, v_actor, 'co_results',
+                                jsonb_build_object('all', to_jsonb(v_sids), 'ids', to_jsonb(v_ids),
+                                                   'q', v_text, 'page', v_page, 'pages', v_pages));
                 END IF;
             ELSIF v_key <> '' THEN
                 -- آینه بارگذاری نشده؛ جست‌وجوی CRM
@@ -864,7 +1019,10 @@ BEGIN
 
     -- ۵.۶) ثبت نتیجه در لاگ آپدیت
     UPDATE iee1405.bot_updates
-       SET status = 'processed', reply_text = v_reply, actor = v_actor, processed_at = now()
+       SET status = 'processed', reply_text = v_reply, actor = v_actor, processed_at = now(),
+           -- دکمه‌های شیشه‌ای همین پاسخ؛ اگر NULL بماند، گرهٔ ارسال صفحه‌کلید پایین
+           -- صفحه (current_keyboard) را می‌فرستد.
+           reply_markup = COALESCE(v_markup, reply_markup)
      WHERE update_id = p_update_id;
 
     RETURN QUERY SELECT p_chat_id, 'ok'::text, v_reply, v_org_code;
