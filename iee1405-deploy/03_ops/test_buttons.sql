@@ -540,6 +540,85 @@ BEGIN
         RAISE NOTICE '⏭  T21/T22/T23 رد شد — آینه یا تابع مصاحبه موجود نیست';
     END IF;
 
+    -- ── T24/T25: شرکت ثبت‌شده در ربات، در فهرست و جست‌وجو ──────────────
+    -- گزارش مالک: «با ثبت شرکت جدید، در لیست شرکت‌ها ثبت نمی‌گردد و در جست‌وجو
+    -- بالا نمی‌آید.» آزمون، همان مسیر واقعی /new را می‌رود و بعد می‌سنجد.
+    IF to_regprocedure('iee1405.co_crm_rows(text, integer)') IS NOT NULL THEN
+        INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active)
+        VALUES ('btn-11', 'آزمون ثبت ربات', 'owner', 990011, true)
+        ON CONFLICT (username) DO UPDATE SET bale_chat_id = 990011, is_active = true;
+        PERFORM iee1405.session_set(990011, 'btn-11', 'idle', '{}'::jsonb);
+        DELETE FROM crm.organizations WHERE legal_name = 'آزمون شرکت تازهٔ ربات';
+
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 992001,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990011), 'text', '/new')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 992002,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990011),
+                                          'text', 'آزمون شرکت تازهٔ ربات')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 992003,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990011), 'text', 'TAB_MV')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 992004,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990011), 'text', '41-03')));
+
+        SELECT count(*) INTO base_err FROM iee1405.co_crm_rows('آزمون شرکت تازهٔ ربات', 8);
+        IF base_err <> 1 THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T24 · شرکت ثبت‌شده با /new در فهرست ربات نیامد (% ردیف)', base_err;
+        ELSE
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 992005,
+                'message', jsonb_build_object('chat', jsonb_build_object('id', 990011), 'text', '/list')));
+            SELECT d.text_body, d.markup::text INTO reply, mk
+              FROM iee1405.co_page(1) d;
+            IF reply NOT LIKE '%آزمون شرکت تازهٔ ربات%' OR mk::text NOT LIKE '%"o:ORG-%' THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T24 · در فهرست/جست‌وجو دیده نشد (متن: % · دکمه: %)',
+                             (reply LIKE '%آزمون شرکت تازهٔ ربات%'), (mk::text LIKE '%"o:ORG-%');
+            ELSE
+                RAISE NOTICE '✅ T24 · شرکت ثبت‌شده با /new در فهرست و جست‌وجو آمد (دکمهٔ o:)';
+            END IF;
+
+            -- T25: دکمهٔ o: کارت همان شرکت را می‌دهد و پیام را ویرایش می‌کند
+            SELECT d.reply_text INTO reply
+              FROM iee1405.bot_dispatch_json(jsonb_build_object(
+                     'update_id', 992006,
+                     'callback_query', jsonb_build_object(
+                        'data', 'o:' || (SELECT code FROM crm.organizations
+                                          WHERE legal_name = 'آزمون شرکت تازهٔ ربات' LIMIT 1),
+                        'message', jsonb_build_object('message_id', 7301,
+                                                      'chat', jsonb_build_object('id', 990011))))) d;
+            SELECT u.edit_message_id INTO row_len FROM iee1405.bot_updates u WHERE u.update_id = 992006;
+            IF reply NOT LIKE '%آزمون شرکت تازهٔ ربات%' OR row_len IS DISTINCT FROM 7301 THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T25 · دکمهٔ o: کارت/edit را درست نداد (edit=%)', coalesce(row_len::text, 'NULL');
+            ELSE
+                RAISE NOTICE '✅ T25 · دکمهٔ o: کارت شرکت CRM را در همان پیام نشان داد';
+            END IF;
+        END IF;
+
+        DELETE FROM crm.organizations WHERE legal_name = 'آزمون شرکت تازهٔ ربات';
+
+        -- ── T26: جریان نیمه‌کاره هم دیده می‌شود ──────────────────────
+        -- تا مرحلهٔ غرفه نرفته، «مشارکت» ندارد؛ ولی از راه ربات ثبت شده.
+        -- اگر این حالت دیده نشود، همان شکایت مالک برمی‌گردد.
+        DELETE FROM crm.organizations WHERE legal_name = 'آزمون شرکت نیمه‌کاره';
+        PERFORM iee1405.session_set(990011, 'btn-11', 'idle', '{}'::jsonb);
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 992101,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990011), 'text', '/new')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 992102,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990011),
+                                          'text', 'آزمون شرکت نیمه‌کاره')));
+        SELECT count(*) INTO base_err FROM iee1405.co_crm_rows('نیمه‌کاره', 8);
+        IF base_err < 1 THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T26 · شرکت نیمه‌کاره (بدون غرفه) در فهرست نیامد (% ردیف)', base_err;
+        ELSE
+            RAISE NOTICE '✅ T26 · شرکت نیمه‌کارهٔ ثبت‌شده در ربات هم در فهرست دیده می‌شود';
+        END IF;
+        DELETE FROM crm.organizations WHERE legal_name = 'آزمون شرکت نیمه‌کاره';
+    ELSE
+        RAISE NOTICE '⏭  T24/T25 رد شد — توابع بخش «ثبت‌شده در ربات» موجود نیست';
+    END IF;
+
     IF fails > 0 THEN
         RAISE EXCEPTION 'آزمون ورودی ربات: % مورد ناموفق', fails;
     END IF;

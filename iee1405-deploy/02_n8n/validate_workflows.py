@@ -24,7 +24,14 @@ import sys
 import pgserver
 from pathlib import Path as P
 
-BIN = P("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin")
+# مسیر باینری‌ها: PG_BIN، بعد مسیر نصب سیستمی، بعد محل نصب همین بسته.
+_BIN_CANDIDATES = [
+    P(os.environ["PG_BIN"]) if os.environ.get("PG_BIN") else None,
+    P("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin"),
+    P(pgserver.__file__).resolve().parent / "pginstall" / "bin",
+]
+BIN = next((b for b in _BIN_CANDIDATES if b and (b / "psql").exists()),
+           _BIN_CANDIDATES[1])
 HERE = pathlib.Path(__file__).parent
 
 SUPPORTED = {

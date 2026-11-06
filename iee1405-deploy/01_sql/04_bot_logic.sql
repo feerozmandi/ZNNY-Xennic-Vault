@@ -120,7 +120,11 @@ INSERT INTO iee1405.bot_messages (key, template, description) VALUES
   'دستور ناشناخته — متن ورودی بازگفت می‌شود تا عیب‌یابی دکمه‌ها ممکن باشد'),
  ('not_understood',
   E'متوجه نشدم: «{text}»\nنام شرکت را بفرستید، یا /c برای فهرست نمایشگاه، یا /help.',
-  'متن نامفهوم — با بازگفت متن، برای تشخیص برچسب دکمه')
+  'متن نامفهوم — با بازگفت متن، برای تشخیص برچسب دکمه'),
+ ('empty_reply',
+  E'پاسخی برای این درخواست ساخته نشد (متن خالی بود، پس فرستاده نشد).\n'
+  'دوباره امتحان کنید؛ اگر تکرار شد: /help',
+  'جایگزین پاسخ خالی — «سکوت» خرابی است، نه رفتار')
 -- قالب‌ها را دست نزن (اپراتور می‌تواند متن را بدون استقرار عوض کند)، اما
 -- قالب خالی/سفید را ترمیم کن؛ وگرنه ربات بی‌صدا پاسخی خالی می‌فرستد.
 ON CONFLICT (key) DO UPDATE
@@ -566,6 +570,46 @@ BEGIN
         RETURN;
     END IF;
 
+    -- ۵.۳.۸.۵) کارت شرکتی که در ربات ثبت شده (دکمهٔ o:<ORG-code>)
+    -- این دکمه از بخش «ثبت‌شده در ربات» فهرست/جست‌وجو می‌آید (فایل ۰۹). چرا
+    -- شاخهٔ جدا؟ چون به آینهٔ نمایشگاه وابسته نیست: شرکتی که با /new ثبت شده
+    -- باید همیشه کارت داشته باشد، حتی اگر آینه خالی باشد.
+    IF v_text LIKE 'o:%' THEN
+        v_code_in := iee1405.parse_org_code(substring(v_text FROM 3));
+        IF v_code_in IS NULL THEN
+            v_reply := iee1405.msg('org_notfound',
+                                   jsonb_build_object('code', substring(v_text FROM 3)));
+        ELSE
+            SELECT o.id, o.code INTO v_org_id, v_org_code
+              FROM crm.organizations o
+             WHERE o.code = v_code_in AND o.deleted_at IS NULL;
+        END IF;
+
+        IF v_reply IS NULL THEN
+            IF v_org_id IS NULL THEN
+                v_reply := iee1405.msg('org_notfound', jsonb_build_object('code', v_code_in));
+            ELSE
+                v_reply  := iee1405.org_card(v_org_id);
+                v_markup := jsonb_build_object('inline_keyboard', jsonb_build_array(
+                    jsonb_build_array(
+                        jsonb_build_object('text', '↩ بازگشت به فهرست',
+                                           'callback_data', 'l:1'),
+                        jsonb_build_object('text', '🔎 جست‌وجوی دیگر',
+                                           'callback_data', 's:0')
+                    )));
+            END IF;
+        END IF;
+
+        UPDATE iee1405.bot_updates
+           SET status = 'processed', reply_text = v_reply, actor = v_actor,
+               processed_at = now(), reply_markup = v_markup,
+               edit_message_id = COALESCE(p_edit_message_id, edit_message_id)
+         WHERE update_id = p_update_id;
+
+        RETURN QUERY SELECT p_chat_id, 'ok'::text, v_reply, v_org_code;
+        RETURN;
+    END IF;
+
     -- ۵.۳.۹) دکمه‌های شیشه‌ای (callback_query)
     -- بله دادهٔ دکمه را در `callback_query.data` می‌فرستد و bot_dispatch_json آن را
     -- به‌جای متن می‌گذارد. سه پیشوند:
@@ -980,8 +1024,17 @@ BEGIN
                 -- در نمایشگاه کافی است نام شرکت تایپ یا دکمه زده شود
                 v_count := (SELECT count(*) FROM barghpa.search(v_key, 24));
                 IF v_count = 0 THEN
-                    v_reply := iee1405.msg('not_understood',
-                                           jsonb_build_object('text', v_text));
+                    -- در آینه نبود؛ شاید شرکتی باشد که با /new در ربات ثبت شده.
+                    -- (گزارش مالک: «شرکت جدید در جست‌وجو بالا نمی‌آید».)
+                    IF to_regprocedure('iee1405.co_crm_rows(text, integer)') IS NOT NULL
+                       AND EXISTS (SELECT 1 FROM iee1405.co_crm_rows(v_text, 8)) THEN
+                        SELECT b.text_body, b.markup::jsonb
+                          INTO v_reply, v_markup
+                          FROM iee1405.co_search(v_text, 1, 8) b;
+                    ELSE
+                        v_reply := iee1405.msg('not_understood',
+                                               jsonb_build_object('text', v_text));
+                    END IF;
                 ELSIF v_count = 1 THEN
                     -- یک شرکت: مستقیم کارت (سریع‌ترین مسیر در سالن)
                     v_reply := barghpa.bot_reply(v_key);
@@ -1043,6 +1096,14 @@ BEGIN
         ) THEN
             v_reply := NULL;
         END IF;
+    END IF;
+
+    -- ۵.۵.۸) پاسخ خالی هرگز فرستاده نمی‌شود
+    --   چرا؟ روی داده‌ای که `barghpa.stats_text()` برایش خالی برمی‌گرداند
+    --   (مثلاً آینهٔ بدون `load_batch`)، `/c` متن خالی ساخت و بله ۴۰۰ داد:
+    --   کاربر «سکوت» دید. سکوت، خرابی است؛ یک جملهٔ روشن بهتر است.
+    IF v_reply IS NOT NULL AND btrim(v_reply) = '' THEN
+        v_reply := iee1405.msg('empty_reply');
     END IF;
 
     -- ۵.۶) ثبت نتیجه در لاگ آپدیت

@@ -22,7 +22,15 @@ import pathlib
 import pgserver
 from pathlib import Path as P
 
-BIN = P("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin")
+# مسیر باینری‌ها: اول متغیر محیطی، بعد مسیر نصب سیستمی، بعد محل نصب همین بسته.
+# (روی سرور آزمایشی و در محیط محلی این دو یکی نیستند؛ مسیر ثابت، آزمون را می‌شکند.)
+_BIN_CANDIDATES = [
+    P(os.environ["PG_BIN"]) if os.environ.get("PG_BIN") else None,
+    P("/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin"),
+    P(pgserver.__file__).resolve().parent / "pginstall" / "bin",
+]
+BIN = next((b for b in _BIN_CANDIDATES if b and (b / "psql").exists()),
+           _BIN_CANDIDATES[1])
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 WF = ROOT / "02_n8n"
 
@@ -359,6 +367,68 @@ def main():
                   iv[0][4] == "نمایندگی", str(iv[0][4]))
         card = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
         psql("DELETE FROM iee1405.interviews;")
+
+    # ── شرکت ثبت‌شده در ربات، در فهرست و جست‌وجو ──
+    # گزارش مالک: «با ثبت شرکت جدید، در لیست شرکت‌ها ثبت نمی‌گردد و در جست‌وجو
+    # بالا نمی‌آید.» مسیر کامل /new از گره‌های واقعی گردش‌کار عبور می‌کند.
+    if has_mirror:
+        psql("DELETE FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری ثبت ربات';")
+        psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
+             "WHERE chat_id = $1;", [OWNER_CHAT])
+        for i, txt in enumerate(["/new", "آزمون سرتاسری ثبت ربات", "TAB_MV", "41-07"]):
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(msg(8401 + i, OWNER_CHAT, txt), ensure_ascii=False)])
+            for r in psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf)):
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":50}}'])
+
+        saved = psql("SELECT code FROM crm.organizations "
+                     "WHERE legal_name = 'آزمون سرتاسری ثبت ربات'")
+        check("شرکت تازه با /new در CRM ثبت شد", len(saved) == 1, str(len(saved)))
+
+        if saved:
+            new_org = saved[0][0]
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(msg(8410, OWNER_CHAT, "/list"), ensure_ascii=False)])
+            row = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("فهرست شرکت‌ها، بخش «ثبت‌شده در ربات» را دارد",
+                  row and "ثبت" in row[0][2] and "ربات" in row[0][2],
+                  row[0][2][:40] if row else "—")
+            check("دکمهٔ کارت همان شرکت روی فهرست هست",
+                  row and row[0][3] and ("o:" + new_org) in row[0][3],
+                  (row[0][3] or "—")[:60] if row else "—")
+            for r in row:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":51}}'])
+
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(msg(8411, OWNER_CHAT, "سرتاسری ثبت"), ensure_ascii=False)])
+            srow = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("جست‌وجو شرکت ثبت‌شده را پیدا می‌کند",
+                  srow and "آزمون سرتاسری ثبت ربات" in srow[0][2],
+                  srow[0][2][:40] if srow else "—")
+            for r in srow:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":52}}'])
+
+            cb = {"update_id": 8412,
+                  "callback_query": {"id": "cb11", "data": "o:" + new_org,
+                                     "from": {"id": OWNER_CHAT},
+                                     "message": {"message_id": 52,
+                                                 "chat": {"id": OWNER_CHAT, "type": "private"}}}}
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(cb, ensure_ascii=False)])
+            crow = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("دکمهٔ o: کارت شرکت CRM را می‌آورد",
+                  crow and "آزمون سرتاسری ثبت ربات" in crow[0][2],
+                  crow[0][2][:40] if crow else "—")
+            check("کارت CRM هم پیام قبلی را ویرایش می‌کند (نه پیام تازه)",
+                  crow and crow[0][4] == "52", crow[0][4] if crow else "—")
+            for r in crow:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":53}}'])
+
+        psql("DELETE FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری ثبت ربات';")
 
     # ── idempotency: همان آپدیت دوباره ──
     before = len(psql("SELECT update_id FROM iee1405.bot_updates"))
