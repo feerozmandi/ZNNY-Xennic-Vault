@@ -270,6 +270,59 @@ else
     c_hint "هیچ شرکتی با /new ثبت نشده؛ فقط وجود مسیر سنجیده شد"
 fi
 
+# ── ۳.۶.۶) کارت مدیریتی: مصاحبه، ویرایش، حذف ─────────────────────────
+# خواستهٔ مالک: شرکت‌های تازه باید کلید مصاحبه داشته باشند و ویرایش/حذف هم با
+# تأیید انجام شود. این بخش با نقش ربات می‌سنجد که سه دکمه سرِ جایشان باشند و
+# مسیر تأیید هم وجود داشته باشد.
+c_head "۳.۶.۶) کارت مدیریتی شرکت (ویرایش و حذف)"
+
+CARD_BTNS="$(q "SET ROLE iee_app; 
+    WITH c AS (SELECT code FROM crm.organizations WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1)
+    SELECT CASE WHEN (SELECT count(*) FROM c) = 0 THEN 'none'
+                ELSE (SELECT replace(COALESCE(k.text_body, ''), E'\\n', ' ¶ ') || '|' || (COALESCE(k.markup, ''))::text
+                        FROM c, LATERAL iee1405.co_org_card(c.code) k) END;" 2>&1 | tail -1)"
+
+if [[ "$CARD_BTNS" == "none" ]]; then
+    c_hint "هیچ شرکتی در ربات ثبت نشده؛ بخش مدیریت فقط از وجود توابع سنجیده می‌شود"
+    if [[ -n "$(q "SELECT to_regprocedure('iee1405.ca_step(bigint, text, text, text, jsonb)')" 2>&1 | tail -1)" ]]; then
+        pass "توابع ویرایش/حذف نصب شده‌اند (کارت هنوز شرکتی برای نمایش ندارد)"
+    else
+        fail "توابع ویرایش/حذف نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/11_company_admin.sql)"
+    fi
+elif [[ "$CARD_BTNS" == *"does not exist"* ]]; then
+    fail "تابع کارت مدیریتی نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/11_company_admin.sql)"
+elif [[ "$CARD_BTNS" == *"permission denied"* ]]; then
+    fail "نقش ربات به کارت مدیریتی دسترسی ندارد" "bash 03_ops/deploy_sql.sh"
+elif [[ "$CARD_BTNS" == *'"i:ORG-'* && "$CARD_BTNS" == *'"e:ORG-'* && "$CARD_BTNS" == *'"d:ORG-'* ]]; then
+    pass "کارت شرکت: «🎤 مصاحبه» + «✏️ ویرایش» + «🗑 حذف» با نقش ربات"
+    if [[ "$CARD_BTNS" == *"حوزه فعالیت"* ]]; then
+        pass "کارت شرکت، حوزهٔ فعالیت و سالن/غرفه را نشان می‌دهد"
+    else
+        fail "کارت مدیریتی حوزهٔ فعالیت ندارد" "bash 03_ops/deploy_sql.sh"
+    fi
+else
+    fail "کارت مدیریتی یکی از سه دکمه را ندارد: ${CARD_BTNS: -120}"
+fi
+
+# مسیر تأیید ویرایش: گام «انتخاب فیلد» فقط می‌پرسد و **هیچ چیزی نمی‌نویسد**؛
+# همین پرس‌وجو هم فقط‌خواندنی است (هیچ UPDATEای در ca_step برای ef: نیست).
+# اثبات کامل «بدون تأیید نوشته نمی‌شود» در test_buttons.sql (T29) است.
+CONF="$(q "SET ROLE iee_app; 
+    WITH c AS (SELECT code FROM crm.organizations WHERE deleted_at IS NULL
+                ORDER BY created_at DESC LIMIT 1)
+    SELECT (SELECT state FROM c, LATERAL iee1405.ca_step(0, 'checkbot', 'ef:name:' || c.code,
+                                                         'idle', '{}'::jsonb));" 2>&1 | tail -1)"
+
+if [[ "$CONF" == "ca_val" ]]; then
+    pass "ویرایش: گام گرفتن مقدار تازه فعال است (نوشتن فقط پس از تأیید نهایی)"
+elif [[ "$CONF" == *"permission denied"* ]]; then
+    fail "نقش ربات به مسیر ویرایش دسترسی ندارد" "bash 03_ops/deploy_sql.sh"
+elif [[ -z "$CONF" || "$CONF" == "none" ]]; then
+    c_hint "شرکتی برای سنجش مسیر ویرایش ثبت نشده است"
+else
+    fail "مسیر ویرایش خروجی درست نداد: ${CONF:0:80}"
+fi
+
 # ── ۳.۷) ویرایش پیام به‌جای پیام تازه ─────────────────────────────────
 c_head "۳.۷) ویرایش پیام به‌جای پیام تازه"
 

@@ -44,6 +44,10 @@ DECLARE
     row_len int;
     first_name text;
     page2_name text;
+    div_code   text;
+    page2_pages int;
+    page2_name_num bigint;
+    iv_n2      bigint;
     iv_n bigint;
     fails int := 0;
 
@@ -347,6 +351,8 @@ BEGIN
             END IF;
         END IF;
 
+        SELECT p.pages INTO page2_pages FROM iee1405.co_page(1) p;
+
         -- ── T16: دکمهٔ «صفحه بعد» (callback_query) صفحه را عوض می‌کند ──
         SELECT (mk -> 'inline_keyboard') -> -1 -> 0 ->> 'callback_data' INTO first_name;  -- l:1
         row_len := 0;
@@ -356,7 +362,11 @@ BEGIN
             'callback_query', jsonb_build_object(
                 'data', ((mk -> 'inline_keyboard') -> -1 -> 1 ->> 'callback_data'),
                 'message', jsonb_build_object('chat', jsonb_build_object('id', 990008))))) d;
-        IF reply IS NULL OR split_part(reply, E'\n', 2) = page2_name THEN
+        -- اگر آینه فقط یک صفحه دارد، «صفحه بعد» طبق طراحی همان صفحه را می‌دهد
+        -- و آزمون نباید بشکند (روی دادهٔ محلی با چند شرکت، صفحه عوض می‌شود).
+        IF page2_pages < 2 THEN
+            RAISE NOTICE '⏭  T16 · آینه یک صفحه دارد؛ تغییر صفحه سنجیده نشد';
+        ELSIF reply IS NULL OR split_part(reply, E'\n', 2) = page2_name THEN
             fails := fails + 1;
             RAISE NOTICE '❌ T16 · دکمهٔ «صفحه بعد» صفحه را عوض نکرد (%)',
                          left(coalesce(reply, '(خالی)'), 40);
@@ -543,7 +553,10 @@ BEGIN
     -- ── T24/T25: شرکت ثبت‌شده در ربات، در فهرست و جست‌وجو ──────────────
     -- گزارش مالک: «با ثبت شرکت جدید، در لیست شرکت‌ها ثبت نمی‌گردد و در جست‌وجو
     -- بالا نمی‌آید.» آزمون، همان مسیر واقعی /new را می‌رود و بعد می‌سنجد.
-    IF to_regprocedure('iee1405.co_crm_rows(text, integer)') IS NOT NULL THEN
+    -- بدون آینه، `co_page` خودش «فهرست خالی» می‌دهد؛ پس این دو مورد فقط با
+    -- آینهٔ بارگذاری‌شده معنا دارند (روی پایگاه تازه، «رد» می‌شوند نه «سرخ»).
+    IF to_regprocedure('iee1405.co_crm_rows(text, integer)') IS NOT NULL
+       AND iee1405.mirror_ready() THEN
         INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active)
         VALUES ('btn-11', 'آزمون ثبت ربات', 'owner', 990011, true)
         ON CONFLICT (username) DO UPDATE SET bale_chat_id = 990011, is_active = true;
@@ -616,7 +629,165 @@ BEGIN
         END IF;
         DELETE FROM crm.organizations WHERE legal_name = 'آزمون شرکت نیمه‌کاره';
     ELSE
-        RAISE NOTICE '⏭  T24/T25 رد شد — توابع بخش «ثبت‌شده در ربات» موجود نیست';
+        RAISE NOTICE '⏭  T24/T25 رد شد — توابع بخش «ثبت‌شده در ربات» یا آینهٔ بارگذاری‌شده موجود نیست';
+    END IF;
+
+    -- ── T27–T31: کارت مدیریتی شرکت CRM (مصاحبه · ویرایش · حذف) ─────────
+    -- خواستهٔ مالک: «با فراخوانی شرکت‌های جدید، کلید مصاحبه ظاهر نمی‌شود» و
+    -- «دکمهٔ ویرایش و حذف، با تأیید نهایی برای ویرایش و تأیید برای حذف».
+    IF to_regprocedure('iee1405.co_org_card(text)') IS NOT NULL THEN
+        INSERT INTO crm.users (username, display_name, role, bale_chat_id, is_active)
+        VALUES ('btn-12', 'آزمون مدیریت شرکت', 'owner', 990012, true)
+        ON CONFLICT (username) DO UPDATE SET bale_chat_id = 990012, is_active = true;
+        PERFORM iee1405.session_set(990012, 'btn-12', 'idle', '{}'::jsonb);
+        DELETE FROM crm.organizations WHERE legal_name LIKE 'آزمون مدیریت %';
+        DELETE FROM iee1405.interviews WHERE org_code IN
+               (SELECT code FROM crm.organizations WHERE legal_name LIKE 'آزمون مدیریت %');
+
+        -- ساخت شرکت با همان مسیر واقعی /new
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993001,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990012), 'text', '/new')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993002,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990012),
+                                          'text', 'آزمون مدیریت کابل')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993003,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990012), 'text', 'TAB_MV')));
+        PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993004,
+            'message', jsonb_build_object('chat', jsonb_build_object('id', 990012), 'text', '41-03')));
+
+        SELECT code INTO div_code FROM crm.organizations
+         WHERE legal_name = 'آزمون مدیریت کابل' LIMIT 1;
+        SELECT count(*) INTO base_err FROM crm.organizations WHERE code = div_code;
+
+        IF base_err <> 1 THEN
+            fails := fails + 1;
+            RAISE NOTICE '❌ T27 · شرکت آزمون ساخته نشد';
+        ELSE
+            -- T27: کارت شرکت CRM باید هر سه دکمه را داشته باشد
+            SELECT c.text_body, c.markup::text INTO reply, mk
+              FROM iee1405.co_org_card(div_code) c;
+            IF mk::text NOT LIKE '%"i:' || div_code || '"%'
+               OR mk::text NOT LIKE '%"e:' || div_code || '"%'
+               OR mk::text NOT LIKE '%"d:' || div_code || '"%' THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T27 · کارت CRM کلید مصاحبه/ویرایش/حذف را ندارد: %', left(mk::text, 120);
+            ELSE
+                RAISE NOTICE '✅ T27 · کارت شرکت CRM: «🎤 مصاحبه» + «✏️ ویرایش» + «🗑 حذف»';
+            END IF;
+
+            -- T28: مصاحبه برای شرکتی که در آینه نیست
+            PERFORM iee1405.session_set(990012, 'btn-12', 'idle', '{}'::jsonb);
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993010,
+                'callback_query', jsonb_build_object('data', 'i:' || div_code,
+                    'message', jsonb_build_object('message_id', 7401,
+                                                  'chat', jsonb_build_object('id', 990012)))));
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993011,
+                'message', jsonb_build_object('chat', jsonb_build_object('id', 990012),
+                                              'text', 'زهرا آزمون')));
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993012,
+                'message', jsonb_build_object('chat', jsonb_build_object('id', 990012),
+                                              'text', 'مدیر بازرگانی')));
+            FOR i IN 1..6 LOOP
+                PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993020 + i,
+                    'message', jsonb_build_object('chat', jsonb_build_object('id', 990012),
+                                                  'text', 'پاسخ آزمون ' || i)));
+            END LOOP;
+
+            SELECT count(*), max(state), max(org_code), max(company_ref)::bigint
+              INTO base_err, btn, page2_name, row_len
+              FROM iee1405.interviews WHERE org_code = div_code;
+
+            IF base_err <> 1 OR btn <> 'done' OR row_len IS NOT NULL THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T28 · مصاحبهٔ شرکت CRM ثبت نشد (% ردیف · % · ref=%)',
+                             base_err, coalesce(btn, 'NULL'), coalesce(row_len::text, 'NULL');
+            ELSE
+                RAISE NOTICE '✅ T28 · مصاحبه برای شرکت CRM (بدون شناسهٔ آینه) ثبت شد';
+            END IF;
+
+            -- T29: ویرایش بدون تأیید نهایی ننویسد
+            PERFORM iee1405.session_set(990012, 'btn-12', 'idle', '{}'::jsonb);
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993030,
+                'callback_query', jsonb_build_object('data', 'ef:activity:' || div_code,
+                    'message', jsonb_build_object('message_id', 7402,
+                                                  'chat', jsonb_build_object('id', 990012)))));
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993031,
+                'message', jsonb_build_object('chat', jsonb_build_object('id', 990012),
+                                              'text', 'تولید کابل فشار متوسط')));
+
+            SELECT count(*) INTO base_err FROM crm.claims c
+              JOIN crm.organizations o ON o.id = c.subject_id
+             WHERE o.code = div_code AND c.is_current
+               AND c.value_text = 'تولید کابل فشار متوسط';
+            IF base_err <> 0 THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T29 · بدون تأیید نهایی نوشته شد (این همان ریسک مالک است)';
+            ELSE
+                PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993032,
+                    'callback_query', jsonb_build_object('data', 'ec:',
+                        'message', jsonb_build_object('message_id', 7403,
+                                                      'chat', jsonb_build_object('id', 990012)))));
+                SELECT count(*) INTO base_err FROM crm.claims c
+                  JOIN crm.organizations o ON o.id = c.subject_id
+                 WHERE o.code = div_code AND c.is_current
+                   AND c.value_text = 'تولید کابل فشار متوسط'
+                   AND c.epistemic_status = 'reported';
+                IF base_err <> 1 THEN
+                    fails := fails + 1;
+                    RAISE NOTICE '❌ T29 · تأیید نهایی اعمال نشد (% ردیف)', base_err;
+                ELSE
+                    RAISE NOTICE '✅ T29 · ویرایش: پیش‌نمایش بی‌اثر، تأیید نهایی می‌نویسد (reported)';
+                END IF;
+            END IF;
+
+            -- T30: حذف بی‌تأیید نکن، با انصراف هم نکن، با تأیید بکن
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993040,
+                'callback_query', jsonb_build_object('data', 'd:' || div_code,
+                    'message', jsonb_build_object('message_id', 7404,
+                                                  'chat', jsonb_build_object('id', 990012)))));
+            SELECT count(*) INTO base_err FROM crm.organizations
+             WHERE code = div_code AND deleted_at IS NOT NULL;
+
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993041,
+                'callback_query', jsonb_build_object('data', 'dx:' || div_code,
+                    'message', jsonb_build_object('message_id', 7405,
+                                                  'chat', jsonb_build_object('id', 990012)))));
+            SELECT count(*) INTO iv_n2 FROM iee1405.co_org_info(div_code);
+
+            PERFORM iee1405.bot_dispatch_json(jsonb_build_object('update_id', 993042,
+                'callback_query', jsonb_build_object('data', 'dc:' || div_code,
+                    'message', jsonb_build_object('message_id', 7406,
+                                                  'chat', jsonb_build_object('id', 990012)))));
+            SELECT count(*) INTO page2_name_num FROM iee1405.co_org_info(div_code);
+
+            IF base_err <> 0 OR iv_n2 <> 1 OR page2_name_num <> 0 THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T30 · حذف دومرحله‌ای درست کار نکرد (بی‌تأیید=% · انصراف=% · تأیید=%)',
+                             base_err, iv_n2, page2_name_num;
+            ELSE
+                RAISE NOTICE '✅ T30 · حذف: پیش از تأیید چیزی نشد، انصراف اثری نداشت، تأیید حذف کرد';
+            END IF;
+
+            -- T31: بازگردانی (حذف نرم) کار کند
+            UPDATE crm.organizations SET deleted_at = NULL WHERE code = div_code;
+            SELECT count(*) INTO base_err FROM iee1405.co_org_info(div_code);
+            IF base_err <> 1 THEN
+                fails := fails + 1;
+                RAISE NOTICE '❌ T31 · بازگردانی شرکت حذف‌شده کار نکرد';
+            ELSE
+                RAISE NOTICE '✅ T31 · بازگردانی با یک UPDATE (حذف نرم، نه پاک‌کردن داده)';
+            END IF;
+
+            -- پاک‌کردن ردیف‌های آزمایشی
+            DELETE FROM iee1405.interviews WHERE org_code = div_code;
+            DELETE FROM crm.claims WHERE subject_id = (SELECT id FROM crm.organizations WHERE code = div_code);
+            DELETE FROM iee1405.participations WHERE organization_id = (SELECT id FROM crm.organizations WHERE code = div_code);
+            -- audit_events عمداً تغییرناپذیر است (تریگر forbid_mutation)؛
+            -- ردیف‌های ممیزی آزمون می‌مانند و کسی را اذیت نمی‌کنند.
+            DELETE FROM crm.organizations WHERE code = div_code;
+        END IF;
+    ELSE
+        RAISE NOTICE '⏭  T27–T31 رد شد — فایل ۱۱ (کارت مدیریتی) نصب نشده';
     END IF;
 
     IF fails > 0 THEN

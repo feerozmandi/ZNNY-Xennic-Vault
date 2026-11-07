@@ -570,6 +570,39 @@ BEGIN
         RETURN;
     END IF;
 
+    -- ۵.۳.۸.۴) ویرایش و حذف شرکت ثبت‌شده در ربات (فایل ۱۱)
+    -- پیشوندها: e: منوی ویرایش · ef: انتخاب فیلد · ec: تأیید نهایی
+    --            ex: انصراف · d: صفحهٔ تأیید حذف · dc: تأیید حذف · dx: انصراف
+    -- هر دو کار **دو‌مرحله‌ای**‌اند: تا تأیید صریح، هیچ نوشتن/حذفی رخ نمی‌دهد.
+    IF to_regprocedure('iee1405.ca_step(bigint, text, text, text, jsonb)') IS NOT NULL
+       AND (v_text ~ '^(e|d):ORG-[0-9]+$'
+            OR v_text ~ '^ef:(name|activity|hall|booth):ORG-[0-9]+$'
+            OR v_text ~ '^(ec|ex):'
+            OR v_text ~ '^d[ccx]:ORG-[0-9]+$'
+            OR v_state LIKE 'ca!_%' ESCAPE '!') THEN
+        SELECT s.reply, s.markup, s.state, s.payload
+          INTO v_reply, v_markup, v_state, v_payload
+          FROM iee1405.ca_step(p_chat_id, v_actor, v_text, v_state, v_payload) s;
+
+        -- اگر گام، پاسخ خالی داد (متن ناشناخته)، نباید نشست را عوض کند
+        IF v_reply IS NULL THEN
+            v_reply  := iee1405.msg('not_understood', jsonb_build_object('text', v_text));
+            v_state  := 'idle';
+            v_payload := '{}'::jsonb;
+        END IF;
+
+        PERFORM iee1405.session_set(p_chat_id, v_actor, v_state, v_payload);
+
+        UPDATE iee1405.bot_updates
+           SET status = 'processed', reply_text = v_reply, actor = v_actor,
+               processed_at = now(), reply_markup = v_markup,
+               edit_message_id = COALESCE(p_edit_message_id, edit_message_id)
+         WHERE update_id = p_update_id;
+
+        RETURN QUERY SELECT p_chat_id, 'ok'::text, v_reply, NULL::text;
+        RETURN;
+    END IF;
+
     -- ۵.۳.۸.۵) کارت شرکتی که در ربات ثبت شده (دکمهٔ o:<ORG-code>)
     -- این دکمه از بخش «ثبت‌شده در ربات» فهرست/جست‌وجو می‌آید (فایل ۰۹). چرا
     -- شاخهٔ جدا؟ چون به آینهٔ نمایشگاه وابسته نیست: شرکتی که با /new ثبت شده
@@ -589,14 +622,21 @@ BEGIN
             IF v_org_id IS NULL THEN
                 v_reply := iee1405.msg('org_notfound', jsonb_build_object('code', v_code_in));
             ELSE
-                v_reply  := iee1405.org_card(v_org_id);
-                v_markup := jsonb_build_object('inline_keyboard', jsonb_build_array(
-                    jsonb_build_array(
-                        jsonb_build_object('text', '↩ بازگشت به فهرست',
-                                           'callback_data', 'l:1'),
-                        jsonb_build_object('text', '🔎 جست‌وجوی دیگر',
-                                           'callback_data', 's:0')
-                    )));
+                -- کارت مدیریتی (فایل ۱۱): مصاحبه + ویرایش + حذف. اگر آن فایل
+                -- نصب نشده باشد، همان کارت سادهٔ قبلی برمی‌گردد و هیچ‌چیز نمی‌شکند.
+                IF to_regprocedure('iee1405.co_org_card(text)') IS NOT NULL THEN
+                    SELECT b.text_body, b.markup::jsonb INTO v_reply, v_markup
+                      FROM iee1405.co_org_card(v_code_in) b;
+                ELSE
+                    v_reply  := iee1405.org_card(v_org_id);
+                    v_markup := jsonb_build_object('inline_keyboard', jsonb_build_array(
+                        jsonb_build_array(
+                            jsonb_build_object('text', '↩ بازگشت به فهرست',
+                                               'callback_data', 'l:1'),
+                            jsonb_build_object('text', '🔎 جست‌وجوی دیگر',
+                                               'callback_data', 's:0')
+                        )));
+                END IF;
             END IF;
         END IF;
 
