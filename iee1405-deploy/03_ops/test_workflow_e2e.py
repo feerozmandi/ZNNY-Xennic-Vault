@@ -135,6 +135,11 @@ def main():
     psql("SELECT iee1405.poll_reset(0);")
     psql("UPDATE crm.users SET bale_chat_id = $1 WHERE username = 'ahmad';", [OWNER_CHAT])
 
+    # «راهنما» ۴۵ ثانیه ضدفِشار است؛ اگر دو آزمون پشت‌سرهم اجرا شوند،
+    # دستهٔ اول راهنما نمی‌گیرد و آزمون بی‌دلیل سرخ می‌شود. اینجا صفر می‌کنیم
+    # (خودِ ضدفشار در ادامهٔ همین فایل جداگانه سنجیده می‌شود).
+    psql("UPDATE iee1405.bot_state SET value = '0' WHERE key = 'help_dedupe_seconds';")
+
     def msg(uid, chat, text):
         """شکل واقعی آپدیت بله: message.chat.id و message.text"""
         return {"update_id": uid,
@@ -430,6 +435,191 @@ def main():
 
         psql("DELETE FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری ثبت ربات';")
 
+    # ── کارت مدیریتی: مصاحبه · ویرایش (با تأیید) · حذف (با تأیید) ──
+    # خواستهٔ مالک: «با فراخوانی شرکت‌های جدید، کلید مصاحبه ظاهر نمی‌شود» و
+    # «دکمهٔ ویرایش و حذف، با تأیید نهایی برای ویرایش و تأیید برای حذف».
+    if psql("SELECT to_regprocedure('iee1405.co_org_card(text)') IS NOT NULL")[0][0] == "t":
+        psql("DELETE FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری مدیریت';")
+        psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
+             "WHERE chat_id = $1;", [OWNER_CHAT])
+        for i, txt in enumerate(["/new", "آزمون سرتاسری مدیریت", "TAB_MV", "42-05"]):
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(msg(8501 + i, OWNER_CHAT, txt), ensure_ascii=False)])
+            for r in psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf)):
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":60}}'])
+
+        rows = psql("SELECT code FROM crm.organizations "
+                    "WHERE legal_name = 'آزمون سرتاسری مدیریت'")
+        check("شرکت آزمون مدیریت ساخته شد", len(rows) == 1, str(len(rows)))
+
+        if rows:
+            org2 = rows[0][0]
+            cb = {"update_id": 8510,
+                  "callback_query": {"id": "cb20", "data": "o:" + org2,
+                                     "from": {"id": OWNER_CHAT},
+                                     "message": {"message_id": 61,
+                                                 "chat": {"id": OWNER_CHAT, "type": "private"}}}}
+            psql(query_of("🧠 پردازش در PostgreSQL", wf), [json.dumps(cb, ensure_ascii=False)])
+            card = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            mark = card[0][3] if card else ""
+            check("کارت شرکت CRM هر سه کلید را دارد (مصاحبه/ویرایش/حذف)",
+                  all(k in (mark or "") for k in ('"i:' + org2, '"e:' + org2, '"d:' + org2)),
+                  (mark or "—")[:60])
+            for r in card:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":61}}'])
+
+            # مصاحبه از مسیر واقعی — شرکت در آینه نیست
+            psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
+                 "WHERE chat_id = $1;", [OWNER_CHAT])
+            iv_cb = {"update_id": 8511,
+                     "callback_query": {"id": "cb21", "data": "i:" + org2,
+                                        "from": {"id": OWNER_CHAT},
+                                        "message": {"message_id": 62,
+                                                    "chat": {"id": OWNER_CHAT, "type": "private"}}}}
+            psql(query_of("🧠 پردازش در PostgreSQL", wf), [json.dumps(iv_cb, ensure_ascii=False)])
+            a = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("مصاحبهٔ شرکت CRM اول نام می‌پرسد",
+                  a and "نام مصاحبه" in a[0][2], a[0][2][:40] if a else "—")
+            for r in a:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":62}}'])
+            def answer(uid, txt):
+                psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                     [json.dumps(msg(uid, OWNER_CHAT, txt), ensure_ascii=False)])
+                for r in psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf)):
+                    psql(query_of("✅ ثبت ارسال", wf),
+                         [int(r[0]), '{"ok":true,"result":{"message_id":63}}'])
+
+            answer(8520, "لیلا آزمون")
+            answer(8521, "کارشناس فروش")
+            # پرسش‌های بانک مصاحبه ممکن است کم/زیاد شوند؛ تا وقتی ربات
+            # سؤال می‌پرسد پاسخ می‌دهیم (سقف ۱۲ برای جلوگیری از حلقه).
+            for i in range(12):
+                st = psql("SELECT state FROM iee1405.bot_sessions WHERE chat_id = "
+                          + str(OWNER_CHAT))[0][0]
+                if not st.startswith("iv"):
+                    break
+                answer(8600 + i, "پاسخ آزمون " + str(i + 1))
+            # ستون NULL در خروجی psql تهی چاپ می‌شود؛ همان را با صفر جای‌گزین
+            # می‌کنیم تا شمارش ستون‌ها همیشه سه بماند.
+            iv = psql("SELECT state, coalesce(org_code, '-'), coalesce(company_ref::text, '-') "
+                      "FROM iee1405.interviews WHERE org_code = '" + org2 + "'")
+            check("مصاحبهٔ شرکت CRM ثبت شد (بدون شناسهٔ آینه)",
+                  bool(iv) and iv[0][0] == "done" and iv[0][2] == "-",
+                  str(iv[0]) if iv else "—")
+
+            # ویرایش: پیش‌نمایش، بعد تأیید
+            claims_before = psql("SELECT count(*) FROM crm.claims c JOIN crm.organizations o "
+                                 "ON o.id = c.subject_id WHERE o.code = '" + org2 + "' "
+                                 "AND c.is_current")[0][0]
+            psql("UPDATE iee1405.bot_sessions SET state = 'idle', payload = '{}' "
+                 "WHERE chat_id = $1;", [OWNER_CHAT])
+            for uid, data in ((8650, "ef:activity:" + org2),):
+                psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                     [json.dumps({"update_id": uid,
+                                  "callback_query": {"id": "cb22", "data": data,
+                                                     "from": {"id": OWNER_CHAT},
+                                                     "message": {"message_id": 64,
+                                                                 "chat": {"id": OWNER_CHAT,
+                                                                          "type": "private"}}}},
+                                 ensure_ascii=False)])
+                for r in psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf)):
+                    psql(query_of("✅ ثبت ارسال", wf),
+                         [int(r[0]), '{"ok":true,"result":{"message_id":64}}'])
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(msg(8651, OWNER_CHAT, "تولید تابلو فشار متوسط"), ensure_ascii=False)])
+            prev = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("ویرایش، پیش‌نمایش می‌دهد (هنوز ثبت نشده)",
+                  prev and "پیش‌نمایش" in prev[0][2], prev[0][2][:40] if prev else "—")
+            # /new خودش چند ادعا (نام/حوزه) می‌نویسد؛ پس معیار «هیچ تغییری»
+            # برابر بودن با شمارش پیش از پیش‌نمایش است، نه صفر بودن.
+            written = psql("SELECT count(*) FROM crm.claims c JOIN crm.organizations o "
+                           "ON o.id = c.subject_id WHERE o.code = '" + org2 + "' AND c.is_current")
+            check("پیش‌نمایش هیچ ادعایی ننوشت (شمارش ثابت ماند)",
+                  written[0][0] == claims_before, f"{claims_before} → {written[0][0]}")
+            for r in prev:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":65}}'])
+
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps({"update_id": 8652,
+                              "callback_query": {"id": "cb23", "data": "ec:",
+                                                 "from": {"id": OWNER_CHAT},
+                                                 "message": {"message_id": 66,
+                                                             "chat": {"id": OWNER_CHAT,
+                                                                      "type": "private"}}}},
+                             ensure_ascii=False)])
+            after = psql("SELECT count(*) FROM crm.claims c JOIN crm.organizations o "
+                         "ON o.id = c.subject_id WHERE o.code = '" + org2 + "' AND c.is_current")
+            check("تأیید نهایی، تغییر را ثبت کرد",
+                  int(after[0][0]) > int(claims_before), f"{claims_before} → {after[0][0]}")
+            for r in psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf)):
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":66}}'])
+
+            # حذف: صفحهٔ تأیید، انصراف، بعد تأیید
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps({"update_id": 8540,
+                              "callback_query": {"id": "cb24", "data": "d:" + org2,
+                                                 "from": {"id": OWNER_CHAT},
+                                                 "message": {"message_id": 67,
+                                                             "chat": {"id": OWNER_CHAT,
+                                                                      "type": "private"}}}},
+                             ensure_ascii=False)])
+            ask = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("حذف، اول صفحهٔ تأیید می‌آورد",
+                  ask and "حذف" in ask[0][2] and ("dc:" + org2) in (ask[0][3] or ""),
+                  ask[0][2][:40] if ask else "—")
+            gone = psql("SELECT count(*) FROM crm.organizations "
+                        "WHERE code = '" + org2 + "' AND deleted_at IS NOT NULL")
+            check("پیش از تأیید چیزی حذف نشد", gone[0][0] == "0", gone[0][0])
+            for r in ask:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":67}}'])
+
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps({"update_id": 8541,
+                              "callback_query": {"id": "cb25", "data": "dx:" + org2,
+                                                 "from": {"id": OWNER_CHAT},
+                                                 "message": {"message_id": 68,
+                                                             "chat": {"id": OWNER_CHAT,
+                                                                      "type": "private"}}}},
+                             ensure_ascii=False)])
+            still = psql("SELECT count(*) FROM crm.organizations "
+                         "WHERE code = '" + org2 + "' AND deleted_at IS NULL")
+            check("«انصراف» حذف را انجام نداد", still[0][0] == "1", still[0][0])
+            for r in psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf)):
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":68}}'])
+
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps({"update_id": 8542,
+                              "callback_query": {"id": "cb26", "data": "dc:" + org2,
+                                                 "from": {"id": OWNER_CHAT},
+                                                 "message": {"message_id": 69,
+                                                             "chat": {"id": OWNER_CHAT,
+                                                                      "type": "private"}}}},
+                             ensure_ascii=False)])
+            dl = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("تأیید حذف انجام شد", dl and "حذف شد" in dl[0][2],
+                  dl[0][2][:40] if dl else "—")
+            hidden = psql("SELECT count(*) FROM iee1405.co_org_info('" + org2 + "')")
+            check("شرکت حذف‌شده از فهرست/جست‌وجو پنهان شد", hidden[0][0] == "0", hidden[0][0])
+            for r in dl:
+                psql(query_of("✅ ثبت ارسال", wf),
+                     [int(r[0]), '{"ok":true,"result":{"message_id":69}}'])
+
+        # پاک‌سازی
+        psql("DELETE FROM iee1405.interviews WHERE org_code IN "
+             "(SELECT code FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری مدیریت');")
+        psql("DELETE FROM crm.claims WHERE subject_id IN "
+             "(SELECT id FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری مدیریت');")
+        psql("DELETE FROM iee1405.participations WHERE organization_id IN "
+             "(SELECT id FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری مدیریت');")
+        psql("DELETE FROM crm.organizations WHERE legal_name = 'آزمون سرتاسری مدیریت';")
+
     # ── idempotency: همان آپدیت دوباره ──
     before = len(psql("SELECT update_id FROM iee1405.bot_updates"))
     psql(query_of("🧠 پردازش در PostgreSQL", wf),
@@ -714,6 +904,10 @@ def main():
             # دکمهٔ «صفحه بعد» را مثل بله به گردش‌کار می‌دهیم
             nxt = None
             import re as _re
+            # اگر آینه فقط یک صفحه داشته باشد، «صفحه بعد» طبق طراحی همان صفحه را
+            # می‌دهد؛ سنجهٔ «صفحهٔ دیگر» بی‌داده است و باید «رد» شود نه «سرخ».
+            n_pages = int(psql("SELECT pages FROM iee1405.co_page(1)")[0][0])
+            n_btns = len(_re.findall(r'"callback_data":\s*"c:', p1_markup or ""))
             m = _re.search(r'"callback_data":\s*"(l:\d+)"', p1_markup or "")
             # آخرین l:<n> در JSON ردیف ناوبری، همان «صفحه بعد» است
             all_l = _re.findall(r'"callback_data":\s*"(l:\d+)"', p1_markup or "")
@@ -732,7 +926,9 @@ def main():
                 page2 = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
                 check("دکمهٔ «صفحه بعد» از مسیر گردش‌کار عبور کرد و پاسخ ساخت",
                       len(page2) == 1, str(len(page2)))
-                if page2:
+                if page2 and n_pages < 2:
+                    print(f"⏭  صفحه‌بندی سنجیده نشد — آینه فقط {n_pages} صفحه دارد")
+                elif page2:
                     check("صفحهٔ دوم واقعاً صفحهٔ دیگری است",
                           page2[0][2] != p1_text, page2[0][2][:40])
                     psql(query_of("✅ ثبت ارسال", wf),
@@ -740,13 +936,18 @@ def main():
             else:
                 check("دکمهٔ ناوبری در صفحه‌کلید پیدا شد", False, (p1_markup or "")[:60])
 
-        # انتخاب با شماره: مسیر بی‌دکمه (اگر بله callback_query ندهد)
-        psql(query_of("🧠 پردازش در PostgreSQL", wf),
-             [json.dumps(msg(8103, OWNER_CHAT, "3"), ensure_ascii=False)])
-        numbered = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
-        check("شمارهٔ شرکت (مسیر بی‌دکمه) کارت ساخت",
-              len(numbered) == 1 and "🏭" in numbered[0][2],
-              numbered[0][2][:40] if numbered else "—")
+        # انتخاب با شماره: مسیر بی‌دکمه (اگر بله callback_query ندهد).
+        # شماره، آخرین شرکتِ همین صفحه است تا با هر تعداد شرکت کار کند.
+        if n_btns:
+            psql(query_of("🧠 پردازش در PostgreSQL", wf),
+                 [json.dumps(msg(8103, OWNER_CHAT, str(n_btns)), ensure_ascii=False)])
+            numbered = psql(query_of("📤 پاسخ\u200cهای آماده ارسال", wf))
+            check("شمارهٔ شرکت (مسیر بی‌دکمه) کارت ساخت",
+                  len(numbered) == 1 and "🏭" in numbered[0][2],
+                  numbered[0][2][:40] if numbered else "—")
+        else:
+            numbered = []
+            print("⏭  مسیر بی‌دکمه سنجیده نشد — صفحهٔ اول شرکت آینه‌ای ندارد")
         for r in numbered:
             psql(query_of("✅ ثبت ارسال", wf),
                  [int(r[0]), '{"ok":true,"result":{"message_id":13}}'])

@@ -106,6 +106,17 @@ CREATE INDEX IF NOT EXISTS iv_company_q_live_idx
 COMMENT ON TABLE iee1405.iv_company_q IS
 'سؤال‌های اختصاصی هر شرکت؛ در انتهای سؤال‌های بانک و با کد custom پرسیده می‌شوند';
 
+-- شرکت‌هایی که با /new در ربات ثبت می‌شوند شناسهٔ آینه ندارند؛ با کد
+-- ORG-… شناخته می‌شوند. ستون جدا (نه پرکردن company_ref با عدد ساختگی) تا
+-- هیچ‌وقت مصاحبهٔ یک شرکت به شرکت دیگری نسبت داده نشود.
+ALTER TABLE iee1405.interviews ADD COLUMN IF NOT EXISTS org_code text;
+
+CREATE INDEX IF NOT EXISTS interviews_org_idx
+    ON iee1405.interviews (org_code) WHERE org_code IS NOT NULL;
+
+COMMENT ON COLUMN iee1405.interviews.org_code IS
+'کد شرکت در CRM (ORG-…) برای شرکت‌هایی که در آینهٔ نمایشگاه نیستند؛ بدون کلید خارجی';
+
 COMMENT ON TABLE iee1405.interviews IS
 'مصاحبه‌های غرفه؛ سطح داده «reported» است و به CRM چیزی اضافه نمی‌کند';
 
@@ -178,6 +189,61 @@ BEGIN
              WHERE q.company_ref = p_company AND q.active) x;
 END $$;
 
+-- ── ۳.۱) سؤال‌های یک شرکت CRM (که در آینهٔ نمایشگاه نیست) ───────────
+-- همان بانک، با زمینه‌ای که در CRM هست: حوزهٔ فعالیت (claim) و سالن/غرفه.
+SELECT iee1405.drop_stale_result('iee1405', 'iv_questions_org',
+       'TABLE(ord integer, code text, q text)');
+CREATE OR REPLACE FUNCTION iee1405.iv_questions_org(p_org text)
+RETURNS TABLE (ord int, code text, q text)
+LANGUAGE plpgsql STABLE AS $$
+DECLARE
+    v_act     text;
+    v_place   text;
+    v_ask_all boolean := COALESCE((SELECT value FROM iee1405.bot_state
+                                    WHERE key = 'iv_ask_all'), 'false') = 'true';
+    v_id      uuid;
+BEGIN
+    SELECT o.id INTO v_id FROM crm.organizations o
+     WHERE upper(o.code) = upper(btrim(COALESCE(p_org, ''))) AND o.deleted_at IS NULL;
+
+    IF v_id IS NOT NULL THEN
+        SELECT cl.value_text INTO v_act
+          FROM crm.claims cl
+         WHERE cl.subject_type = 'organization' AND cl.subject_id = v_id
+           AND cl.is_current AND cl.attribute = 'capability.summary';
+
+        SELECT NULLIF(btrim(COALESCE(p.hall, '') ||
+                            CASE WHEN p.booth_number IS NOT NULL
+                                 THEN '-' || p.booth_number ELSE '' END), '')
+          INTO v_place
+          FROM iee1405.participations p
+          JOIN iee1405.exhibitions ex ON ex.id = p.exhibition_id
+         WHERE p.organization_id = v_id AND ex.code = 'IEE1405'
+         LIMIT 1;
+    END IF;
+
+    RETURN QUERY
+    SELECT b.ord, b.code,
+           b.text_fa ||
+           CASE b.code
+             WHEN 'activity' THEN
+                 CASE WHEN v_act IS NOT NULL AND btrim(v_act) <> ''
+                      THEN E'\n   (در پرونده: «' || v_act || '» — درست است؟)'
+                      ELSE E'\n   (این شرکت در فهرست نمایشگاه نبود؛ حوزهٔ فعالیت را خودتان می‌گویید)'
+                 END
+             WHEN 'capacity' THEN
+                 CASE WHEN v_place IS NOT NULL
+                      THEN E'\n   (غرفهٔ ثبت‌شدهٔ شما: ' || v_place || ')'
+                      ELSE '' END
+             ELSE '' END
+      FROM iee1405.iv_bank b
+     WHERE b.ask_default OR v_ask_all
+     ORDER BY b.ord;
+END $$;
+
+COMMENT ON FUNCTION iee1405.iv_questions_org(text) IS
+'سؤال‌های مصاحبه برای شرکتی که در CRM ثبت شده (بدون شناسهٔ آینه)';
+
 COMMENT ON FUNCTION iee1405.iv_questions(bigint) IS
 'سؤال‌های مصاحبه برای یک شرکت، با جملهٔ زمینه از دادهٔ همان شرکت در آینه';
 
@@ -219,9 +285,35 @@ DECLARE
     v_markup  text;
     v_iv_id   bigint;
     v_parts   text;
+    v_org     text;      -- کد CRM، اگر مصاحبه برای شرکت ثبت‌شده در ربات باشد
 BEGIN
-    -- ── گام ۱: شروع با دکمهٔ کارت («i:<id>») ──
-    IF v_text ~ '^i:[0-9]+$' THEN
+    -- ── گام ۱: شروع با دکمهٔ کارت ──
+    --   i:<id>        شرکت آینهٔ نمایشگاه
+    --   i:ORG-000123  شرکت ثبت‌شده در ربات (CRM) — گزارش مالک: «با فراخوانی
+    --                 شرکت‌های جدید، کلید مصاحبه ظاهر نمی‌شود».
+    IF v_text ~ '^i:(ORG-[0-9]+|[0-9]+)$' THEN
+        IF upper(substring(v_text FROM 3)) LIKE 'ORG-%' THEN
+            v_org := upper(substring(v_text FROM 3));
+            SELECT COALESCE(NULLIF(btrim(o.display_name), ''), o.legal_name)
+              INTO v_name
+              FROM crm.organizations o
+             WHERE upper(o.code) = v_org AND o.deleted_at IS NULL;
+            IF v_name IS NULL THEN
+                RETURN QUERY SELECT 'شرکتی با کد ' || v_org || ' در ربات ثبت نشده. /list',
+                                    NULL::text, 'idle'::text, '{}'::jsonb;
+                RETURN;
+            END IF;
+            RETURN QUERY SELECT
+                '🎤 مصاحبه با «' || v_name || '»' || E'\n' ||
+                'چند سؤال کوتاه (۲–۳ دقیقه). هر جا خواستید «✖ پایان» را بزنید؛' ||
+                ' نیمه‌کاره هم ثبت می‌شود.' || E'\n\n' ||
+                '۱) نام مصاحبه‌شونده؟',
+                iee1405.iv_nav_markup(false),
+                'iv_name'::text,
+                jsonb_build_object('org', v_org, 'company_name', v_name);
+            RETURN;
+        END IF;
+
         v_co := substring(v_text FROM 3)::bigint;
         SELECT c.name_fa INTO v_name FROM barghpa.company c WHERE c.id = v_co;
         IF v_name IS NULL THEN
@@ -263,9 +355,15 @@ BEGIN
                                 'idle'::text, '{}'::jsonb;
             RETURN;
         END IF;
-        SELECT jsonb_agg(jsonb_build_object('code', q.code, 'q', q.q) ORDER BY q.ord)
-          INTO v_qs
-          FROM iee1405.iv_questions((v_p ->> 'company')::bigint) q;
+        IF v_p ? 'org' THEN
+            SELECT jsonb_agg(jsonb_build_object('code', q.code, 'q', q.q) ORDER BY q.ord)
+              INTO v_qs
+              FROM iee1405.iv_questions_org(v_p ->> 'org') q;
+        ELSE
+            SELECT jsonb_agg(jsonb_build_object('code', q.code, 'q', q.q) ORDER BY q.ord)
+              INTO v_qs
+              FROM iee1405.iv_questions((v_p ->> 'company')::bigint) q;
+        END IF;
 
         v_p := v_p || jsonb_build_object('interviewee_role', v_text,
                                           'qs', COALESCE(v_qs, '[]'::jsonb),
@@ -295,12 +393,15 @@ BEGIN
 
         IF v_text = 'x:e' THEN
             -- پایان زودهنگام: هر چه هست ثبت می‌شود، نه دور ریخته
-            SELECT c.id INTO v_co FROM barghpa.company c
-             WHERE c.id = (v_p ->> 'company')::bigint;
+            v_org := v_p ->> 'org';
+            IF v_org IS NULL THEN
+                SELECT c.id INTO v_co FROM barghpa.company c
+                 WHERE c.id = (v_p ->> 'company')::bigint;
+            END IF;
             INSERT INTO iee1405.interviews
-                (company_ref, company_name, chat_id, actor,
+                (company_ref, org_code, company_name, chat_id, actor,
                  interviewee_name, interviewee_role, answers, state, finished_at)
-            VALUES (v_co, COALESCE(v_p ->> 'company_name', '—'), p_chat, p_actor,
+            VALUES (v_co, v_org, COALESCE(v_p ->> 'company_name', '—'), p_chat, p_actor,
                     v_p ->> 'interviewee_name', v_p ->> 'interviewee_role',
                     v_answers, 'partial', clock_timestamp())
             RETURNING id INTO v_iv_id;
@@ -309,7 +410,7 @@ BEGIN
                 '✅ ثبت شد — مصاحبهٔ #' || v_iv_id || ' (نیمه‌کاره، ' ||
                 iee1405.fa_out(jsonb_array_length(v_answers)::text) || ' پاسخ)' || E'\n' ||
                 'بعداً در کارت شرکت دیده می‌شود. ادامه: دوباره «🎤 مصاحبه».',
-                iee1405.co_keyboard(ARRAY[(v_p ->> 'company')::bigint], 1, 1, false),
+                iee1405.iv_back_markup(v_org, (v_p ->> 'company')::bigint),
                 'idle'::text, '{}'::jsonb;
             RETURN;
         END IF;
@@ -337,8 +438,11 @@ BEGIN
         END IF;
 
         -- آخرین سؤال: ثبت کامل
-        SELECT c.id INTO v_co FROM barghpa.company c
-         WHERE c.id = (v_p ->> 'company')::bigint;
+        v_org := v_p ->> 'org';
+        IF v_org IS NULL THEN
+            SELECT c.id INTO v_co FROM barghpa.company c
+             WHERE c.id = (v_p ->> 'company')::bigint;
+        END IF;
 
         -- جمع‌بندی همکاری از پاسخ‌های «coop» و «next» (اگر داده شده باشند)
         SELECT string_agg(x ->> 'a', E' · ') INTO v_parts
@@ -346,9 +450,9 @@ BEGIN
          WHERE x ->> 'code' = 'coop';
 
         INSERT INTO iee1405.interviews
-            (company_ref, company_name, chat_id, actor,
+            (company_ref, org_code, company_name, chat_id, actor,
              interviewee_name, interviewee_role, answers, cooperation, state, finished_at)
-        VALUES (v_co, COALESCE(v_p ->> 'company_name', '—'), p_chat, p_actor,
+        VALUES (v_co, v_org, COALESCE(v_p ->> 'company_name', '—'), p_chat, p_actor,
                 v_p ->> 'interviewee_name', v_p ->> 'interviewee_role',
                 v_answers, v_parts, 'done', clock_timestamp())
         RETURNING id INTO v_iv_id;
@@ -361,7 +465,7 @@ BEGIN
             'پاسخ‌ها: ' || iee1405.fa_out(jsonb_array_length(v_answers)::text) || ' از ' ||
             iee1405.fa_out(jsonb_array_length(v_qs)::text) || E'\n' ||
             'سطح داده: reported (گفتهٔ غرفه، نه تأییدشده)',
-            iee1405.co_keyboard(ARRAY[(v_p ->> 'company')::bigint], 1, 1, false),
+            iee1405.iv_back_markup(v_org, (v_p ->> 'company')::bigint),
             'idle'::text, '{}'::jsonb;
         RETURN;
     END IF;
@@ -384,6 +488,42 @@ RETURNS text LANGUAGE sql STABLE AS $$
       FROM iee1405.interviews
      WHERE company_ref = p_company
 $$;
+
+-- ── ۶.۱) دکمهٔ بازگشت پس از مصاحبه (آینه یا CRM) ────────────────────
+CREATE OR REPLACE FUNCTION iee1405.iv_back_markup(p_org text, p_company bigint)
+RETURNS text LANGUAGE plpgsql STABLE AS $$
+DECLARE v_m text;
+BEGIN
+    IF p_org IS NOT NULL
+       AND to_regprocedure('iee1405.co_org_card(text)') IS NOT NULL THEN
+        SELECT c.markup INTO v_m FROM iee1405.co_org_card(p_org) c;
+        IF v_m IS NOT NULL THEN RETURN v_m; END IF;
+    END IF;
+    IF p_company IS NOT NULL THEN
+        RETURN iee1405.co_keyboard(ARRAY[p_company], 1, 1, false);
+    END IF;
+    RETURN jsonb_build_object('inline_keyboard', jsonb_build_array(
+        jsonb_build_array(jsonb_build_object('text', '↩ بازگشت به فهرست',
+                                             'callback_data', 'l:1'))))::text;
+END $$;
+
+COMMENT ON FUNCTION iee1405.iv_back_markup(text, bigint) IS
+'دکمه‌های بازگشت پس از مصاحبه: کارت شرکت CRM یا فهرست';
+
+-- ── ۶.۲) خلاصهٔ مصاحبه‌های یک شرکت CRM ───────────────────────────────
+CREATE OR REPLACE FUNCTION iee1405.iv_summary_org(p_org text)
+RETURNS text LANGUAGE sql STABLE AS $$
+    SELECT CASE WHEN count(*) = 0 THEN NULL
+                ELSE '🎤 مصاحبه‌ها: ' || iee1405.fa_out(count(*)::text) ||
+                     ' مورد · آخرین: ' || COALESCE(max(interviewee_name), '—') ||
+                     CASE WHEN max(state) = 'done' THEN '' ELSE ' (نیمه‌کاره)' END
+           END
+      FROM iee1405.interviews
+     WHERE upper(COALESCE(org_code, '')) = upper(COALESCE(p_org, ''))
+$$;
+
+COMMENT ON FUNCTION iee1405.iv_summary_org(text) IS
+'خلاصهٔ مصاحبه‌های یک شرکت ثبت‌شده در ربات (کلید: ORG-code)';
 
 -- ── ۷) گرنت نقش ربات ─────────────────────────────────────────────────
 DO $$
