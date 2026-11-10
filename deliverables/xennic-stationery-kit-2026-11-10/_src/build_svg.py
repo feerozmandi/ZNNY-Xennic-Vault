@@ -482,6 +482,7 @@ def environmental():
             '<stop offset="1" stop-color="#E1E3E5"/></linearGradient>'
             '<clipPath id="pan1"><rect x="70" y="150" width="900" height="380"/></clipPath>'
             '<clipPath id="pan2"><rect x="1090" y="170" width="300" height="172"/></clipPath>'
+            '<clipPath id="plateBand"><rect x="1090" y="170" width="54" height="172"/></clipPath>'
             '<clipPath id="pan3"><rect x="1010" y="430" width="440" height="185"/></clipPath>'
             '<clipPath id="pan4"><rect x="1470" y="380" width="120" height="450"/></clipPath>')
     s = [f'<rect width="{W}" height="{H}" fill="url(#wall)"/>']
@@ -501,7 +502,7 @@ def environmental():
     # ── door plate (brushed aluminium) ────────────────────────────────────
     s.append('<g filter="url(#wallB)">')
     s.append('<rect x="1090" y="170" width="300" height="172" fill="url(#alu)"/>')
-    s.append('<g clip-path="url(#pan2)">')
+    s.append('<g clip-path="url(#plateBand)">')
     s.append(f'<rect x="1090" y="170" width="54" height="172" fill="url(#envB)"/>')
     s.append(arc_stroke(1094, 344, [68, 54], -100, -26, 4.5, GOLD, [1.0, 0.30]))
     s.append("</g>")
@@ -516,6 +517,15 @@ def environmental():
     s.append('</g>')
     s.append(chevron(1290, 522, 36, 44, 10, GOLD, 1.0))
     s.append(chevron(1344, 522, 36, 44, 10, GOLD, 0.50))
+
+    # ── reception counter (scale reference, no brand colour) ──────────────
+    s.append('<g filter="url(#wallB)">')
+    s.append('<rect x="170" y="700" width="540" height="130" fill="#ECECE7"/>')
+    s.append('<rect x="170" y="700" width="540" height="22" fill="#F9F9F5"/>')
+    s.append('</g>')
+    s.append('<rect x="170" y="722" width="540" height="3" fill="#CBCBC5"/>')
+    s.append('<rect x="200" y="752" width="480" height="1.5" fill="#DADAD4"/>')
+    s.append('<rect x="170" y="826" width="540" height="4" fill="#C4C4BE"/>')
 
     # ── floor totem ───────────────────────────────────────────────────────
     s.append('<g filter="url(#wallA)">')
