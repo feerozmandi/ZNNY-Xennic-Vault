@@ -1,0 +1,131 @@
+{
+  "id": "IEE1405-04",
+  "name": "IEE1405-04 — پایش سلامت",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */30 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "f8555830-4b6f-53c0-87b5-b4040e08285d",
+      "name": "⏱ هر ۳۰ دقیقه",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "زمان‌بندی به وقت تهران (GENERIC_TIMEZONE=Asia/Tehran)",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT chat_id, text_body FROM iee1405.health_watch();",
+        "options": {}
+      },
+      "id": "22333e8f-cd60-50f1-9a40-9ef40bf5061e",
+      "name": "🩺 بررسی سلامت",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "notes": "در حالت سالم ساکت است؛ خودترمیمی همیشه اجرا می‌شود",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BALE_API_URL }}/sendMessage",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text_body }}"
+            }
+          ]
+        }
+      },
+      "id": "5bbda83f-584a-5900-9c44-ca0e2c75c167",
+      "name": "💬 هشدار",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "⏱ هر ۳۰ دقیقه": {
+      "main": [
+        [
+          {
+            "node": "🩺 بررسی سلامت",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🩺 بررسی سلامت": {
+      "main": [
+        [
+          {
+            "node": "💬 هشدار",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Tehran",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveExecutionProgress": true,
+    "executionTimeout": 30,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "هشدار خودکار در صورت توقف دریافت پیام، خطای ربات یا انبوهی تأخیر"
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "IEE1405"
+    }
+  ],
+  "active": false
+}

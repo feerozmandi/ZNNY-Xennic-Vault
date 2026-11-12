@@ -1,0 +1,131 @@
+{
+  "id": "IEE1405-03",
+  "name": "IEE1405-03 — خلاصه پایان روز",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 30 20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "fa9c51a7-72c5-51ab-a0c0-437e3aa1ca90",
+      "name": "⏱ هر روز ۲۰:۳۰",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "زمان‌بندی به وقت تهران (GENERIC_TIMEZONE=Asia/Tehran)",
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "resource": "database",
+        "query": "SELECT o.chat_id, iee1405.digest_text() AS text_body\n  FROM iee1405.owner_chat_ids() o;",
+        "options": {}
+      },
+      "id": "ca8f4215-d68d-57a0-8476-25628e501341",
+      "name": "📊 خلاصه روز",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "XENNIC-PG-CREDENTIAL",
+          "name": "Xennic PostgreSQL"
+        }
+      },
+      "notes": "متن از v_today_digest ساخته می‌شود (تست‌شده در SQL)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.BALE_API_URL }}/sendMessage",
+        "options": {
+          "timeout": 20000
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "specifyBody": "keypair",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text_body }}"
+            }
+          ]
+        }
+      },
+      "id": "6560fd3c-5a77-53f4-91f5-7fd0add240a1",
+      "name": "💬 ارسال خلاصه",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "retryOnFail": false,
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "⏱ هر روز ۲۰:۳۰": {
+      "main": [
+        [
+          {
+            "node": "📊 خلاصه روز",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 خلاصه روز": {
+      "main": [
+        [
+          {
+            "node": "💬 ارسال خلاصه",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Tehran",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all",
+    "saveExecutionProgress": true,
+    "executionTimeout": 30,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "خلاصه شمارشی روز برای مدیر"
+  },
+  "pinData": {},
+  "tags": [
+    {
+      "name": "IEE1405"
+    }
+  ],
+  "active": false
+}
