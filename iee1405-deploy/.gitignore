@@ -1,0 +1,7 @@
+# خروجی بازرسی و پشتیبان‌ها هرگز commit نمی‌شوند
+00_audit/out/
+*.dump
+*.sql.gz
+.env
+n8n-workflows-*.json
+__pycache__/

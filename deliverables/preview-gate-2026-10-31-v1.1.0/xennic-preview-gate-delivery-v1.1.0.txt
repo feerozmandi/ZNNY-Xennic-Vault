@@ -1,0 +1,3196 @@
+Xennic Preview Gate — faithful text export of bundle v1.1.0
+ORIGINAL WEBSITE BASELINE: feerozmandi/xennic-website@418de2b5b3a272e79a824ccde5411dc25f1002cc
+ORIGINAL ZIP: xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip
+ORIGINAL ZIP SHA256: 244fe81004b4cfc448c5d6139d5d5e6047a17a1f5d41c90399012856f4e3b785
+ORIGINAL FILE COUNT: 40 text files
+EXPORT FORMAT: each record gives a relative path, original-file SHA256, and original UTF-8 byte count. The original file content follows literally; the framing newline/markers are not part of the original bytes. No ZIP binary is embedded or renamed.
+SAFETY: this export contains only the original text files. It excludes real env files, runtime secrets, cookies, private keys, CA/TLS key material, application data and raw logs. `.env.preview.example` contains placeholders only.
+RUNTIME WARNINGS: no Caddy, Docker Compose, Go, full Payload server, OAuth/GitHub, or owner-machine integration test was run for v1.1.0. Image digests are not independently verified; Node/Postgres are tag-only; final OAuth scope is unapproved. Do not deploy or apply to an active gate. No VPS/DNS changes were made. Account-two outcome remains unknown.
+REBUILD NOTE: this is one text file, so no split-part reassembly is required. If a human later recreates source files, use only the relative PATH values below under a newly created destination such as `./restored-xennic-preview-gate-v1.1.0/`; reject absolute paths and `..`, and write nothing outside that folder. The contents are for review, not an instruction to execute.
+BEGIN FILE RECORDS — framing token XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 01/40 =====
+PATH: .env.preview.example
+SHA256: 54efe006bd642e1612f496bde7a5aeaff8ed4696abb8d4b546afe3e0b29727e1
+CONTENT_BYTES: 927
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# SAMPLE TEMPLATE ONLY — not a working env file. No real credentials or values.
+# Do not source this file or pass it to Docker Compose as-is.
+# After review/approval, prepare private synthetic values with prepare_payload_lab_env.py.
+PREVIEW_POSTGRES_DB="<synthetic-only-database-name>"
+PREVIEW_POSTGRES_USER="<synthetic-only-database-user>"
+PREVIEW_POSTGRES_PASSWORD="<generate-a-random-test-only-password>"
+PREVIEW_DATABASE_URL="postgresql://<url-encoded-user>:<url-encoded-password>@<postgres-service>:<port>/<database-name>"
+PREVIEW_PAYLOAD_SECRET="<generate-a-random-test-only-secret>"
+PREVIEW_ORIGIN="https://<approved-preview-host-from-baseline>"
+PREVIEW_PORT="<unused-loopback-port; reset-by-overlay>"
+LAB_DIR="<absolute-path-to-extracted-review-bundle>"
+
+# OAuth2 Proxy credentials are intentionally absent. The OAuth example config is
+# unapproved, and its local-client values must never be copied into this sample.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 01/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 02/40 =====
+PATH: CHANGELOG.fa.md
+SHA256: c79a7b8ba70874696c30b56c941d91b48a49fbb54d632365f3e8f547cfd75dda
+CONTENT_BYTES: 4750
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# تفاوت با بستهٔ قبلی
+
+## نسخهٔ جاری: `1.1.0` (بازبسته‌بندی پس از توقف دریافت)
+
+این نسخه جایگزین آرشیو قبلی همین نشست است و مواردی را که برای بازبینی/تحویل لازم بود روشن‌تر و کامل‌تر می‌کند: Compose پایهٔ دقیق از commit، فایل env فقط-placeholder، network داخلی محدود، آزمون صریح `/api/graphql` و نسخه‌گذاری تازه. نام آرشیو جاری `xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip` است؛ آرشیو با نام بدون نسخه superseded است.
+
+## وضعیت فایل قبلی
+
+پوشهٔ ارجاع‌شدهٔ قبلی در این نشست فقط `فهرست-فایل‌ها.md` را داشت؛ README، config، گزارش و ZIP قبلی پیدا نشدند. checksum تاریخی ZIP گزارش‌شده `c889d7b1d7c508bf48c0dc70f601e4506cdeeb622e640133a96e270268357966` است، اما خود آن ZIP برای استخراج/مقایسه در دسترس نبود. بنابراین **diff خط‌به‌خط یا ادعای برابری/بهبود کامل قابل اثبات نیست**. این بسته از نو ساخته شده و نباید جایگزین خودکار نسخهٔ پیشین تلقی شود.
+
+## تفاوت‌های قابل مشاهده در بازسازی جاری
+
+- بستهٔ جاری با baseline دقیق وبسایت `418de2b5b3a272e79a824ccde5411dc25f1002cc` مستند شده است؛ Payload `3.91.0`, Node `22.22.3-bookworm-slim` و PostgreSQL `16.14-bookworm` از همان checkout استخراج شده‌اند.
+- Caddy configهای جداگانه برای candidate عمومی، fixture محلی و آزمون Payload واقعی اضافه شده‌اند. پاسخ callback در candidate عمومی به پیام عمومی/no-store تبدیل می‌شود تا بدنه و headerهای provider به کاربر نرسند.
+- policy حذف Cookie نشست OAuth به‌طور محدود در `upstream.caddy` تعریف شده است؛ هدف این است که Cookieهای Payload و Bearer آن باقی بمانند. `test_caddy_mock.py` برای بررسی چیدمان‌های Cookie و چند هدر نوشته شده است، اما روی Caddy بازسازی‌شده هنوز اجرا نشده.
+- فایل OAuth نهایی عمداً با scope نامعتبر/placeholder غیرقابل اجرا شده است؛ scope `user:email read:org` فقط در نمونهٔ محلی قدیمی باقی مانده و صریحاً برای App نهایی تأییدنشده علامت خورده است.
+- Compose قدیمی OAuth اکنون `DO NOT RUN` است و برخورد احتمالی project/port/subnet ثابت را اعلام می‌کند.
+- Compose پایهٔ `compose.preview.yml` دقیقاً از baseline داخل بسته آمده و یک `.env.preview.example` با placeholder صرف اضافه شده است؛ هیچ env واقعی وارد نشده.
+- یک Payload overlay مجزا با gate مصنوعی، project isolation، network اختصاصی `internal: true`، app port پاک‌شده و Caddy loopback/internal TLS اضافه شده است؛ اجرای آن مجاز/انجام‌شده نیست.
+- مسیر واقعی Payload GraphQL یعنی `/api/graphql` صریحاً به آزمون mock افزوده شده و با matcher `/api/*` باید `forward_auth` بگیرد.
+- تست سیاست provider از `github.go` واقعی v7.15.5 با SHA256 پین‌شده تولید می‌شود تا «کاربر خارج allowlist» با خطای API تفکیک شود؛ plumbing تستی است و `go test` هنوز اجرا نشده.
+- تست `extractJWT` Payload 3.91.0 واقعی از npm tarball اجرا شد؛ نتیجهٔ آن در `VALIDATION.fa.md` ثبت می‌شود. این تست جایگزین اجرای Payload server/DB نیست.
+- Runbook، فهرست فایل‌های دستیار وبسایت، ثبت نسخه/digest، وضعیت آزمون، checksum و اسکن عدم‌وجود Secret به بسته افزوده شده‌اند.
+
+## نتایج قبلی که تغییر محسوب نمی‌شوند
+
+نتیجه‌های آزمایش قبلی مالک (ورود محلی، Bearer/Cookie مصنوعی، expiry/logout، replay نشست، callback حساب دوم و چند مسیر) شواهد تاریخی‌اند و با بازسازی جاری تکرار نشده‌اند. جزئیات/محدودیت آن‌ها در گزارش آمده است؛ به‌ویژه callback `500 missing github user` علت واقعی حساب دوم را ثابت نمی‌کند و replay نشست پس از signout حل نشده است.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 02/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 03/40 =====
+PATH: Caddyfile
+SHA256: 393e401b3306b6291e6d4c92bb0bf2c0a77efdf80aaed111134d3030c4dc9069
+CONTENT_BYTES: 227
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+{
+	admin off
+	auto_https disable_redirects
+}
+
+# REVIEW ONLY: not a deployment authorization or a live certificate test.
+https://preview.xennic.ir {
+	tls {
+		issuer acme {
+			disable_http_challenge
+		}
+	}
+	import routes.caddy
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 03/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 04/40 =====
+PATH: Caddyfile.lab
+SHA256: 5d8a7df420c70e4acc51660a1c2d9bf8a7107dedde2cd1038d3d1d1bb882c432
+CONTENT_BYTES: 185
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+{
+	admin off
+	auto_https disable_redirects
+}
+
+# Disposable OAuth2 Proxy + synthetic fixture lab only; local CA, not public TLS.
+https://localhost {
+	tls internal
+	import routes.caddy
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 04/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 05/40 =====
+PATH: Caddyfile.payload.lab
+SHA256: 645bbcc4b91279ec67e565e3777cc3507c2b002ade8b877677733034b64651cc
+CONTENT_BYTES: 269
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+{
+	admin off
+	auto_https disable_redirects
+}
+
+# Synthetic-gate + REAL Payload test only. Requires a process-local mapping of
+# preview.xennic.ir to loopback; Caddy uses an internal CA, never public ACME.
+https://preview.xennic.ir {
+	tls internal
+	import routes.caddy
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 05/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 06/40 =====
+PATH: FILES-FOR-WEBSITE-ASSISTANT.fa.md
+SHA256: 31f4039df9ea0b6e3cc2b68502867e94d91b81fea20a9b29d07373048b8da371
+CONTENT_BYTES: 8156
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# فایل‌های موردنیاز دستیار وبسایت برای بازبینی
+
+این فهرست مربوط به ZIP نسخهٔ `1.1.0` است؛ بسته شامل ۴۰ فایل است، همگی غیرمحرمانه و بدون runtime Secret. **درخواست از دستیار:** بازبینی فقط ایستا روی commit مبنا؛ هیچ دستوری روی VPS، gate فعال یا حساب OAuth اجرا نشود.
+
+## اولویت ۱ — Compose پایه، overlay و متغیرها
+
+- `compose.preview.yml` — کپی byte-for-byte از base Compose وبسایت در commit مبنا؛ فقط برای بازبینی. در اجرا باید همان فایل از checkout سایت استفاده شود تا build context درست باشد.
+- `compose.payload-lab.override.yml` — overlay مستقل بر Compose پایه؛ بررسی `!reset`, internal project network, project isolation, named-volume namespace, حذف publish اپ و loopback-only Caddy.
+- `.env.preview.example` — نمونهٔ placeholder-only برای متغیرهای Compose؛ هرگز source یا به Compose ندهید. فایل خصوصی synthetic در آینده فقط با helper ساخته می‌شود.
+- `prepare_payload_lab_env.py` — فقط در صورت تأیید، env تصادفی Postgres/Payload را خارج از بسته و mode `0600` می‌سازد؛ در Arena یا روی رایانهٔ مالک اجرا نشده است.
+
+## اولویت ۲ — پیکربندی و ترتیب درخواست
+
+- `Caddyfile` — candidate برای TLS عمومی/ACME؛ بررسی دامنه، issuer، port 443، خاموش‌بودن redirect و HTTP-01، و امکان renewal با محدودیت شبکهٔ فعلی.
+- `Caddyfile.payload.lab`, `routes.caddy`, `oauth-gateway.caddy`, `upstream.caddy` — Caddy روی loopback در Compose، دسترسی به `gate:4180` و `app:3000`، حفاظت همهٔ مسیرها ازجمله `/api/graphql`, حفظ Payload Bearer/Cookie، حذف فقط Cookie gate و پاسخ callback عمومی را بررسی کنید.
+- `Caddyfile.lab`, `fixture.py` — fixture مستقل قدیمی/مصنوعی، بدون اپلیکیشن واقعی.
+- `check_caddy_config.py`, `test_caddy_mock.py` — checker و آزمون Caddy synthetic؛ Caddy binary در محیط بسته نبود و آزمون اجرا نشده است.
+
+## اولویت ۳ — OAuth2 Proxy و provider/API
+
+- `oauth2-proxy.example.toml` — candidate عمداً unapproved؛ scope/IP proxy placeholder هستند.
+- `oauth2-proxy.lab.example.toml`, `compose.oauth-lab.reference.yml` — تاریخچه/مرجع قدیمی با `DO NOT RUN`؛ scope محلی قدیمی، port/subnet/project ثابت دارد.
+- `provider-policy-test/testdata/github.v7.15.5.go.txt`, `LICENSE.oauth2-proxy` — منبع دقیق upstream و مجوز؛ SHA256 منبع ثبت شده است.
+- `provider-policy-test/generate.py`, `provider_extracted.go`, `provider_test.go`, `harness.go`, `requests/requests.go`, `sessions/sessions.go`, `go.mod` — tests و plumbing تستی. Review شود که «پروفایل با موفقیت دریافت شد ولی login خارج از allowlist است» از خطاهای `/user/orgs`, `/user/teams`, `/user`, `/user/emails` جدا باشد. هنوز `go test` اجرا نشده.
+- `test_payload_extraction.mjs` — از Payload 3.91.0 واقعی استفاده می‌کند؛ در Arena با tarball همان نسخه و دادهٔ مصنوعی آزموده شد.
+- `test_payload_caddy.mjs`, `test_payload_browser.js` — آزمون Payload واقعی/مرورگر پیشنهادی؛ اجرا نشده‌اند. آزمون Node باید فقط با DB جدا و synthetic credentials باشد؛ browser test اختیاری است.
+
+## راهنما، اعتبارسنجی و provenance
+
+- `README.fa.md`, `REVIEW-REPORT.fa.md`, `RUNBOOK.fa.md`, `CHANGELOG.fa.md`, `VERSIONS-DIGESTS.fa.md`, `VALIDATION.fa.md` — راهنما، تنظیمات، محدودیت‌ها، نسخه‌ها و وضعیت آزمون.
+- `verify_bundle.py` — بررسی ساختار/placeholderها و checksumهای بسته؛ اسکن کامل Secrets نیست.
+- `MANIFEST.json`, `SHA256SUMS` — فهرست/hash فایل‌ها و کنترل یکپارچگی.
+- `gate_stub.py` — gate مصنوعی برای overlay Payload؛ OAuth یا مجوز هویت واقعی نیست.
+
+## سؤال‌های باز برای دستیار وبسایت
+
+لطفاً برای هر نکته یکی از «تأیید»، «نیازمند اصلاح» یا «نامعلوم» را ثبت کنید:
+
+1. آیا Caddyfileهای candidate روی Caddy `2.11.7` قابل parse هستند و ترتیب matcherها/`handle_response` دقیقاً همان رفتار موردنظر را دارد؟
+2. آیا حذف Cookie با regex در `upstream.caddy` در برابر تمام layoutهای Cookie/چند header قابل قبول است، بدون حذف Payload token یا عبور gate token؟
+3. آیا مسیر واقعی `/api/graphql` از matcher `/api/*` با همان `forward_auth` حفاظت می‌شود؟
+4. آیا proxy اجازهٔ Bearer برای Payload می‌دهد ولی آن را به OAuth2 Proxy نمی‌فرستد؟ آیا CORS/CSRF و `Origin` با `PREVIEW_ORIGIN` دقیق سازگارند؟
+5. آیا تبدیل callback `4xx→403`, `5xx→500` به‌اندازهٔ کافی جزئیات provider را پنهان می‌کند و درعین‌حال دسته‌بندی عملیاتی را برای ادمین ممکن می‌گذارد؟
+6. آیا `!reset []` و network `internal: true` برای Compose حداقل v2.24.4 صحیح‌اند و project/volume/network separation در ترکیب فایل‌ها معتبر است؟
+7. آیا `Payload 3.91.0` در commit مبنا همچنان رفتار موردانتظار routeهای first-register/login/logout و cookie را دارد؟
+8. آیا scope نهایی باید فقط `user:email` باشد، یا دسترسی org/team واقعاً نیاز است؟ **هیچ‌کدام پیش‌فرض یا تأییدشده فرض نشود؛ `read:org` فقط برای OAuth App محلی قدیمی مجاز بود.**
+9. برای حساب دوم، چه نشانگرهای غیرمحرمانه‌ای باید سیاست حساب را از provider/API failure جدا کنند؟ لطفاً لاگ خام، Cookie یا توکن درخواست نخواهید.
+
+## کارهایی که بازبین نباید انجام دهد
+
+- هیچ فایل config را روی gate فعال اعمال یا reload نکند.
+- OAuth/GitHub callback، account دوم، outage با نشست معتبر، DNS، VPS، عمومی‌کردن port یا Compose عملیاتی را اجرا نکند.
+- scope `read:org` را به App نهایی تعمیم ندهد.
+- Open Notebook، Hermes یا `[RAG-02]` را آغاز نکند؛ این‌ها خارج از preview و تحت قیود قبلی‌اند.
+
+## فهرست کامل فایل‌های ZIP
+
+`MANIFEST.json` و `SHA256SUMS` نیز در فهرست هستند؛ hash دقیق تک‌تک فایل‌ها در آن‌ها آمده است.
+
+```text
+.env.preview.example
+CHANGELOG.fa.md
+Caddyfile
+Caddyfile.lab
+Caddyfile.payload.lab
+FILES-FOR-WEBSITE-ASSISTANT.fa.md
+MANIFEST.json
+README.fa.md
+REVIEW-REPORT.fa.md
+RUNBOOK.fa.md
+SHA256SUMS
+VALIDATION.fa.md
+VERSIONS-DIGESTS.fa.md
+check_caddy_config.py
+compose.oauth-lab.reference.yml
+compose.payload-lab.override.yml
+compose.preview.yml
+fixture.py
+gate_stub.py
+oauth-gateway.caddy
+oauth2-proxy.example.toml
+oauth2-proxy.lab.example.toml
+prepare_lab_config.py
+prepare_payload_lab_env.py
+provider-policy-test/generate.py
+provider-policy-test/go.mod
+provider-policy-test/harness.go
+provider-policy-test/provider_extracted.go
+provider-policy-test/provider_test.go
+provider-policy-test/requests/requests.go
+provider-policy-test/sessions/sessions.go
+provider-policy-test/testdata/LICENSE.oauth2-proxy
+provider-policy-test/testdata/github.v7.15.5.go.txt
+routes.caddy
+test_caddy_mock.py
+test_payload_browser.js
+test_payload_caddy.mjs
+test_payload_extraction.mjs
+upstream.caddy
+verify_bundle.py
+```
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 06/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 07/40 =====
+PATH: MANIFEST.json
+SHA256: e28d34791b120522f88efae38b9f778c629baa9734477689994fffb26623d5c1
+CONTENT_BYTES: 7776
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+{
+  "format": "xennic-preview-gate-review-bundle/v1",
+  "bundle_id": "xennic-preview-gate-delivery-2026-10-31-v1.1.0",
+  "version": "1.1.0",
+  "revision": 2,
+  "created_local_date": "2026-10-31",
+  "language": "fa",
+  "archive_name": "xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip",
+  "status": "review-only; not approved for deployment or owner-machine execution",
+  "website_baseline": {
+    "repository": "feerozmandi/xennic-website",
+    "commit": "418de2b5b3a272e79a824ccde5411dc25f1002cc",
+    "pr": 10
+  },
+  "secrets_included": false,
+  "secret_scan": "PASS: high-confidence private-key, GitHub-token and OAuth-secret patterns plus placeholder-only env values; manual review still required",
+  "image_digests_independently_verified": false,
+  "historical_bundle_comparable": false,
+  "file_hash_scope": "SHA256 of each listed file; MANIFEST.json and SHA256SUMS are excluded from this list to avoid self-reference. SHA256SUMS covers MANIFEST.json and all package files except itself.",
+  "validation_summary": {
+    "current_v1_1_0": "No Caddy, Compose, Go, Payload-server, OAuth or owner-machine integration tests run",
+    "package_security_scan": "PASS via verify_bundle.py; no credential patterns found",
+    "archive_integrity": "PASS unzip -t; external sidecar checksum; extracted SHA256SUMS and verify_bundle.py",
+    "retained_previous_draft": "Earlier Python/Node/YAML/TOML syntax checks and Payload 3.91.0 extractJWT mock test are documented in VALIDATION.fa.md",
+    "current_overlay_parse": "NOT RUN after internal-network and placeholder-file additions",
+    "caddy": "NOT RUN; binary absent",
+    "docker_compose": "NOT RUN; Docker absent",
+    "go_tests": "NOT RUN; Go absent",
+    "owner_machine_vps_dns": "NOT RUN"
+  },
+  "files": [
+    {
+      "path": ".env.preview.example",
+      "size": 927,
+      "sha256": "54efe006bd642e1612f496bde7a5aeaff8ed4696abb8d4b546afe3e0b29727e1"
+    },
+    {
+      "path": "CHANGELOG.fa.md",
+      "size": 4750,
+      "sha256": "c79a7b8ba70874696c30b56c941d91b48a49fbb54d632365f3e8f547cfd75dda"
+    },
+    {
+      "path": "Caddyfile",
+      "size": 227,
+      "sha256": "393e401b3306b6291e6d4c92bb0bf2c0a77efdf80aaed111134d3030c4dc9069"
+    },
+    {
+      "path": "Caddyfile.lab",
+      "size": 185,
+      "sha256": "5d8a7df420c70e4acc51660a1c2d9bf8a7107dedde2cd1038d3d1d1bb882c432"
+    },
+    {
+      "path": "Caddyfile.payload.lab",
+      "size": 269,
+      "sha256": "645bbcc4b91279ec67e565e3777cc3507c2b002ade8b877677733034b64651cc"
+    },
+    {
+      "path": "FILES-FOR-WEBSITE-ASSISTANT.fa.md",
+      "size": 8156,
+      "sha256": "31f4039df9ea0b6e3cc2b68502867e94d91b81fea20a9b29d07373048b8da371"
+    },
+    {
+      "path": "README.fa.md",
+      "size": 4753,
+      "sha256": "0c24a93c47c9c2b8f0a2206c33b0cd67d97f1bed951d60da4201972d95886840"
+    },
+    {
+      "path": "REVIEW-REPORT.fa.md",
+      "size": 15770,
+      "sha256": "069448c5a49dfb89946eb9baab232e3e5b54dc6317ad38aa757754c4c4c7cd63"
+    },
+    {
+      "path": "RUNBOOK.fa.md",
+      "size": 14397,
+      "sha256": "30404b430b8ab3f4ed38b26e0f59ca5219e234f26618dc3e359128a934e52071"
+    },
+    {
+      "path": "VALIDATION.fa.md",
+      "size": 4381,
+      "sha256": "c33ad88364349327d46696d54a435155aa11c6d43b40e648c8003ada1c3f27f3"
+    },
+    {
+      "path": "VERSIONS-DIGESTS.fa.md",
+      "size": 5317,
+      "sha256": "408b5aead3f13db5d0c8d1ffc1319a5d8dd80b9ef889fea93dc2737e6563b54d"
+    },
+    {
+      "path": "check_caddy_config.py",
+      "size": 2218,
+      "sha256": "e7b01e1ecbf081c2b41275fb7fe7d1c00a226885e1069f668616deceeb86ed17"
+    },
+    {
+      "path": "compose.oauth-lab.reference.yml",
+      "size": 1658,
+      "sha256": "70192420b0a9d38dca9f475f88094a6dee0b55255895465c3ca2bbf08c2145aa"
+    },
+    {
+      "path": "compose.payload-lab.override.yml",
+      "size": 1837,
+      "sha256": "cc0950fa95c60a9ab7e92a4f5d2c13ff74f064d1edb4a8fda057df896ceeaf42"
+    },
+    {
+      "path": "compose.preview.yml",
+      "size": 1062,
+      "sha256": "e00963aed6cd1b6d87a27af55b71f662304097a338e519d7f286dcbc3c40918c"
+    },
+    {
+      "path": "fixture.py",
+      "size": 1575,
+      "sha256": "76a50a8501a70c9a34496fd0a666329d5875266ca421246e68b859b69efda44c"
+    },
+    {
+      "path": "gate_stub.py",
+      "size": 1129,
+      "sha256": "5d53b2e68d16fa4be95102923af68463b80b465ac22743920137509724395529"
+    },
+    {
+      "path": "oauth-gateway.caddy",
+      "size": 486,
+      "sha256": "34220eb12245d54b8f4231527daad495a11bb559436148a0317e0b9837eaa195"
+    },
+    {
+      "path": "oauth2-proxy.example.toml",
+      "size": 1131,
+      "sha256": "1adf2906f7291d43862a4293a48669bf5130c40ebe3955cf9fa7841366cadacf"
+    },
+    {
+      "path": "oauth2-proxy.lab.example.toml",
+      "size": 1105,
+      "sha256": "d09d62c2b9dea4526323f35bf30ce963a190a475107b10b7bb26ab10c3b5faec"
+    },
+    {
+      "path": "prepare_lab_config.py",
+      "size": 2004,
+      "sha256": "3a1478d212543d1e1eeacf397c3ee9c16af280f0d754023de78b6740063d22f7"
+    },
+    {
+      "path": "prepare_payload_lab_env.py",
+      "size": 1142,
+      "sha256": "3e5c7e9b023743475aaad990577212f745c366653285224eaa2e1f07595f982c"
+    },
+    {
+      "path": "provider-policy-test/generate.py",
+      "size": 1556,
+      "sha256": "7bfa34f8dec798bdf6b7ea6242334e4aebd44a1ef6a299431ed02a2abf7bdb74"
+    },
+    {
+      "path": "provider-policy-test/go.mod",
+      "size": 60,
+      "sha256": "fe0dcc2093225bdfb575ce3e8d5ad6090a8377694b831cad3ba0485f0cc6f89e"
+    },
+    {
+      "path": "provider-policy-test/harness.go",
+      "size": 1406,
+      "sha256": "f81174cafcf9710c4ec72fe0aa695cbf5bbd3ea3484ed226bb25d103fbdfa348"
+    },
+    {
+      "path": "provider-policy-test/provider_extracted.go",
+      "size": 6482,
+      "sha256": "ba5d57033255f7be33a7fd86c720ef99056248480327e98ca84d26dae1ee13bf"
+    },
+    {
+      "path": "provider-policy-test/provider_test.go",
+      "size": 3815,
+      "sha256": "d66b62aee15b6c2fba8c583518dde79ea42fc43ae4d9eafa455f1efafb40746c"
+    },
+    {
+      "path": "provider-policy-test/requests/requests.go",
+      "size": 1106,
+      "sha256": "8d9ea75353fb2a2adca48ee886448c514acc4f773ba342725f0f632866b2ec32"
+    },
+    {
+      "path": "provider-policy-test/sessions/sessions.go",
+      "size": 129,
+      "sha256": "2eacadd5772bd864f1d61ebc8ce0243dada4ba1333c5113f2525cbed984067d8"
+    },
+    {
+      "path": "provider-policy-test/testdata/LICENSE.oauth2-proxy",
+      "size": 1023,
+      "sha256": "89807acf2309bd285f033404ee78581602f3cd9b819a16ac2f0e5f60ff4a473e"
+    },
+    {
+      "path": "provider-policy-test/testdata/github.v7.15.5.go.txt",
+      "size": 14062,
+      "sha256": "03aee25d95c40af66cdbe932eca288f594621c2ee40696ce88b03be45cfa075e"
+    },
+    {
+      "path": "routes.caddy",
+      "size": 2238,
+      "sha256": "d089cbb65414cd01600383df1bfbea10c0ab6c8e423ad4701324cb368e902033"
+    },
+    {
+      "path": "test_caddy_mock.py",
+      "size": 11960,
+      "sha256": "59ae2a95c586ce49e9ca60071e192daecb0c144e539705ea8f1402efa30441ad"
+    },
+    {
+      "path": "test_payload_browser.js",
+      "size": 3342,
+      "sha256": "ab62d6736a87fcb24e855ad1d94bd2044f1a67ece3b32601165662ca2f03a78b"
+    },
+    {
+      "path": "test_payload_caddy.mjs",
+      "size": 5366,
+      "sha256": "a36a5d1c665e3fe66b306557b3e60d23482885f7b17b15b2a7a9952aeccf629d"
+    },
+    {
+      "path": "test_payload_extraction.mjs",
+      "size": 1361,
+      "sha256": "c09459695a37c014ba87cda302e0492d21b47f73d0672d47af00aa21245c8385"
+    },
+    {
+      "path": "upstream.caddy",
+      "size": 979,
+      "sha256": "59bdf04300141b80d114a96621165c5cf3a7e4f673554de2204cf70c928e40a8"
+    },
+    {
+      "path": "verify_bundle.py",
+      "size": 5646,
+      "sha256": "ce890c5ea01b7799e28331fbca4e6f9dd93ef3688764bcc0973d6069e8668424"
+    }
+  ]
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 07/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 08/40 =====
+PATH: README.fa.md
+SHA256: 0c24a93c47c9c2b8f0a2206c33b0cd67d97f1bed951d60da4201972d95886840
+CONTENT_BYTES: 4753
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# بستهٔ بازبینی Xennic Preview Gate
+
+**نسخه:** `1.1.0` — ۲۰۲۶-۱۰-۳۱  
+**مبنای وبسایت:** `feerozmandi/xennic-website@418de2b5b3a272e79a824ccde5411dc25f1002cc`  
+**وضعیت:** فقط بازبینی؛ هیچ پیکربندی‌ای روی gate فعال، رایانهٔ مالک، VPS یا DNS اعمال نشده است.
+
+## مهم — این بسته را اجرا نکنید
+
+این بسته یک طرح قابل‌بازبینی و مجموعهٔ آزمون است، نه پیکربندی نهایی یا مجوز استقرار. فایل OAuth2 Proxy candidate با scope sentinel `UNAPPROVED_DO_NOT_RUN` و نشانی proxy جایگزین علامت‌گذاری شده، اما این sentinel تضمین فنیِ جلوگیری از startup نیست؛ فایل را اجرا نکنید. فایل Compose OAuth قدیمی نیز عمداً `DO NOT RUN` است: project name، پورت `18443` و subnet ثابت آن ممکن است با آزمایش قبلی مالک برخورد کند. Overlay Payload فقط gate مصنوعی دارد؛ OAuth/GitHub را شبیه‌سازی نمی‌کند و تا بازبینی دستیار وبسایت و تأیید صریح مالک نباید اجرا شود.
+
+هیچ Secret، Cookie، توکن، فایل خصوصی OAuth، کلید خصوصی یا دادهٔ حساب واقعی عمداً در ZIP نیست. scope `user:email read:org` در نمونهٔ محلی صرفاً برای OAuth App محلی‌ای است که مالک قبلاً جداگانه برای آن اجازه داده بود؛ این scope برای App نهایی تأیید نشده است.
+
+## فایل‌های راهنما
+
+- [گزارش بازبینی](REVIEW-REPORT.fa.md) — طرح مؤثر Caddy/OAuth، نتیجه‌های تاریخی در برابر نتیجه‌های بازسازی، وضعیت حساب دوم و محدودیت‌ها.
+- `compose.preview.yml` — کپی دقیق Compose پایه از commit وبسایت مبنا، برای بررسی ایستا؛ زمان build از Compose داخل checkout استفاده کنید.
+- `.env.preview.example` — نمونهٔ فقط-placeholder؛ **هرگز source یا به Compose ندهید**. فایل خصوصی synthetic فقط پس از مجوز با helper ساخته می‌شود.
+- [Runbook مرحله‌ای](RUNBOOK.fa.md) — پیش‌نیاز، اعتبارسنجی، آزمون‌های جداشده، توقف و rollback؛ مراحل اجرای روی رایانهٔ مالک قفل و نیازمند تأییدند.
+- [فهرست فایل‌های دستیار وبسایت](FILES-FOR-WEBSITE-ASSISTANT.fa.md) — فایل‌های لازم برای بازبینی و سؤال‌های باز.
+- [نسخه‌ها و digestها](VERSIONS-DIGESTS.fa.md) — نسخه، مرجع image، مقدار digest ثبت‌شده و میزان راستی‌آزمایی.
+- [تفاوت با بستهٔ قبلی](CHANGELOG.fa.md) — آنچه می‌توان با اطمینان گفت، و آنچه به‌علت نبود فایل قبلی قابل‌مقایسه نیست.
+- [وضعیت اعتبارسنجی](VALIDATION.fa.md) — آزمون‌های اجراشده در Arena، آزمون‌های اجرا‌نشده و محدودیت نتیجه‌ها.
+
+## دریافت و بررسی صحت
+
+ZIP اصلی برای مالک در نمای فایل ارائه می‌شود: `xennic-preview-gate-delivery-2026-10-31-v1.1.0.zip`. این تحویل فایل را خودکار به دستیار دیگری forward نمی‌کند؛ برای بازبینی دستیار وبسایت، مالک باید ZIP را دانلود و به آن دستیار پیوست کند. فایل هم‌نام با پسوند `.sha256` checksum همان ZIP است. پس از استخراج، در پوشهٔ بسته اجرا کنید:
+
+```sh
+sha256sum -c SHA256SUMS
+```
+
+این checksum فقط یکپارچگی فایل‌ها را بررسی می‌کند؛ اصالت imageهای container یا ایمنی استقرار را ثابت نمی‌کند. جزئیات به‌روزرسانی‌شده در `MANIFEST.json` است.
+
+## ترتیب پیشنهادی
+
+۱. ابتدا `REVIEW-REPORT.fa.md`، `CHANGELOG.fa.md` و `FILES-FOR-WEBSITE-ASSISTANT.fa.md` را به دستیار وبسایت بدهید.  
+۲. تا دریافت بازبینی و تأیید صریح مالک، فقط بسته را بخوانید؛ Compose، OAuth، DNS، مرورگر یا gate را اجرا/تغییر ندهید.  
+۳. پس از بازبینی، برنامهٔ آزمون یکپارچهٔ محدود با همان commit مبنا جداگانه ارائه می‌شود؛ اجرای آن همچنان به تأیید مالک نیاز دارد.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 08/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 09/40 =====
+PATH: REVIEW-REPORT.fa.md
+SHA256: 069448c5a49dfb89946eb9baab232e3e5b54dc6317ad38aa757754c4c4c7cd63
+CONTENT_BYTES: 15770
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# گزارش بازبینی — Xennic Preview Gate
+
+**نسخه:** `1.1.0` — **تاریخ بسته:** ۲۰۲۶-۱۰-۳۱  
+**مبنای دقیق کد وبسایت:** `feerozmandi/xennic-website@418de2b5b3a272e79a824ccde5411dc25f1002cc`  
+**دامنه:** بستهٔ غیرمحرمانه برای بازبینی دستیار وبسایت؛ بدون اعمال روی gate فعال، VPS یا DNS.
+
+## خلاصهٔ تصمیم
+
+این تحویل یک بازسازی قابل‌دانلود برای بررسی است، نه نسخهٔ آمادهٔ production. تنظیمات Caddy و OAuth2 Proxy candidate هستند؛ scope نهایی GitHub انتخاب/تأیید نشده و Compose OAuth قدیمی فقط مرجع `DO NOT RUN` است. تنها overlay پیشنهادی برای آزمون Payload از یک gate مصنوعی استفاده می‌کند و هیچ احراز هویت واقعی انجام نمی‌دهد. هیچ آزمایش تازه‌ای روی رایانهٔ مالک اجرا نشده است.
+
+اسکن ساختاری/credential-pattern روی فایل‌های بسته موفق شد و Secret واقعی، private key یا توکن شناخته‌شده پیدا نکرد؛ نمونه‌ها فقط placeholder و دادهٔ synthetic دارند. این اسکن تضمین کشف همهٔ Secretها نیست و فایل‌ها همچنان برای بازبینی دستی ارائه می‌شوند.
+
+**اقدام بعدی:** فایل‌های فهرست‌شده در `FILES-FOR-WEBSITE-ASSISTANT.fa.md` را به دستیار وبسایت بدهید و منتظر بازبینی بمانید. پس از آن برنامهٔ آزمون یکپارچهٔ محدود با commit مبنا ارائه خواهد شد؛ اجرا فقط با تأیید صریح مالک.
+
+## طرح Caddy در فایل‌های بسته
+
+`Caddyfile` تنظیم candidate روی `https://preview.xennic.ir` را نشان می‌دهد و `routes.caddy` مسیرها را تعیین می‌کند. فایل `compose.preview.yml` داخل بسته کپی دقیق base Compose از website commit است؛ برای build واقعی در آینده باید از همان فایل داخل checkout سایت استفاده شود تا build context `.` به کد سایت اشاره کند.
+
+- در overlay، Caddy به `gate:4180` برای auth و به `app:3000` برای Payload می‌رسد؛ این نام‌های DNS سرویسی از شبکهٔ اختصاصی همان Compose project هستند. Caddy فقط بعد از پاسخ مجاز از `/oauth2/auth`، upstream برنامه را reverse-proxy می‌کند.
+- overlay یک network مختص project با `internal: true` می‌سازد و app، postgres، gate و Caddy را به آن وصل می‌کند؛ نام‌های سرویس `app`, `postgres`, `gate` روی همین شبکه resolve می‌شوند. این network egress را مسدود می‌کند؛ رفتار startup برنامه در چنین شبکه‌ای هنوز اجرا نشده است.
+- Compose پایه app را روی `127.0.0.1:${PREVIEW_PORT:-3000}:3000` منتشر می‌کند؛ overlay با `ports: !reset []` آن port را حذف می‌کند. PostgreSQL و gate هیچ host portی ندارند. تنها port منتشرشدهٔ overlay، Caddy روی `127.0.0.1:443:443/tcp` است؛ هیچ bind عمومی تعریف نشده.
+- `@api path /api /api/* /graphql /graphql/*` در `routes.caddy` شامل مسیر واقعی Payload GraphQL یعنی `/api/graphql` است. آن مسیر و بقیهٔ `/api/*` از `forward_auth` به `/oauth2/auth` عبور می‌کنند و در نبود gate، 401 می‌گیرند. UI در 401 به `/oauth2/sign_in` هدایت می‌شود.
+- `/oauth2/*` فقط به gate می‌رود، نه به Payload. پاسخ callback از gate در `4xx` به پیام عمومی `403` و در `5xx` به پیام عمومی `500` تبدیل می‌شود؛ بدنه، هدرهای داخلی، Set-Cookie و جزئیات provider به کاربر پاس نمی‌شوند و Cache-Control برابر `no-store` است.
+- هنگام فراخوانی gate، هدرهای `Authorization` و هدرهای هویت/forwarding ورودی حذف می‌شوند؛ Host/Proto/آدرس مبدأ از Caddy بازسازی می‌شوند.
+- هنگام ارسال به Payload، `upstream.caddy` با regex فقط Cookie با نام `__Host-preview_gate` و chunkهای عددی `__Host-preview_gate_N` را از هدر Cookie حذف می‌کند؛ Cookieهای Payload و نامرتبط، Bearer Payload، `Origin` و Fetch Metadata باید حفظ شوند؛ هویت ارسالیِ جعل‌شده حذف می‌شود. این رفتار هدف config/test است و Caddy mock هنوز اجرا نشده.
+- `.env.preview.example` فقط placeholderهای آشکار برای متغیرهای Compose دارد؛ فایل واقعی `.env` یا Secret در بسته نیست و نمونه را نباید source/اجرا کرد. `prepare_payload_lab_env.py` تنها پس از مجوز، مقادیر synthetic را خارج از بسته می‌سازد.
+- `Caddyfile.lab` از TLS داخلی برای fixture محلی استفاده می‌کند؛ `Caddyfile.payload.lab` نیز TLS داخلی دارد و به نام میزبان preview محدود است. این‌ها TLS عمومی یا آزمون DNS نیستند.
+
+این‌ها **تنظیمات فایل candidate** هستند، نه وضعیت gate فعال یا تنظیم نهایی تأییدشده. تا اجرای `caddy adapt --validate` با نسخهٔ موردنظر، parser اعتبارسنجی نشده است؛ هیچ config زنده‌ای خوانده/نصب/تغییر داده نشده است.
+
+## طرح OAuth2 Proxy و محدودیت مجوز
+
+- `oauth2-proxy.example.toml` یک template عمداً unapproved است: scope برابر `UNAPPROVED_DO_NOT_RUN` و `trusted_proxy_ips` placeholder است. این sentinel مانع فنی startup نیست؛ فایل را اجرا نکنید. parse شدن TOML به‌معنای پذیرفته‌شدن آن توسط OAuth2 Proxy نیست. Candidate دارای `github_users=["feerozmandi"]` (محدودکنندهٔ نام کاربری؛ `email_domains=["*"]` فقط filter ایمیل است)، listen داخلی `0.0.0.0:4180`، upstream ثابت `static://202`، cookie `__Host-preview_gate` با Secure/HttpOnly/Lax، expiry `4h` و refresh `0` است. این expiry با نمونهٔ local قبلی (`1m`) فرق دارد و مقدار ۴ساعته آزموده نشده است. عدم عبور Bearer به gate و تنظیمات دیگر هم فقط طرح بازبینی‌اند.
+- `oauth2-proxy.lab.example.toml` به توپولوژی آزمایش قبلی اشاره می‌کند: `user:email read:org` و `172.29.251.2/32`. این مجوز فقط برای OAuth App محلیِ جداگانه‌ای بود که مالک برای آزمون مستقلش تأیید کرده بود؛ scope نهایی App معلوم/تأییدشده نیست و نشانی شبکه نیز به topology قدیمی وابسته است.
+- `compose.oauth-lab.reference.yml` ثابت و دارای پورت `127.0.0.1:18443`، subnet `172.29.251.0/28` و project name ثابت است. آن را اجرا نکنید؛ احتمال برخورد با lab مالک وجود دارد.
+- `prepare_lab_config.py` اجرا نشده است. در صورت استفادهٔ مجاز در آینده، ورودی Client ID/Secret را مخفی می‌گیرد و فایل خصوصی mode `0600` را خارج از بسته در home می‌سازد؛ هیچ Secretی را در آرشیو یا چت قرار نمی‌دهد. این helper مجوز اجرای آزمون فعلی نیست.
+
+## Overlay و آزمون‌های تحویلی
+
+`compose.payload-lab.override.yml` برای checkout وبسایت دقیقاً روی commit مبناست. project name اختصاصی `xennic-preview-gate-payload-lab` دارد و دستور Runbook نیز `-p` را صریح می‌کند تا volumeهای DB/media از stackهای دیگر جدا بمانند. network اختصاصی `internal: true`، app/Postgres/gate/Caddy را فقط در همان project به هم متصل می‌کند و egress خارجی را محدود می‌کند؛ app/DB host port publish ندارند. این طراحی host را به‌عنوان مرز امنیتی حذف نمی‌کند و رفتار آن در Docker واقعی اجرا نشده است. پورت برنامهٔ Payload در override پاک می‌شود؛ فقط Caddy روی `127.0.0.1:443` منتشر می‌شود. `gate_stub.py` فقط marker مصنوعی را می‌پذیرد؛ OAuth، GitHub، کاربر واقعی و امنیت identity را پیاده‌سازی نمی‌کند. image digestها تأییدنشده‌اند، پس overlay تا بررسی آن‌ها `DO NOT RUN` است. overlay روی هیچ ماشینی اجرا نشده است.
+
+مجموعهٔ آزمون‌ها شامل این موارد است:
+
+1. `test_caddy_mock.py` — آزمون loopback با Caddy و upstream/gate مصنوعی؛ routeها ازجمله `/api/graphql`، حذف Cookie نشست، حفظ Bearer/Cookie اپ، حذف هدر هویتی، پاسخ callback پاک‌شده و چند چیدمان Cookie را می‌سنجد. OAuth/GitHub و Payload server را اجرا نمی‌کند؛ Caddy binary در این محیط موجود نبود و آزمون اجرا نشده است.
+2. `test_payload_extraction.mjs` — `extractJWT` واقعی از npm Payload 3.91.0 را با هدرهای مصنوعی می‌خواند؛ برنامهٔ کامل یا DB را اجرا نمی‌کند.
+3. `provider-policy-test/` — متدهای سیاست GitHub از منبع ثابت OAuth2 Proxy v7.15.5 استخراج می‌شوند؛ HTTP/session plumbing تستی است. هدف آن تفکیک «پروفایل با موفقیت دریافت شد ولی login خارج از allowlist است» از «درخواست org/team/profile/email به API خطا داد» است؛ callback یا login GitHub واقعی را اجرا نمی‌کند.
+4. `test_payload_caddy.mjs` — آزمون یکپارچهٔ پیشنهادی برای Payload واقعی روی DB/media جدا و Caddy محلی، با gate مصنوعی و فقط پس از بازبینی/تأیید؛ هنوز اجرا نشده است.
+5. `test_payload_browser.js` — آزمون اختیاری DevTools، فقط برای همان overlay مصنوعی؛ پیش‌فرض اجرا نمی‌شود.
+6. `check_caddy_config.py` — `caddy adapt --validate` را برای configها مطالبه می‌کند، اما در محیط تهیهٔ این بسته Caddy نصب نبود و checker اجرا نشده است.
+
+وضعیت اجرای دقیق را در `VALIDATION.fa.md` ببینید. نتیجهٔ آزمون‌های بازسازی‌شده را با نتیجهٔ بستهٔ گمشدهٔ قبلی اشتباه نگیرید.
+
+## نسخه‌ها و digestها
+
+نسخه‌های image در YAML به‌همراه مقادیر digest نوشته شده‌اند، اما دسترسی به registryهای Docker Hub/Quay در محیط بستهٔ تهیه موجود نبود؛ بنابراین digestهای image **به‌صورت مستقل راستی‌آزمایی نشده‌اند** و نباید زنجیرهٔ provenance تلقی شوند. Payload `3.91.0` از npm registry دریافت و `extractJWT` همان tarball آزموده شد؛ SRI/هاش در `VERSIONS-DIGESTS.fa.md` درج شده است. منبع `github.go` از tag `v7.15.5` دریافت و SHA256 بررسی شده است. Node و Postgres در Compose/Dockerfile فقط با tag هستند و digest pin ندارند.
+
+## یافته‌های قبلی که بازتکرار نشده‌اند
+
+نتایج زیر از گزارش‌های آزمایش قبلی مالک حفظ شده‌اند، اما فایل‌های بستهٔ قبلی غایب‌اند و آزمون‌های جاری نیستند:
+
+- ورود مالک با OAuth App محلی پس از درخواست scope محلی `user:email read:org` گزارش شد؛ این scope برای App نهایی تأیید نیست.
+- دادهٔ مصنوعی نشان داد Bearer/Cookie Payload حفظ و هدر هویتی جعلی حذف شده است.
+- حساب دوم به fixture نرسید و callback `500 missing github user` گزارش شد. **علت معلوم نیست**؛ این مشاهده به‌تنهایی رد allowlist را از شکست provider/API جدا نمی‌کند.
+- منقضی‌شدن نشست در حدود ۷۵ ثانیه، logout عادی و اعتبارسنجی مجدد 401 گزارش شد؛ replay نشست قدیمی پس از signout همچنان 200 بود.
+- قطع gate فقط بدون نشست معتبر آزموده شد. آزمون outage با نشست معتبر صریحاً خارج از دامنه است و بدون مجوز تازه ممنوع می‌ماند.
+- چند مسیر نمونه گزارش شده‌اند، اما پوشش همهٔ routeها ثابت نیست. CI سایت روی commit مبنا گزارش موفق داشت، اما proxy gate واقعی را اجرا نمی‌کند.
+
+هیچ‌یک از موارد بالا روی فایل‌های بازسازی‌شده یا gate زنده در این مرحله دوباره اجرا نشده‌اند.
+
+## تفکیک حساب دوم: قاعدهٔ گزارش
+
+در ارزیابی آتی فقط این دسته‌ها قابل گزارش است:
+
+- **رد سیاست حساب:** پاسخ پروفایل GitHub با موفقیت دریافت و login آن از allowlist خارج است.
+- **شکست provider/API:** فراخوانی org/team/profile/email با خطای API/شبکه/پاسخ غیرمنتظره شکست می‌خورد.
+- **نامشخص:** دادهٔ کافی برای تعیین مرحله وجود ندارد.
+
+HTTP 403 روی callback یا پیام عمومی به‌تنهایی علت را ثابت نمی‌کند؛ اگر provider API خطا دهد نباید آن را «حساب دوم رد شد» نامید. فقط نتیجهٔ دسته‌بندی‌شده، کد وضعیت/ردهٔ پاسخ و زمان تقریبی درخواست شود؛ **لاگ خام، Cookie، access token، request token/code یا screenshot حاوی این مقادیر درخواست نشود**.
+
+## محدودیت‌های باز و gateهای تصمیم
+
+- scope نهایی OAuth، مالکیت App نهایی، تنظیم callback آن و IP/subnet قابل‌اعتماد هنوز تأیید نشده‌اند.
+- digest و provenance همهٔ imageها تأیید نشده؛ Node/Postgres digest pin ندارند.
+- Caddyfile، Compose merge، Caddy parser و Go testهای بازسازی‌شده در این محیط اجرا/اعتبارسنجی نشده‌اند. محیط فعلی Docker، Caddy و Go ندارد.
+- Payload parser test با npm tarball اجرا شده؛ Payload server/DB و overlay اجرا نشده‌اند.
+- گواهی عمومی، DNS، دسترسی شبکه و renewal آزموده نشده‌اند. مشاهدهٔ قبلی `preview.xennic.ir` در تاریخ ۲۰۲۶-۱۰-۳۰ NXDOMAIN بود؛ هیچ DNSی تغییر نکرد.
+- replay نشست قدیمی پس از signout، رفتار outage با نشست معتبر، و نتیجهٔ واقعی حساب دوم حل نشده‌اند.
+- Open Notebook همچنان paused است و پیش‌شرط preview نیست؛ Hermes و `[RAG-02]` خارج از دامنه‌اند.
+
+**بدون تغییر:** gate فعال، سرویس/VPS، firewall، پورت عمومی، Compose عملیاتی، DNS، Secretها یا volumeهای مالک.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 09/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 10/40 =====
+PATH: RUNBOOK.fa.md
+SHA256: 30404b430b8ab3f4ed38b26e0f59ca5219e234f26618dc3e359128a934e52071
+CONTENT_BYTES: 14397
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# Runbook مرحله‌ای — فقط پس از بازبینی و مجوز
+
+## وضعیت توقف فعلی
+
+**فعلاً هیچ مرحلهٔ اجرایی روی رایانهٔ مالک مجاز نیست.** این Runbook برای بازبینی است؛ ابتدا بسته به دستیار وبسایت داده شود. پس از دریافت نظر دستیار، برنامهٔ آزمون یکپارچهٔ محدود با مبنای commit در گزارش ارائه می‌شود. اجرای آن فقط با تأیید صریح مالک مجاز است.
+
+هیچ دستور این سند را روی VPS، gate فعال، DNS یا Compose عملیاتی اجرا نکنید. فایل `compose.oauth-lab.reference.yml` را اجرا نکنید. آزمون outage با نشست معتبر در هیچ مرحله‌ای گنجانده نشده است. فرمان‌ها برای Bash/POSIX نوشته شده‌اند؛ در Windows معادل‌سازی/WSL را بدون بازبینی مجزا اجرا نکنید.
+
+## مرحلهٔ صفر — کنترل بسته، بدون اجرای سرویس
+
+پس از دریافت ZIP و استخراج آن، در ریشهٔ بسته:
+
+```sh
+sha256sum -c SHA256SUMS
+python3 verify_bundle.py
+```
+
+Checksum ZIP را جداگانه با فایل sidecar مقایسه کنید. سپس فایل‌های `README.fa.md`، `REVIEW-REPORT.fa.md`، `CHANGELOG.fa.md` و `FILES-FOR-WEBSITE-ASSISTANT.fa.md` را بازبینی کنید. این مرحله فقط خواندنی است.
+
+## مرحلهٔ یک — پیش‌نیاز/هویت کد (پس از بازبینی)
+
+در checkout مستقل وبسایت، فقط commit مبنا را تأیید کنید؛ روی `dev`، `main` یا شاخهٔ عملیاتی جابه‌جا نشوید و هیچ فایل سایت را تغییر ندهید:
+
+```sh
+git -C /path/to/xennic-website rev-parse HEAD
+```
+
+خروجی مورد انتظار: `418de2b5b3a272e79a824ccde5411dc25f1002cc`. اگر checkout متفاوت است، توقف کنید. برای آزمون provider به Go 1.23+، برای parser به Node 22 و Payload 3.91.0، و برای Caddy mock/parser به Caddy 2.11.7 دقیق نیاز است. برای Compose overlay نسخهٔ Docker Compose v2.24.4+ لازم است. اگر هر نسخه یا فایل checkout متفاوت است، آزمون را اجرا نکنید.
+
+## مرحلهٔ دو — آزمون‌های بی‌سرویس (پس از بازبینی)
+
+این دستورات هیچ Docker service یا پورت عمومی را راه‌اندازی نمی‌کنند؛ با این حال روی دستگاه مالک، آن‌ها را پیش از بازبینی اجرا نکنید.
+
+```sh
+python3 - <<'PY'
+from pathlib import Path
+for name in ['check_caddy_config.py','test_caddy_mock.py','fixture.py','gate_stub.py','prepare_lab_config.py','prepare_payload_lab_env.py','provider-policy-test/generate.py']:
+    compile(Path(name).read_text(), name, 'exec')
+print('PASS Python syntax (in-memory; no __pycache__ written)')
+PY
+node --check test_payload_extraction.mjs
+node --check test_payload_caddy.mjs
+node --check test_payload_browser.js
+python3 provider-policy-test/generate.py
+(cd provider-policy-test && go test ./...)
+```
+
+`prepare_lab_config.py` و `prepare_payload_lab_env.py` **جزو این مرحله نیستند**؛ این دو فایل خصوصی خارج از بسته می‌سازند و فقط در مرحلهٔ مربوط، پس از تأیید، اجرا شوند. `generate.py` منبع ثابت را با SHA256 می‌سنجد و فایل Go تولیدشده را به‌روز می‌کند؛ پس از آن `python3 verify_bundle.py` را دوباره اجرا کنید تا تغییر ناخواستهٔ بسته دیده شود.
+
+آزمون استخراج JWT با Payload نصب‌شده در checkout دقیق:
+
+```sh
+printf '%s' '[{"cookie":"payload-token=synthetic; other=keep"},{"cookie":"; payload-token=synthetic; ; other=keep"}]' \
+  | PAYLOAD_PACKAGE_DIR=/path/to/xennic-website/node_modules/payload node test_payload_extraction.mjs
+```
+
+فقط دادهٔ مصنوعی استفاده می‌شود. اگر `node_modules/payload/package.json` نسخهٔ `3.91.0` نیست یا import شکست خورد، توقف کنید؛ پکیج دیگری را نصب/به‌روزرسانی نکنید تا برنامه اصلاح شود.
+
+## مرحلهٔ سه — آزمون Caddy با mock loopback (فقط پس از مجوز صریح)
+
+این آزمون Caddy 2.11.7 را روی پورت تصادفی `127.0.0.1` اجرا می‌کند و دو mock محلی دارد؛ OAuth2 Proxy، DNS، VPS و Payload واقعی ندارد. قبل از اجرا مطمئن شوید Caddy binary همان نسخه است و برای اجرای کوتاه‌مدت مجوز دارید:
+
+```sh
+CADDY_BIN=/path/to/caddy-2.11.7 python3 test_caddy_mock.py
+CADDY_BIN=/path/to/caddy-2.11.7 python3 check_caddy_config.py
+```
+
+فرایند mock خودکار متوقف می‌شود. اگر Caddy خروج کرد، port درگیر بود یا parser خطا داد، آزمون را متوقف کنید؛ پورت/تنظیم live را تغییر ندهید. فقط ردهٔ نتیجه و نام آزمون را گزارش کنید، نه logهای خام.
+
+## مرحلهٔ چهار — Payload واقعی با gate مصنوعی (فقط پس از بازبینی دستیار وبسایت و تأیید مالک)
+
+این مرحله برنامهٔ پیشنهادی است، نه مجوز کنونی. فقط روی checkout مستقل وبسایت با commit دقیق اجرا شود؛ هیچ OAuth، GitHub واقعی، DNS، میزبان عمومی، tunnel یا service فعال استفاده نمی‌شود. `compose.preview.yml` داخل بسته برای بازبینی است؛ دستور build باید از `compose.preview.yml` داخل checkout استفاده کند تا context `.` به کد سایت دقیق برسد. اگر هر پیش‌شرط نامعلوم است، متوقف شوید.
+
+۱. در ریشهٔ checkout، موجودبودن `compose.preview.yml` و آزادبودن `127.0.0.1:443` را بررسی کنید. هیچ سرویسی را برای آزادکردن پورت متوقف نکنید. اگر پورت درگیر است، **توقف**؛ این بسته برای تغییر پورت بازبینی نشده است.
+
+۲. مطمئن شوید پروژه‌ای با نام `xennic-preview-gate-payload-lab`، یا volumeهای آن، از قبل وجود ندارد. در این بررسی فقط فهرست را ببینید؛ data volume را باز نکنید:
+
+```sh
+docker compose ls --all
+docker volume ls --filter label=com.docker.compose.project=xennic-preview-gate-payload-lab
+```
+
+اگر پروژه یا volume از قبل وجود دارد، آن را reuse یا پاک نکنید. فقط پس از بررسی مالک، project name تازهٔ یکتا و برنامهٔ جداگانه لازم است.
+
+۳. فقط پس از مجوز، فایل env مصنوعی بسازید:
+
+```sh
+python3 /path/to/bundle/prepare_payload_lab_env.py
+```
+
+این دستور فایل `~/.config/xennic-preview-gate-delivery/payload-lab.env` را با mode `0600` می‌سازد؛ مقادیر random هستند و روی صفحه چاپ نمی‌شوند. آن را باز/ارسال/commit نکنید. فایل `.env.preview.example` داخل بسته فقط راهنماست؛ آن را source یا به Compose ندهید. فایل خصوصی فقط برای Postgres و Payload disposable است، نه OAuth.
+
+۴. در ریشهٔ checkout، `BUNDLE` را به مسیر کامل پوشهٔ استخراج‌شده تنظیم کنید، سپس **فقط config را اعتبارسنجی کنید**. `LAB_DIR` باید در environment باشد؛ `--quiet` را حذف نکنید تا مقادیر env چاپ نشوند:
+
+```sh
+BUNDLE=/absolute/path/to/xennic-preview-gate-delivery-2026-10-31-v1.1.0
+ENV_FILE="$HOME/.config/xennic-preview-gate-delivery/payload-lab.env"
+LAB_DIR="$BUNDLE" docker compose --env-file "$ENV_FILE" \
+  -p xennic-preview-gate-payload-lab \
+  -f compose.preview.yml -f "$BUNDLE/compose.payload-lab.override.yml" config --quiet
+```
+
+اگر Compose کمتر از v2.24.4 است، `!reset` را نشناخت، یا `config --quiet` خطا داد، **توقف**. `docker compose config` را بدون `--quiet` اجرا نکنید؛ ممکن است envهای محرمانه را چاپ کند.
+
+۵. **شرط توقف الزامی پیش از `up`:** در این نسخه digestهای Caddy/Python فقط مقادیر ثبت‌شده‌اند و registry verification ندارند؛ Node/Postgres پایه نیز digest ندارند. تا زمانی که دستیار وبسایت/مالک imageها را از registry معتبر independently بررسی و نسخه/ digest صحیح را در patch بازبینی‌شده تثبیت نکرده‌اند، این مرحله را اجرا نکنید. پس از آن هم تأیید صریح مالک لازم است. هیچ tag یا digestی را خودسرانه در این بسته تغییر ندهید.
+
+۶. پس از تحقق شرط بالا و تأیید مجدد، stack مصنوعی را بالا بیاورید:
+
+```sh
+LAB_DIR="$BUNDLE" docker compose --env-file "$ENV_FILE" \
+  -p xennic-preview-gate-payload-lab \
+  -f compose.preview.yml -f "$BUNDLE/compose.payload-lab.override.yml" up -d --build
+```
+
+هیچ host portی جز `127.0.0.1:443` منتشر نمی‌شود؛ app و Postgres port publish ندارند. هر چهار سرویس روی network اختصاصی project با `internal: true` هستند و network خروجی به اینترنت را محدود می‌کند؛ این موضوع egress و health/startup را نیازمند بررسی می‌گذارد. gate stub فقط در همان network داخلی است. Caddy از CA محلی خودش استفاده می‌کند. اگر خروجی `ps` پورت غیر-loopback/غیرمنتظره نشان داد، آزمون را متوقف کنید و چیزی را restart یا تغییر ندهید.
+
+۷. فهرست port mapping را بررسی کنید. خروجی باید فقط `127.0.0.1:443->443/tcp` برای Caddy داشته باشد؛ اگر هر port دیگری منتشر شده یا bind به `0.0.0.0` است، فوراً توقف کنید:
+
+```sh
+LAB_DIR="$BUNDLE" docker compose --env-file "$ENV_FILE" -p xennic-preview-gate-payload-lab \
+  -f compose.preview.yml -f "$BUNDLE/compose.payload-lab.override.yml" ps
+```
+
+۸. گواهی عمومی CA را فقط برای کلاینت تست به‌کار ببرید؛ هیچ private key را کپی نکنید. CA محلی Caddy داخل volume در `caddy:/data/caddy/pki/authorities/local/root.crt` است. پس از بالا آمدن Caddy می‌توان گواهی عمومی را به یک مسیر موقت بیرون از Git کپی کرد:
+
+```sh
+CID=$(LAB_DIR="$BUNDLE" docker compose --env-file "$ENV_FILE" -p xennic-preview-gate-payload-lab \
+  -f compose.preview.yml -f "$BUNDLE/compose.payload-lab.override.yml" ps -q caddy)
+test -n "$CID" || { echo 'Caddy container not found; stop.'; exit 1; }
+docker cp "$CID:/data/caddy/pki/authorities/local/root.crt" "$HOME/.config/xennic-preview-gate-delivery/lab-root.crt"
+```
+
+فقط `root.crt` عمومی را کپی کنید، نه `root.key`. این آزمون Node با resolver داخلی خود فقط `127.0.0.1` را هدف می‌گیرد؛ نیازی به تغییر `/etc/hosts` یا DNS نیست. سپس:
+
+```sh
+LAB_CA_FILE="$HOME/.config/xennic-preview-gate-delivery/lab-root.crt" \
+  node "$BUNDLE/test_payload_caddy.mjs"
+```
+
+آزمون فقط یک Staff مصنوعی در DB جدید می‌سازد؛ token/password چاپ نمی‌کند. اگر DB جدید نبود، درخواست ثبت اول شکست خورد، TLS اعتبارسنجی نشد یا status غیرمنتظره بود، آزمون را متوقف کنید. برای مرورگر، `test_payload_browser.js` اختیاری است و به host mapping و trust محلی نیاز دارد؛ در برنامهٔ محدود فعلی از آن صرف‌نظر کنید و CA را به trust store سیستم/مرورگر نصب نکنید.
+
+## مرحلهٔ پنج — توقف و بازگشت
+
+پس از آزمون، در همان checkout و با همان `-p`، `--env-file` و دو Compose file:
+
+```sh
+LAB_DIR="$BUNDLE" docker compose --env-file "$ENV_FILE" \
+  -p xennic-preview-gate-payload-lab \
+  -f compose.preview.yml -f "$BUNDLE/compose.payload-lab.override.yml" down
+```
+
+`down` بدون `-v` فقط containerها و network همین project یکتا را جمع می‌کند؛ named volumeها باقی می‌مانند تا هیچ داده‌ای بی‌اجازه حذف نشود. این Runbook هرگز `docker compose down -v`، `docker volume rm`، restart سرویس موجود، حذف volume، یا stop کردن سرویس دیگری را مجاز نمی‌کند. گواهی `lab-root.crt` یک فایل عمومی آزمایشی است و در صورت پایان نیاز می‌توان آن را از مسیر خصوصی آزمایش پاک کرد؛ این کار volume را لمس نمی‌کند.
+
+در صورت توقف زودهنگام: ابتدا دستور `down` بالا را فقط برای همین project یکتا اجرا کنید؛ اگر نام project/containerها تطبیق ندارد، هیچ cleanup نکنید و از مالک سؤال کنید. سپس نتیجه را فقط در قالب «نام مرحله + PASS/FAIL/STOP + status code/دستهٔ خطا + زمان تقریبی» گزارش دهید. لاگ خام، Cookie، token، OAuth `code`، password و env file ارسال نشود.
+
+## خارج از Runbook
+
+- `compose.oauth-lab.reference.yml` و هر فایل OAuth محلی: اجرا نکنید؛ پورت/شبکه/project name قدیمی و scope محلی دارد.
+- اتصال حساب واقعی دوم یا تشخیص callback از روی پیام عمومی: بدون plan و مجوز تازه انجام نشود.
+- outage با نشست معتبر: خارج از دامنه و ممنوع بدون مجوز تازه.
+- VPS، DNS، firewall، پورت عمومی، Compose عملیاتی، Hermes، Open Notebook، `[RAG-02]` و تنظیمات دیگر: این بسته هیچ‌کدام را تغییر نمی‌دهد.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 10/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 11/40 =====
+PATH: SHA256SUMS
+SHA256: fb016666ad75a929f8aece63c575025420b237cc4d2422b89f6e5774132e087e
+CONTENT_BYTES: 3548
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+54efe006bd642e1612f496bde7a5aeaff8ed4696abb8d4b546afe3e0b29727e1  .env.preview.example
+c79a7b8ba70874696c30b56c941d91b48a49fbb54d632365f3e8f547cfd75dda  CHANGELOG.fa.md
+393e401b3306b6291e6d4c92bb0bf2c0a77efdf80aaed111134d3030c4dc9069  Caddyfile
+5d8a7df420c70e4acc51660a1c2d9bf8a7107dedde2cd1038d3d1d1bb882c432  Caddyfile.lab
+645bbcc4b91279ec67e565e3777cc3507c2b002ade8b877677733034b64651cc  Caddyfile.payload.lab
+31f4039df9ea0b6e3cc2b68502867e94d91b81fea20a9b29d07373048b8da371  FILES-FOR-WEBSITE-ASSISTANT.fa.md
+e28d34791b120522f88efae38b9f778c629baa9734477689994fffb26623d5c1  MANIFEST.json
+0c24a93c47c9c2b8f0a2206c33b0cd67d97f1bed951d60da4201972d95886840  README.fa.md
+069448c5a49dfb89946eb9baab232e3e5b54dc6317ad38aa757754c4c4c7cd63  REVIEW-REPORT.fa.md
+30404b430b8ab3f4ed38b26e0f59ca5219e234f26618dc3e359128a934e52071  RUNBOOK.fa.md
+c33ad88364349327d46696d54a435155aa11c6d43b40e648c8003ada1c3f27f3  VALIDATION.fa.md
+408b5aead3f13db5d0c8d1ffc1319a5d8dd80b9ef889fea93dc2737e6563b54d  VERSIONS-DIGESTS.fa.md
+e7b01e1ecbf081c2b41275fb7fe7d1c00a226885e1069f668616deceeb86ed17  check_caddy_config.py
+70192420b0a9d38dca9f475f88094a6dee0b55255895465c3ca2bbf08c2145aa  compose.oauth-lab.reference.yml
+cc0950fa95c60a9ab7e92a4f5d2c13ff74f064d1edb4a8fda057df896ceeaf42  compose.payload-lab.override.yml
+e00963aed6cd1b6d87a27af55b71f662304097a338e519d7f286dcbc3c40918c  compose.preview.yml
+76a50a8501a70c9a34496fd0a666329d5875266ca421246e68b859b69efda44c  fixture.py
+5d53b2e68d16fa4be95102923af68463b80b465ac22743920137509724395529  gate_stub.py
+34220eb12245d54b8f4231527daad495a11bb559436148a0317e0b9837eaa195  oauth-gateway.caddy
+1adf2906f7291d43862a4293a48669bf5130c40ebe3955cf9fa7841366cadacf  oauth2-proxy.example.toml
+d09d62c2b9dea4526323f35bf30ce963a190a475107b10b7bb26ab10c3b5faec  oauth2-proxy.lab.example.toml
+3a1478d212543d1e1eeacf397c3ee9c16af280f0d754023de78b6740063d22f7  prepare_lab_config.py
+3e5c7e9b023743475aaad990577212f745c366653285224eaa2e1f07595f982c  prepare_payload_lab_env.py
+7bfa34f8dec798bdf6b7ea6242334e4aebd44a1ef6a299431ed02a2abf7bdb74  provider-policy-test/generate.py
+fe0dcc2093225bdfb575ce3e8d5ad6090a8377694b831cad3ba0485f0cc6f89e  provider-policy-test/go.mod
+f81174cafcf9710c4ec72fe0aa695cbf5bbd3ea3484ed226bb25d103fbdfa348  provider-policy-test/harness.go
+ba5d57033255f7be33a7fd86c720ef99056248480327e98ca84d26dae1ee13bf  provider-policy-test/provider_extracted.go
+d66b62aee15b6c2fba8c583518dde79ea42fc43ae4d9eafa455f1efafb40746c  provider-policy-test/provider_test.go
+8d9ea75353fb2a2adca48ee886448c514acc4f773ba342725f0f632866b2ec32  provider-policy-test/requests/requests.go
+2eacadd5772bd864f1d61ebc8ce0243dada4ba1333c5113f2525cbed984067d8  provider-policy-test/sessions/sessions.go
+89807acf2309bd285f033404ee78581602f3cd9b819a16ac2f0e5f60ff4a473e  provider-policy-test/testdata/LICENSE.oauth2-proxy
+03aee25d95c40af66cdbe932eca288f594621c2ee40696ce88b03be45cfa075e  provider-policy-test/testdata/github.v7.15.5.go.txt
+d089cbb65414cd01600383df1bfbea10c0ab6c8e423ad4701324cb368e902033  routes.caddy
+59ae2a95c586ce49e9ca60071e192daecb0c144e539705ea8f1402efa30441ad  test_caddy_mock.py
+ab62d6736a87fcb24e855ad1d94bd2044f1a67ece3b32601165662ca2f03a78b  test_payload_browser.js
+a36a5d1c665e3fe66b306557b3e60d23482885f7b17b15b2a7a9952aeccf629d  test_payload_caddy.mjs
+c09459695a37c014ba87cda302e0492d21b47f73d0672d47af00aa21245c8385  test_payload_extraction.mjs
+59bdf04300141b80d114a96621165c5cf3a7e4f673554de2204cf70c928e40a8  upstream.caddy
+ce890c5ea01b7799e28331fbca4e6f9dd93ef3688764bcc0973d6069e8668424  verify_bundle.py
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 11/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 12/40 =====
+PATH: VALIDATION.fa.md
+SHA256: c33ad88364349327d46696d54a435155aa11c6d43b40e648c8003ada1c3f27f3
+CONTENT_BYTES: 4381
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# وضعیت اعتبارسنجی بستهٔ `1.1.0`
+
+**هیچ آزمون integration یا runtime روی رایانهٔ مالک، gate فعال، VPS یا DNS اجرا نشده و پیش از تحویل نیز اجرا نمی‌شود.** در این بازبسته‌بندی فقط اسکن اطلاعات حساس، ساخت manifest/checksum و آزمون integrity آرشیو انجام می‌شود؛ این‌ها آزمون برنامه نیستند.
+
+## نتیجه‌هایی که از draft قبلی همین نشست حفظ شده‌اند
+
+نتیجه‌های زیر قبل از تغییرات نسخهٔ `1.1.0` به‌دست آمدند؛ آن‌ها را با آزمون نهایی نسخهٔ جاری اشتباه نگیرید:
+
+- Python syntax برای ۸ اسکریپت و Node syntax برای ۳ اسکریپت موفق بود؛ از آن زمان `test_caddy_mock.py` برای `/api/graphql` و `verify_bundle.py` تغییر کرده‌اند، پس syntax نسخهٔ جاری دوباره اجرا نشده است.
+- نسخهٔ قبلی overlay و Compose مرجع با YAML parser و custom `!reset` parse شدند؛ در `1.1.0` overlay به شبکهٔ `internal: true` و `.env.preview.example` گسترش یافته و پس از این تغییر parse/Compose merge دوباره اجرا نشده است.
+- هر دو OAuth TOML از نظر TOML syntax parse شدند؛ این فایل‌ها تغییری نکرده‌اند.
+- `provider-policy-test/generate.py` SHA256 منبع OAuth2 Proxy `v7.15.5` را تطبیق داد و Go source تولید کرد. `go test` اجرا نشد.
+- `extractJWT` واقعی Payload `3.91.0` با ۳ Cookie layout مصنوعی و Bearer موفق شد. فایل این آزمون در `1.1.0` تغییر نکرده است؛ Payload server/DB اجرا نشد.
+
+## بررسی تحویل در نسخهٔ جاری
+
+- `verify_bundle.py` روی ساختار نسخهٔ جاری اجرا شد و موفق بود: فایل‌های اجباری/غیرمنتظره، patternهای high-confidence برای private key/GitHub token/OAuth secret، placeholder-only env sample، loopback port و internal-network guard بررسی شدند. اسکن هیچ موردی پیدا نکرد؛ تضمین کشف همهٔ Secretها نیست.
+- `MANIFEST.json` و `SHA256SUMS` برای ۳۸ فایل محتوایی ساخته شدند. ZIP نهایی در برابر sidecar SHA256 بررسی شد؛ `unzip -t` موفق بود و پس از استخراج، هر ۳۹ ورودی `SHA256SUMS` و `verify_bundle.py` موفق شدند.
+- این اسکن تضمین کشف همهٔ Secretها نیست؛ بازبینی انسانی همچنان لازم است.
+
+## انجام‌نشده / مسدود به‌علت ابزار یا مجوز
+
+- `test_caddy_mock.py` و `check_caddy_config.py`: Caddy binary `2.11.7` موجود نیست.
+- `go test ./...`: Go نصب نیست.
+- Docker Compose merge و `up`: Docker/Compose موجود نیست و این بسته دستور `up` را پیش از بازبینی/تأیید مجاز نمی‌داند.
+- `test_payload_caddy.mjs`: فقط در plan است؛ Payload/Postgres/Caddy stack بالا نیامده است.
+- `test_payload_browser.js`: اجرا نشده؛ host mapping یا CA trust تغییر نکرده است.
+- `.env.preview.example` فقط placeholder دارد؛ هیچ runtime env، Secret، Cookie یا private file ساخته نشده است.
+- OAuth/GitHub واقعی، حساب دوم، outage با نشست معتبر، DNS/TLS عمومی، VPS یا gate فعال: آزموده نشده‌اند.
+- image digestها مستقلاً از registry resolve نشده‌اند؛ Node/Postgres tag-only هستند.
+
+## محدودهٔ ادعا
+
+YAML/TOML parsing قبلی جای Compose merge یا Caddy parsing نسخهٔ جاری را نمی‌گیرد؛ Payload parser test، server/API/auth/DB را ثابت نمی‌کند؛ منبع provider pin‌شده تا اجرای Go test نتیجهٔ رفتاری ندارد. callback قبلی حساب دوم همچنان **نامشخص** است. در ارزیابی بعدی فقط دسته‌بندی غیرمحرمانهٔ «پروفایل موفق ولی خارج allowlist»، «provider/API failure» یا «نامشخص» گزارش شود؛ لاگ خام، Cookie، access token یا request code درخواست/ارسال نشود.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 12/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 13/40 =====
+PATH: VERSIONS-DIGESTS.fa.md
+SHA256: 408b5aead3f13db5d0c8d1ffc1319a5d8dd80b9ef889fea93dc2737e6563b54d
+CONTENT_BYTES: 5317
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# نسخه‌ها، digestها و منشأ
+
+**مبنای برنامهٔ وبسایت:** `feerozmandi/xennic-website@418de2b5b3a272e79a824ccde5411dc25f1002cc` (PR #10 ادغام‌شده). این commit را با نسخهٔ جاری branch اشتباه نگیرید.
+
+کپی `compose.preview.yml` داخل بسته از فایل همان مسیر در commit بالا گرفته شده است؛ SHA256 آن `e00963aed6cd1b6d87a27af55b71f662304097a338e519d7f286dcbc3c40918c` است و در `MANIFEST.json` نیز ثبت می‌شود. برای اجرای آینده، فایلِ checkout سایت و `Dockerfile.preview` همان commit لازم است؛ کپی داخل ZIP فقط مرجع بازبینی است.
+
+## وابستگی‌ها و image referenceهای پیکربندی‌شده
+
+| مؤلفه | نسخه/مرجع ثبت‌شده | digest / شناسنامه | وضعیت راستی‌آزمایی در این بسته |
+|---|---|---|---|
+| Payload CMS | `3.91.0` | npm tarball SHA256 `3d93c82261fde3d01877c036b64f5fc8f342a6c97192402725d782cb7c50eec3`; SRI `sha512-EF+PXc8iSuo561f82SnAY5YB8Ix6LDN4Xe4ndef0iLDNPkdEykq1vc1mgo82/HsZ4ljSv9u/wP6iP5hyIpM+wA==`; npm shasum `91fddbf74ab60484d9298a83ffab67e4ceab751c` | tarball از `registry.npmjs.org` دریافت؛ package version بررسی؛ `extractJWT` واقعی با mock data آزموده شد. این hash، کل dependency tree سایت را پین نمی‌کند. |
+| Node base image | `node:22.22.3-bookworm-slim` | digest ثبت نشده | tag در Dockerfile commit مبنا خوانده شد؛ registry digest/provenance مستقل تأیید نشده است. |
+| PostgreSQL | `postgres:16.14-bookworm` | digest ثبت نشده | tag در Compose commit مبنا خوانده شد؛ registry digest/provenance مستقل تأیید نشده است. |
+| Caddy | `caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e` | digest نوشته‌شده در YAML | مقدار از تنظیم بازسازی‌شده ثبت شده، اما manifest/registry OCI در محیط قابل‌دسترسی نبود؛ **تأییدنشده**. Caddy binary موجود نبود و config/test parse اجرا نشد. |
+| OAuth2 Proxy | `quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916` | digest نوشته‌شده در Compose مرجع | مقدار image digest **تأییدنشده**؛ registry در دسترس نبود. Source code tag `v7.15.5` به‌طور جداگانه hash شده، اما این امر image digest را اثبات نمی‌کند. |
+| Python fixture/stub | `python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84` | digest نوشته‌شده در Compose | image digest **تأییدنشده**؛ fixture کد محلی ساده است و container اجرا نشده است. |
+| Docker Compose syntax | حداقل `v2.24.4` پیشنهادی | `!reset []` در override | نسخه روی میزبان مالک نصب/بررسی نشده؛ Compose وجود ندارد. حداقل را پیش از اجرا دوباره بررسی کنید. |
+| Go policy tests | `go 1.23` در `go.mod` | source methods pin شده با SHA256 | Go در محیط نصب نبود؛ compile/test اجرا نشده است. |
+| محیط بازسازی | Python `3.11.2`, Node `v22.22.3` | runtime محلی Arena | Docker، Caddy و Go در PATH نبودند. |
+
+### منبع OAuth2 Proxy
+
+- فایل: `providers/github.go` از tag `v7.15.5`
+- tag object: `6e4bd00eea928c0268871954000f1f4fa8c91d30`
+- SHA256 فایل منبع: `03aee25d95c40af66cdbe932eca288f594621c2ee40696ce88b03be45cfa075e`
+- کپی در بسته: `provider-policy-test/testdata/github.v7.15.5.go.txt`
+- `generate.py` پیش از ساخت فایل Go همین SHA256 را بررسی می‌کند.
+- تصویر container/باینری OAuth2 Proxy از روی این فایل منبع ساخته نشده و hash منبع، digest آن را تأیید نمی‌کند.
+
+## مرجع‌های عمومی
+
+- Website commit: `https://github.com/feerozmandi/xennic-website/commit/418de2b5b3a272e79a824ccde5411dc25f1002cc`
+- Website PR #10: `https://github.com/feerozmandi/xennic-website/pull/10`
+- OAuth2 Proxy GitHub provider v7.15.5: `https://github.com/oauth2-proxy/oauth2-proxy/blob/v7.15.5/providers/github.go`
+- OAuth2 Proxy release v7.15.5: `https://github.com/oauth2-proxy/oauth2-proxy/releases/tag/v7.15.5`
+- Caddy reverse_proxy header directives: `https://caddyserver.com/docs/caddyfile/directives/reverse_proxy`
+- Docker Compose merge tags: `https://docs.docker.com/reference/compose-file/merge/`
+- Payload npm package: `https://registry.npmjs.org/payload/-/payload-3.91.0.tgz`
+
+## تفسیر digest
+
+`sha256:` در reference یک container image digest را نشان می‌دهد، ولی در این تحویل فقط مقدار نوشته‌شده را بازگو می‌کند. برای اثبات، دستیار وبسایت/مالک باید manifest همان tag/platform را از registry معتبر independently resolve و مقدار digest را مقایسه کند. تا آن زمان آن digest را pin معتبر یا provenance تأییدشده قلمداد نکنید. هیچ image pull یا container run در Arena انجام نشد.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 13/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 14/40 =====
+PATH: check_caddy_config.py
+SHA256: e7b01e1ecbf081c2b41275fb7fe7d1c00a226885e1069f668616deceeb86ed17
+CONTENT_BYTES: 2218
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Validate/adapt review Caddyfiles; does not issue a certificate or bind a port."""
+import json
+import os
+from pathlib import Path
+import subprocess
+
+base = Path(__file__).resolve().parent
+binary = os.environ.get('CADDY_BIN', 'caddy')
+env = dict(os.environ, GATE_ADDR='127.0.0.1:19001', APP_ADDR='127.0.0.1:19002', PUBLIC_AUTHORITY='preview.xennic.ir')
+version = subprocess.run([binary, 'version'], capture_output=True, text=True, check=True).stdout.strip()
+assert version.startswith('v2.11.7 '), 'Expected Caddy v2.11.7'
+
+prod = subprocess.run([binary,'adapt','--config','Caddyfile','--adapter','caddyfile','--validate'],
+                      cwd=base,env=env,capture_output=True,text=True,check=True)
+data=json.loads(prod.stdout)
+servers=data['apps']['http']['servers']
+assert len(servers)==1
+server=next(iter(servers.values()))
+assert server['listen']==[':443']
+assert server['automatic_https']['disable_redirects'] is True
+issuer=data['apps']['tls']['automation']['policies'][0]['issuers'][0]
+assert issuer['module']=='acme'
+assert issuer['challenges']['http']['disabled'] is True
+assert not issuer['challenges'].get('tls-alpn',{}).get('disabled',False)
+print('PASS production review config adapts to HTTPS :443; HTTP redirect and HTTP-01 off; TLS-ALPN enabled')
+print('LIMITATION: no ACME certificate issued or renewed; no public reachability test')
+
+for config,subject in [('Caddyfile.lab','localhost'),('Caddyfile.payload.lab','preview.xennic.ir')]:
+    result=subprocess.run([binary,'adapt','--config',config,'--adapter','caddyfile','--validate'],
+                         cwd=base,env=env,capture_output=True,text=True,check=True)
+    adapted=json.loads(result.stdout)
+    local_servers=adapted['apps']['http']['servers']
+    assert len(local_servers)==1 and next(iter(local_servers.values()))['listen']==[':443']
+    policies=adapted['apps']['tls']['automation']['policies']
+    assert any(subject in p.get('subjects',[]) and any(i.get('module')=='internal' for i in p.get('issuers',[])) for p in policies)
+    print(f'PASS {config} adapts to internal-only lab TLS for {subject}')
+print('LIMITATION: no local browser/CA verification; Payload overlay is not started by this checker')
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 14/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 15/40 =====
+PATH: compose.oauth-lab.reference.yml
+SHA256: 70192420b0a9d38dca9f475f88094a6dee0b55255895465c3ca2bbf08c2145aa
+CONTENT_BYTES: 1658
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# REFERENCE ONLY. Mirrors the earlier local OAuth2 Proxy + synthetic fixture lab.
+# DO NOT RUN: fixed project name, port 18443, and subnet may collide with the
+# owner's existing lab. No credentials are present; this is not a current overlay.
+name: xennic-gate-lab
+services:
+  caddy:
+    image: caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
+    ports: ["127.0.0.1:18443:443/tcp"]
+    environment:
+      GATE_ADDR: gate:4180
+      APP_ADDR: fixture:3000
+      PUBLIC_AUTHORITY: localhost:18443
+    volumes:
+      - ./Caddyfile.lab:/etc/caddy/Caddyfile:ro
+      - ./routes.caddy:/etc/caddy/routes.caddy:ro
+      - ./oauth-gateway.caddy:/etc/caddy/oauth-gateway.caddy:ro
+      - ./upstream.caddy:/etc/caddy/upstream.caddy:ro
+      - caddy_data:/data
+    networks:
+      lab: {ipv4_address: 172.29.251.2}
+    mem_limit: 96m
+  gate:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.15.5@sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916
+    user: "${LAB_UID:?Set LAB_UID}:${LAB_GID:?Set LAB_GID}"
+    command: ["--config=/run/private/oauth2.toml"]
+    volumes:
+      - "${LAB_OAUTH_CONFIG:?Set private config path}:/run/private/oauth2.toml:ro"
+    networks:
+      lab: {ipv4_address: 172.29.251.3}
+    mem_limit: 128m
+  fixture:
+    image: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
+    command: ["python", "/app/fixture.py"]
+    volumes:
+      - ./fixture.py:/app/fixture.py:ro
+    networks:
+      lab: {ipv4_address: 172.29.251.4}
+    mem_limit: 64m
+networks:
+  lab:
+    ipam:
+      config:
+        - subnet: 172.29.251.0/28
+volumes:
+  caddy_data: {}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 15/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 16/40 =====
+PATH: compose.payload-lab.override.yml
+SHA256: cc0950fa95c60a9ab7e92a4f5d2c13ff74f064d1edb4a8fda057df896ceeaf42
+CONTENT_BYTES: 1837
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# Overlay with feerozmandi/xennic-website compose.preview.yml at 418de2b5.
+# REVIEW ONLY / DO NOT RUN YET: listed image digests are unverified.
+# First obtain website-assistant review, independently verify/pin OCI images,
+# then require explicit owner approval. Always pass -p xennic-preview-gate-payload-lab.
+name: xennic-preview-gate-payload-lab
+services:
+  app:
+    # Reset the base file's loopback-published Payload port.
+    ports: !reset []
+    networks: [preview_gate_lab]
+  postgres:
+    networks: [preview_gate_lab]
+  caddy:
+    image: caddy:2.11.7@sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e
+    ports:
+      - "127.0.0.1:443:443/tcp"
+    environment:
+      GATE_ADDR: gate:4180
+      APP_ADDR: app:3000
+      PUBLIC_AUTHORITY: preview.xennic.ir
+    volumes:
+      - "${LAB_DIR:?Set LAB_DIR to reviewed bundle directory}/Caddyfile.payload.lab:/etc/caddy/Caddyfile:ro"
+      - "${LAB_DIR:?Set LAB_DIR to reviewed bundle directory}/routes.caddy:/etc/caddy/routes.caddy:ro"
+      - "${LAB_DIR:?Set LAB_DIR to reviewed bundle directory}/oauth-gateway.caddy:/etc/caddy/oauth-gateway.caddy:ro"
+      - "${LAB_DIR:?Set LAB_DIR to reviewed bundle directory}/upstream.caddy:/etc/caddy/upstream.caddy:ro"
+      - payload_caddy_data:/data
+    depends_on:
+      - app
+      - gate
+    networks: [preview_gate_lab]
+    mem_limit: 96m
+  gate:
+    # This stub is not an authentication service and must never be exposed.
+    image: python:3.12.8-alpine@sha256:ba13ef990f6e5d13014e9e8d04c02a8fdb0fe53d6dccf6e19147f316e6cc3a84
+    command: ["python", "/app/gate_stub.py"]
+    volumes:
+      - "${LAB_DIR:?Set LAB_DIR to reviewed bundle directory}/gate_stub.py:/app/gate_stub.py:ro"
+    networks: [preview_gate_lab]
+    mem_limit: 64m
+networks:
+  preview_gate_lab:
+    internal: true
+volumes:
+  payload_caddy_data: {}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 16/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 17/40 =====
+PATH: compose.preview.yml
+SHA256: e00963aed6cd1b6d87a27af55b71f662304097a338e519d7f286dcbc3c40918c
+CONTENT_BYTES: 1062
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# Isolated test stack only. Not an approved VPS deployment or proxy configuration.
+name: xennic-preview-test
+services:
+  postgres:
+    image: postgres:16.14-bookworm
+    environment:
+      POSTGRES_DB: ${PREVIEW_POSTGRES_DB:?required}
+      POSTGRES_USER: ${PREVIEW_POSTGRES_USER:?required}
+      POSTGRES_PASSWORD: ${PREVIEW_POSTGRES_PASSWORD:?required}
+    volumes:
+      - preview_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 256m
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.preview
+    environment:
+      DATABASE_URL: ${PREVIEW_DATABASE_URL:?required}
+      PAYLOAD_SECRET: ${PREVIEW_PAYLOAD_SECRET:?required}
+      PREVIEW_ORIGIN: ${PREVIEW_ORIGIN:?required}
+    ports:
+      - "127.0.0.1:${PREVIEW_PORT:-3000}:3000"
+    volumes:
+      - preview_media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+volumes:
+  preview_db:
+  preview_media:
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 17/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 18/40 =====
+PATH: fixture.py
+SHA256: 76a50a8501a70c9a34496fd0a666329d5875266ca421246e68b859b69efda44c
+CONTENT_BYTES: 1575
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Synthetic upstream only. No Payload code or real credentials are used/logged."""
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+
+class Fixture(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        auth = self.headers.get('Authorization', '')
+        cookie = '; '.join(self.headers.get_all('Cookie', []))
+        names = [item.strip().partition('=')[0] for item in cookie.split(';')]
+        result = {
+            'fixture': True,
+            'bearer_preserved': auth == 'Bearer synthetic-payload-token',
+            'payload_cookie_preserved': any(item.strip() == 'payload_test=synthetic' for item in cookie.split(';')),
+            'gate_cookie_absent': not any(
+                name == '__Host-preview_gate' or
+                (name.startswith('__Host-preview_gate_') and name[len('__Host-preview_gate_'):].isdigit())
+                for name in names
+            ),
+            'spoofed_identity_removed': not any(self.headers.get(h) for h in (
+                'X-Forwarded-User', 'X-Forwarded-Email', 'X-Auth-Request-User',
+                'X-Auth-Request-Email', 'Forwarded')),
+        }
+        data = json.dumps(result).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+ThreadingHTTPServer(('0.0.0.0', 3000), Fixture).serve_forever()
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 18/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 19/40 =====
+PATH: gate_stub.py
+SHA256: 5d53b2e68d16fa4be95102923af68463b80b465ac22743920137509724395529
+CONTENT_BYTES: 1129
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Synthetic test gate only; not OAuth, identity, or access control."""
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+COOKIE = '__Host-preview_gate=synthetic-owner'
+
+class GateStub(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        if self.path.startswith('/oauth2/auth'):
+            authorized = any(
+                part.strip() == COOKIE
+                for value in self.headers.get_all('Cookie', [])
+                for part in value.split(';')
+            )
+            self.send_response(202 if authorized else 401)
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            return
+        if self.path.startswith('/oauth2/'):
+            self.send_response(403)
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(b'Synthetic test gate only; OAuth is not implemented.')
+            return
+        self.send_response(404)
+        self.end_headers()
+
+ThreadingHTTPServer(('0.0.0.0', 4180), GateStub).serve_forever()
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 19/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 20/40 =====
+PATH: oauth-gateway.caddy
+SHA256: 34220eb12245d54b8f4231527daad495a11bb559436148a0317e0b9837eaa195
+CONTENT_BYTES: 486
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# Shared request-header policy for OAuth2 Proxy only.
+header_up -Authorization
+header_up -Forwarded
+header_up -X-Forwarded-User
+header_up -X-Forwarded-Email
+header_up -X-Auth-Request-*
+header_up -X-Forwarded-Client-Cert
+header_up -X-Forwarded-Prefix
+header_up -X-Forwarded-Scheme
+header_up -X-Original-URL
+header_up -X-Rewrite-URL
+header_up X-Real-IP {remote_host}
+header_up X-Forwarded-Host {$PUBLIC_AUTHORITY}
+header_up X-Forwarded-Proto https
+header_up X-Forwarded-For {remote_host}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 20/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 21/40 =====
+PATH: oauth2-proxy.example.toml
+SHA256: 1adf2906f7291d43862a4293a48669bf5130c40ebe3955cf9fa7841366cadacf
+CONTENT_BYTES: 1131
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# REVIEW ONLY: intentionally unusable final-App template; no scope is approved.
+# The sentinel is invalid by design. Do NOT run this file.
+provider = "github"
+github_users = ["feerozmandi"]
+# This is an email-domain filter only, not the username allowlist.
+email_domains = ["*"]
+# OAuth2 Proxy v7.15.5 GitHub provider defaults to user:email read:org if omitted.
+# Final App scope must be separately selected and approved; do not infer read:org.
+scope = "UNAPPROVED_DO_NOT_RUN"
+reverse_proxy = true
+trusted_proxy_ips = ["REPLACE_WITH_REVIEWED_GATE_IP"]
+http_address = "0.0.0.0:4180"
+redirect_url = "https://preview.xennic.ir/oauth2/callback"
+upstreams = ["static://202"]
+whitelist_domains = ["preview.xennic.ir"]
+cookie_name = "__Host-preview_gate"
+cookie_secure = true
+cookie_httponly = true
+cookie_samesite = "lax"
+cookie_expire = "4h"
+cookie_refresh = "0"
+skip_jwt_bearer_tokens = false
+skip_auth_preflight = false
+pass_basic_auth = false
+pass_authorization_header = false
+set_authorization_header = false
+pass_access_token = false
+set_xauthrequest = false
+# Put IDs/secrets only in a separately approved private runtime config.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 21/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 22/40 =====
+PATH: oauth2-proxy.lab.example.toml
+SHA256: d09d62c2b9dea4526323f35bf30ce963a190a475107b10b7bb26ab10c3b5faec
+CONTENT_BYTES: 1105
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# LOCAL LAB ONLY. Reference to the earlier local OAuth App; not production-ready.
+# Use only in a private mode-0600 config outside this package. Never commit it.
+provider = "github"
+github_users = ["feerozmandi"]
+email_domains = ["*"]
+# Owner-approved for that separate local test App only; not a final-App grant.
+scope = "user:email read:org"
+reverse_proxy = true
+# This matches only the earlier lab topology; do not assume it is current.
+trusted_proxy_ips = ["172.29.251.2/32"]
+http_address = "0.0.0.0:4180"
+redirect_url = "https://localhost:18443/oauth2/callback"
+upstreams = ["static://202"]
+whitelist_domains = ["localhost:18443"]
+cookie_name = "__Host-preview_gate"
+cookie_secure = true
+cookie_httponly = true
+cookie_samesite = "lax"
+cookie_expire = "1m"
+cookie_refresh = "0"
+skip_jwt_bearer_tokens = false
+skip_auth_preflight = false
+pass_basic_auth = false
+pass_authorization_header = false
+set_authorization_header = false
+pass_access_token = false
+set_xauthrequest = false
+client_id = "REPLACE_IN_PRIVATE_FILE"
+client_secret = "REPLACE_IN_PRIVATE_FILE"
+cookie_secret = "REPLACE_IN_PRIVATE_FILE"
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 22/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 23/40 =====
+PATH: prepare_lab_config.py
+SHA256: 3a1478d212543d1e1eeacf397c3ee9c16af280f0d754023de78b6740063d22f7
+CONTENT_BYTES: 2004
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Create a private local OAuth2 Proxy config. Never prints or stores input secrets here."""
+import base64
+import getpass
+import json
+import os
+from pathlib import Path
+import re
+import secrets
+
+BASE = Path(__file__).resolve().parent
+PRIVATE_DIR = Path.home() / '.config' / 'xennic-preview-gate-lab'
+PRIVATE_PATH = PRIVATE_DIR / 'oauth2.toml'
+
+PRIVATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+os.chmod(PRIVATE_DIR, 0o700)
+if PRIVATE_PATH.exists():
+    raise SystemExit('Private config already exists; refusing to overwrite it.')
+
+username = input('Allowed local-lab GitHub username: ').strip()
+if username != 'feerozmandi' or not re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?', username):
+    raise SystemExit('This lab is restricted to the owner-approved account feerozmandi.')
+print('LOCAL LAB ONLY: this config requests user:email and read:org; this is not production approval.')
+if input('Type YES to confirm this local-only permission: ').strip() != 'YES':
+    raise SystemExit('Stopped; no config was written.')
+client_id = getpass.getpass('Local OAuth Client ID (hidden): ').strip()
+client_secret = getpass.getpass('Local OAuth Client Secret (hidden): ').strip()
+if not client_id or not client_secret:
+    raise SystemExit('Both OAuth fields are required.')
+cookie_secret = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()
+text = (BASE / 'oauth2-proxy.lab.example.toml').read_text()
+text = text.replace('client_id = "REPLACE_IN_PRIVATE_FILE"', 'client_id = ' + json.dumps(client_id))
+text = text.replace('client_secret = "REPLACE_IN_PRIVATE_FILE"', 'client_secret = ' + json.dumps(client_secret))
+text = text.replace('cookie_secret = "REPLACE_IN_PRIVATE_FILE"', 'cookie_secret = ' + json.dumps(cookie_secret))
+fd = os.open(PRIVATE_PATH, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, 'w') as stream:
+    stream.write(text)
+print('Created a private mode-0600 local config outside this package. Do not share or commit it.')
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 23/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 24/40 =====
+PATH: prepare_payload_lab_env.py
+SHA256: 3e5c7e9b023743475aaad990577212f745c366653285224eaa2e1f07595f982c
+CONTENT_BYTES: 1142
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Create synthetic Payload/Postgres credentials outside the bundle (never prints them)."""
+import os
+from pathlib import Path
+import secrets
+
+path = Path.home() / '.config' / 'xennic-preview-gate-delivery' / 'payload-lab.env'
+path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+os.chmod(path.parent, 0o700)
+if path.exists():
+    raise SystemExit('Refusing to overwrite an existing private test env file.')
+password = secrets.token_hex(32)
+payload_secret = secrets.token_urlsafe(48)
+text = '\n'.join([
+    'PREVIEW_POSTGRES_DB=xennic_preview_lab',
+    'PREVIEW_POSTGRES_USER=xennic_preview_lab',
+    f'PREVIEW_POSTGRES_PASSWORD={password}',
+    f'PREVIEW_DATABASE_URL=postgresql://xennic_preview_lab:{password}@postgres:5432/xennic_preview_lab',
+    f'PREVIEW_PAYLOAD_SECRET={payload_secret}',
+    'PREVIEW_ORIGIN=https://preview.xennic.ir',
+    'PREVIEW_PORT=3000',
+    '',
+])
+fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, 'w') as stream:
+    stream.write(text)
+print('Created private synthetic-only env file outside this package (mode 0600). Its values were not printed.')
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 24/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 25/40 =====
+PATH: provider-policy-test/generate.py
+SHA256: 7bfa34f8dec798bdf6b7ea6242334e4aebd44a1ef6a299431ed02a2abf7bdb74
+CONTENT_BYTES: 1556
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Extract unchanged v7.15.5 GitHub-provider methods; validates pinned source SHA256."""
+import hashlib
+from pathlib import Path
+import re
+
+BASE = Path(__file__).resolve().parent
+source = (BASE / 'testdata/github.v7.15.5.go.txt').read_bytes()
+expected = '03aee25d95c40af66cdbe932eca288f594621c2ee40696ce88b03be45cfa075e'
+if hashlib.sha256(source).hexdigest() != expected:
+    raise SystemExit('Pinned provider source hash mismatch; stop.')
+text = source.decode()
+methods = ['EnrichSession','getOrgAndTeam','getOrgs','getTeams','checkRestrictions',
+           'checkUserRestriction','hasUser','isVerifiedUser','getEmail','getUser']
+chunks = []
+for name in methods:
+    match = re.search(r'^func \(p \*GitHubProvider\) ' + name + r'\(', text, re.M)
+    if not match: raise SystemExit('Missing expected method: ' + name)
+    end = re.search(r'^}\s*$', text[match.start():], re.M)
+    if not end: raise SystemExit('Unterminated method: ' + name)
+    chunks.append(text[match.start():match.start()+end.end()].rstrip())
+header = '''// Generated from unchanged OAuth2 Proxy v7.15.5 provider methods.
+// Network/session interfaces are test doubles; this is not the OAuth2 Proxy binary.
+package policytest
+import (
+    "context"
+    "errors"
+    "fmt"
+    "net/url"
+    "strconv"
+    "example.invalid/xennic-provider-policy-test/requests"
+    "example.invalid/xennic-provider-policy-test/sessions"
+)
+'''
+(BASE / 'provider_extracted.go').write_text(header + '\n\n'.join(chunks) + '\n')
+print('PASS source SHA256 and pinned methods extracted')
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 25/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 26/40 =====
+PATH: provider-policy-test/go.mod
+SHA256: fe0dcc2093225bdfb575ce3e8d5ad6090a8377694b831cad3ba0485f0cc6f89e
+CONTENT_BYTES: 60
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+module example.invalid/xennic-provider-policy-test
+
+go 1.23
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 26/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 27/40 =====
+PATH: provider-policy-test/harness.go
+SHA256: f81174cafcf9710c4ec72fe0aa695cbf5bbd3ea3484ed226bb25d103fbdfa348
+CONTENT_BYTES: 1406
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+// Test-only replacement for OAuth2 Proxy HTTP/session/config plumbing.
+// The allowlist/provider methods in provider_extracted.go remain source-identical.
+package policytest
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/url"
+
+	"example.invalid/xennic-provider-policy-test/sessions"
+)
+
+type GitHubProvider struct {
+	Users []string
+	Org, Team, Repo, Token string
+	base *url.URL
+}
+
+const orgTeamSeparator = ":"
+var logger = struct{ Printf func(string, ...any) }{Printf: func(string, ...any) {}}
+
+func makeGitHubHeader(token string) http.Header {
+	return http.Header{"Authorization": []string{"token " + token}}
+}
+func (p *GitHubProvider) makeGitHubAPIEndpoint(endpoint string, params *url.Values) *url.URL {
+	u := *p.base
+	u.Path = endpoint
+	if params != nil { u.RawQuery = params.Encode() }
+	return &u
+}
+func (*GitHubProvider) hasOrg(*sessions.SessionState) error { return errors.New("unexpected org policy") }
+func (*GitHubProvider) hasTeam(*sessions.SessionState) error { return errors.New("unexpected team policy") }
+func (*GitHubProvider) hasOrgAndTeam(*sessions.SessionState) error { return errors.New("unexpected org/team policy") }
+func (*GitHubProvider) hasRepoAccess(context.Context, string) error { return errors.New("unexpected repo policy") }
+func (*GitHubProvider) isCollaborator(context.Context, string, string) (bool, error) {
+	return false, errors.New("unexpected collaborator policy")
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 27/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 28/40 =====
+PATH: provider-policy-test/provider_extracted.go
+SHA256: ba5d57033255f7be33a7fd86c720ef99056248480327e98ca84d26dae1ee13bf
+CONTENT_BYTES: 6482
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+// Generated from unchanged OAuth2 Proxy v7.15.5 provider methods.
+// Network/session interfaces are test doubles; this is not the OAuth2 Proxy binary.
+package policytest
+import (
+    "context"
+    "errors"
+    "fmt"
+    "net/url"
+    "strconv"
+    "example.invalid/xennic-provider-policy-test/requests"
+    "example.invalid/xennic-provider-policy-test/sessions"
+)
+func (p *GitHubProvider) EnrichSession(ctx context.Context, s *sessions.SessionState) error {
+	// Construct user info JSON from multiple GitHub API endpoints to have a more detailed session state
+	if err := p.getOrgAndTeam(ctx, s); err != nil {
+		return err
+	}
+
+	if err := p.checkRestrictions(ctx, s); err != nil {
+		return err
+	}
+
+	if err := p.getEmail(ctx, s); err != nil {
+		return err
+	}
+
+	return p.getUser(ctx, s)
+}
+
+func (p *GitHubProvider) getOrgAndTeam(ctx context.Context, s *sessions.SessionState) error {
+	err := p.getOrgs(ctx, s)
+	if err != nil {
+		return err
+	}
+
+	return p.getTeams(ctx, s)
+}
+
+func (p *GitHubProvider) getOrgs(ctx context.Context, s *sessions.SessionState) error {
+
+	type Organization struct {
+		// Support for Github organizations
+		// https://docs.github.com/en/rest/orgs/orgs#list-organizations-for-the-authenticated-user
+		Login string `json:"login,omitempty"`
+		// Support for Gitea organizations
+		// https://docs.gitea.com/api/1.24/#tag/organization/operation/orgGetAll
+		Name string `json:"name,omitempty"`
+	}
+
+	pn := 1
+	for {
+		params := url.Values{
+			"per_page": {"100"},
+			"page":     {strconv.Itoa(pn)},
+		}
+
+		endpoint := p.makeGitHubAPIEndpoint("/user/orgs", &params)
+
+		var orgs []Organization
+		err := requests.New(endpoint.String()).
+			WithContext(ctx).
+			WithHeaders(makeGitHubHeader(s.AccessToken)).
+			Do().
+			UnmarshalInto(&orgs)
+		if err != nil {
+			return err
+		}
+
+		if len(orgs) == 0 {
+			break
+		}
+
+		for _, org := range orgs {
+			var orgName string
+			if len(org.Login) > 0 {
+				orgName = org.Login
+				logger.Printf("Member of Github Organization: %q", orgName)
+			} else {
+				orgName = org.Name
+				logger.Printf("Member of Gitea Organization: %q", orgName)
+			}
+
+			s.Groups = append(s.Groups, orgName)
+		}
+		pn++
+	}
+
+	return nil
+}
+
+func (p *GitHubProvider) getTeams(ctx context.Context, s *sessions.SessionState) error {
+	// https://docs.github.com/en/rest/teams/teams?#list-user-teams
+	type Team struct {
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+		Org  struct {
+			Login string `json:"login"`
+			Name  string `json:"name"`
+		} `json:"organization"`
+	}
+
+	pn := 1
+	for {
+		params := url.Values{
+			"per_page": {"100"},
+			"page":     {strconv.Itoa(pn)},
+		}
+
+		endpoint := p.makeGitHubAPIEndpoint("/user/teams", &params)
+
+		var teams []Team
+		err := requests.New(endpoint.String()).
+			WithContext(ctx).
+			WithHeaders(makeGitHubHeader(s.AccessToken)).
+			Do().
+			UnmarshalInto(&teams)
+		if err != nil {
+			return err
+		}
+
+		if len(teams) == 0 {
+			break
+		}
+
+		for _, team := range teams {
+			var orgName, teamName string
+
+			if len(team.Org.Login) > 0 {
+				orgName = team.Org.Login
+				teamName = team.Slug
+				logger.Printf("Member of Github Organization/Team: %q/%q", orgName, teamName)
+			} else {
+				orgName = team.Org.Name
+				teamName = team.Name
+				logger.Printf("Member of Gitea Organization/Team: %q/%q", orgName, teamName)
+			}
+
+			s.Groups = append(s.Groups, fmt.Sprintf("%s%s%s", orgName, orgTeamSeparator, teamName))
+		}
+
+		pn++
+	}
+
+	return nil
+}
+
+func (p *GitHubProvider) checkRestrictions(ctx context.Context, s *sessions.SessionState) error {
+	// If a user is verified by username options, skip the following restrictions
+	if ok, err := p.checkUserRestriction(ctx, s); err != nil || ok {
+		return err
+	}
+
+	var err error
+	switch {
+	case p.Org != "" && p.Team != "":
+		err = p.hasOrgAndTeam(s)
+	case p.Org != "":
+		err = p.hasOrg(s)
+	case p.Team != "":
+		err = p.hasTeam(s)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if p.Org == "" && p.Repo != "" && p.Token == "" {
+		// If we have a token we'll do the collaborator check
+		return p.hasRepoAccess(ctx, s.AccessToken)
+	}
+
+	return nil
+}
+
+func (p *GitHubProvider) checkUserRestriction(ctx context.Context, s *sessions.SessionState) (bool, error) {
+	if len(p.Users) == 0 {
+		return false, nil
+	}
+
+	verifiedUser, err := p.hasUser(ctx, s.AccessToken)
+	if err != nil {
+		return verifiedUser, err
+	}
+
+	// org and repository options are not configured
+	if !verifiedUser && p.Org == "" && p.Repo == "" {
+		return false, errors.New("missing github user")
+	}
+
+	return verifiedUser, nil
+}
+
+func (p *GitHubProvider) hasUser(ctx context.Context, accessToken string) (bool, error) {
+	// https://developer.github.com/v3/users/#get-the-authenticated-user
+
+	var user struct {
+		Login string `json:"login"`
+		Email string `json:"email"`
+	}
+
+	endpoint := p.makeGitHubAPIEndpoint("/user", nil)
+
+	err := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(accessToken)).
+		Do().
+		UnmarshalInto(&user)
+	if err != nil {
+		return false, err
+	}
+
+	if p.isVerifiedUser(user.Login) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (p *GitHubProvider) isVerifiedUser(username string) bool {
+	for _, u := range p.Users {
+		if username == u {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *GitHubProvider) getEmail(ctx context.Context, s *sessions.SessionState) error {
+
+	var emails []struct {
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
+	}
+
+	endpoint := p.makeGitHubAPIEndpoint("/user/emails", nil)
+
+	err := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(s.AccessToken)).
+		Do().
+		UnmarshalInto(&emails)
+	if err != nil {
+		return err
+	}
+
+	for _, email := range emails {
+		if email.Verified {
+			if email.Primary {
+				s.Email = email.Email
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *GitHubProvider) getUser(ctx context.Context, s *sessions.SessionState) error {
+	var user struct {
+		Login string `json:"login"`
+		Email string `json:"email"`
+	}
+
+	endpoint := p.makeGitHubAPIEndpoint("/user", nil)
+
+	err := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(s.AccessToken)).
+		Do().
+		UnmarshalInto(&user)
+	if err != nil {
+		return err
+	}
+
+	// Now that we have the username we can check collaborator status
+	if !p.isVerifiedUser(user.Login) && p.Org == "" && p.Repo != "" && p.Token != "" {
+		if ok, err := p.isCollaborator(ctx, user.Login, p.Token); err != nil || !ok {
+			return err
+		}
+	}
+
+	s.User = user.Login
+	return nil
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 28/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 29/40 =====
+PATH: provider-policy-test/provider_test.go
+SHA256: d66b62aee15b6c2fba8c583518dde79ea42fc43ae4d9eafa455f1efafb40746c
+CONTENT_BYTES: 3815
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+package policytest
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	"example.invalid/xennic-provider-policy-test/sessions"
+)
+
+func TestPinnedProviderPolicy(t *testing.T) {
+	cases := []struct {
+		name string
+		login string
+		failPath string
+		failCall int
+		wantError string
+		wantUserCalls int
+		malformed bool
+	}{
+		{name:"allowed owner profile", login:"feerozmandi", wantUserCalls:2},
+		{name:"distinct non-owner profile successfully fetched then denied by allowlist", login:"synthetic-other", wantError:"missing github user", wantUserCalls:1},
+		{name:"empty profile is ambiguous with missing-user error", wantError:"missing github user", wantUserCalls:1},
+		{name:"organization scope API 403 precedes profile lookup", login:"synthetic-other", failPath:"/user/orgs", wantError:"unexpected status 403"},
+		{name:"team scope API 403 precedes profile lookup", login:"synthetic-other", failPath:"/user/teams", wantError:"unexpected status 403"},
+		{name:"profile fetch 403 before allowlist check", login:"synthetic-other", failPath:"/user", failCall:1, wantError:"unexpected status 403", wantUserCalls:1},
+		{name:"profile fetch 403 after allowlist check", login:"feerozmandi", failPath:"/user", failCall:2, wantError:"unexpected status 403", wantUserCalls:2},
+		{name:"malformed profile is a decode error", login:"synthetic-other", wantError:"invalid character", wantUserCalls:1, malformed:true},
+		{name:"email API 403 after owner allowlist succeeds", login:"feerozmandi", failPath:"/user/emails", wantError:"unexpected status 403", wantUserCalls:1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			userCalls := 0
+			profileLogins := []string{}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Authorization") != "token synthetic" {
+					t.Error("missing synthetic auth")
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				if r.URL.Path == "/user" { userCalls++ }
+				if r.URL.Path == tc.failPath && (tc.failCall == 0 || (r.URL.Path == "/user" && userCalls == tc.failCall)) {
+					w.WriteHeader(http.StatusForbidden)
+					fmt.Fprint(w, `{}`)
+					return
+				}
+				switch r.URL.Path {
+				case "/user/orgs", "/user/teams": fmt.Fprint(w, `[]`)
+				case "/user":
+					if tc.malformed { fmt.Fprint(w, `not-json`); return }
+					profileLogins = append(profileLogins, tc.login)
+					fmt.Fprintf(w, `{"login":%q}`, tc.login)
+				case "/user/emails": fmt.Fprint(w, `[{"email":"synthetic@example.invalid","primary":true,"verified":true}]`)
+				default: t.Errorf("unexpected endpoint %s", r.URL.Path); w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer srv.Close()
+			base, _ := url.Parse(srv.URL)
+			p := &GitHubProvider{Users:[]string{"feerozmandi"}, base:base}
+			session := &sessions.SessionState{AccessToken:"synthetic"}
+			err := p.EnrichSession(context.Background(), session)
+			if tc.wantError == "" {
+				if err != nil || session.User != "feerozmandi" { t.Fatalf("expected owner, got err=%v", err) }
+			} else if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("want error containing %q, got %v", tc.wantError, err)
+			}
+			if userCalls != tc.wantUserCalls { t.Fatalf("want %d profile calls, got %d", tc.wantUserCalls, userCalls) }
+			if strings.HasPrefix(tc.name, "distinct non-owner") &&
+				(len(profileLogins) != 1 || profileLogins[0] != "synthetic-other" || err == nil || err.Error() != "missing github user") {
+				t.Fatalf("allowlist decision must follow successful non-owner profile; got logins=%v error=%v", profileLogins, err)
+			}
+			if strings.HasPrefix(tc.name, "empty profile") && len(profileLogins) != 1 {
+				t.Fatalf("expected a successfully fetched empty profile, got %d calls", len(profileLogins))
+			}
+		})
+	}
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 29/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 30/40 =====
+PATH: provider-policy-test/requests/requests.go
+SHA256: 8d9ea75353fb2a2adca48ee886448c514acc4f773ba342725f0f632866b2ec32
+CONTENT_BYTES: 1106
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+// Test double for only the JSON GETs used by the extracted provider methods.
+// This is not oauth2-proxy's production requests package.
+package requests
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
+type request struct {
+	url     string
+	ctx     context.Context
+	headers http.Header
+}
+type result struct {
+	resp *http.Response
+	err  error
+}
+
+func New(url string) *request { return &request{url: url} }
+func (r *request) WithContext(ctx context.Context) *request { r.ctx = ctx; return r }
+func (r *request) WithHeaders(h http.Header) *request { r.headers = h; return r }
+func (r *request) Do() *result {
+	req, err := http.NewRequestWithContext(r.ctx, http.MethodGet, r.url, nil)
+	if err != nil { return &result{err: err} }
+	req.Header = r.headers
+	resp, err := http.DefaultClient.Do(req)
+	return &result{resp: resp, err: err}
+}
+func (r *result) UnmarshalInto(dst any) error {
+	if r.err != nil { return r.err }
+	defer r.resp.Body.Close()
+	if r.resp.StatusCode != http.StatusOK { return fmt.Errorf("unexpected status %d", r.resp.StatusCode) }
+	return json.NewDecoder(r.resp.Body).Decode(dst)
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 30/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 31/40 =====
+PATH: provider-policy-test/sessions/sessions.go
+SHA256: 2eacadd5772bd864f1d61ebc8ce0243dada4ba1333c5113f2525cbed984067d8
+CONTENT_BYTES: 129
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+package sessions
+
+type SessionState struct {
+	AccessToken string
+	Groups      []string
+	Email       string
+	User        string
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 31/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 32/40 =====
+PATH: provider-policy-test/testdata/LICENSE.oauth2-proxy
+SHA256: 89807acf2309bd285f033404ee78581602f3cd9b819a16ac2f0e5f60ff4a473e
+CONTENT_BYTES: 1023
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 32/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 33/40 =====
+PATH: provider-policy-test/testdata/github.v7.15.5.go.txt
+SHA256: 03aee25d95c40af66cdbe932eca288f594621c2ee40696ce88b03be45cfa075e
+CONTENT_BYTES: 14062
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+package providers
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"maps"
+	"net/http"
+	"net/url"
+	"path"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/apis/options"
+	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/apis/sessions"
+	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/logger"
+	"github.com/oauth2-proxy/oauth2-proxy/v7/pkg/requests"
+)
+
+// GitHubProvider represents an GitHub based Identity Provider
+type GitHubProvider struct {
+	*ProviderData
+	Org   string
+	Team  string
+	Repo  string
+	Token string
+	Users []string
+}
+
+var _ Provider = (*GitHubProvider)(nil)
+
+const (
+	githubProviderName = "GitHub"
+	githubDefaultScope = "user:email read:org"
+	orgTeamSeparator   = ":"
+)
+
+var (
+	// Default Login URL for GitHub.
+	// Pre-parsed URL of https://github.org/login/oauth/authorize.
+	githubDefaultLoginURL = &url.URL{
+		Scheme: "https",
+		Host:   "github.com",
+		Path:   "/login/oauth/authorize",
+	}
+
+	// Default Redeem URL for GitHub.
+	// Pre-parsed URL of https://github.org/login/oauth/access_token.
+	githubDefaultRedeemURL = &url.URL{
+		Scheme: "https",
+		Host:   "github.com",
+		Path:   "/login/oauth/access_token",
+	}
+
+	// Default Validation URL for GitHub.
+	// ValidationURL is the API Base URL.
+	// Other API requests are based off of this (eg to fetch users/groups).
+	// Pre-parsed URL of https://api.github.com/.
+	githubDefaultValidateURL = &url.URL{
+		Scheme: "https",
+		Host:   "api.github.com",
+		Path:   "/",
+	}
+)
+
+// NewGitHubProvider initiates a new GitHubProvider
+func NewGitHubProvider(p *ProviderData, opts options.GitHubOptions) *GitHubProvider {
+	p.setProviderDefaults(providerDefaults{
+		name:        githubProviderName,
+		loginURL:    githubDefaultLoginURL,
+		redeemURL:   githubDefaultRedeemURL,
+		profileURL:  nil,
+		validateURL: githubDefaultValidateURL,
+		scope:       githubDefaultScope,
+	})
+
+	provider := &GitHubProvider{ProviderData: p}
+
+	provider.setOrgTeam(opts.Org, opts.Team)
+	provider.setRepo(opts.Repo, opts.Token)
+	provider.setUsers(opts.Users)
+	return provider
+}
+
+func makeGitHubHeader(accessToken string) http.Header {
+	// extra headers required by the GitHub API when making authenticated requests
+	extraHeaders := map[string]string{
+		acceptHeader: "application/vnd.github.v3+json",
+	}
+	return makeAuthorizationHeader(tokenTypeToken, accessToken, extraHeaders)
+}
+
+func (p *GitHubProvider) makeGitHubAPIEndpoint(endpoint string, params *url.Values) *url.URL {
+	basePath := p.ValidateURL.Path
+
+	re := regexp.MustCompile(`^/api/v\d+`)
+	match := re.FindString(p.ValidateURL.Path)
+	if match != "" {
+		basePath = match
+	}
+
+	if params == nil {
+		params = &url.Values{}
+	}
+
+	return &url.URL{
+		Scheme:   p.ValidateURL.Scheme,
+		Host:     p.ValidateURL.Host,
+		Path:     path.Join(basePath, endpoint),
+		RawQuery: params.Encode(),
+	}
+}
+
+// setOrgTeam adds GitHub org reading parameters to the OAuth2 scope
+func (p *GitHubProvider) setOrgTeam(org, team string) {
+	p.Org = org
+	p.Team = team
+}
+
+// setRepo configures the target repository and optional token to use
+func (p *GitHubProvider) setRepo(repo, token string) {
+	p.Repo = repo
+	p.Token = token
+}
+
+// setUsers configures allowed usernames
+func (p *GitHubProvider) setUsers(users []string) {
+	p.Users = users
+}
+
+// EnrichSession updates the User & Email after the initial Redeem
+func (p *GitHubProvider) EnrichSession(ctx context.Context, s *sessions.SessionState) error {
+	// Construct user info JSON from multiple GitHub API endpoints to have a more detailed session state
+	if err := p.getOrgAndTeam(ctx, s); err != nil {
+		return err
+	}
+
+	if err := p.checkRestrictions(ctx, s); err != nil {
+		return err
+	}
+
+	if err := p.getEmail(ctx, s); err != nil {
+		return err
+	}
+
+	return p.getUser(ctx, s)
+}
+
+// ValidateSession validates the AccessToken
+func (p *GitHubProvider) ValidateSession(ctx context.Context, s *sessions.SessionState) bool {
+	return validateToken(ctx, p, s.AccessToken, makeGitHubHeader(s.AccessToken))
+}
+
+func (p *GitHubProvider) hasOrg(s *sessions.SessionState) error {
+	// https://developer.github.com/v3/orgs/#list-your-organizations
+	var orgs []string
+
+	for _, group := range s.Groups {
+		if !strings.Contains(group, ":") {
+			orgs = append(orgs, group)
+		}
+	}
+
+	presentOrgs := make([]string, 0, len(orgs))
+	for _, org := range orgs {
+		if p.Org == org {
+			logger.Printf("Found Github Organization:%q", org)
+			return nil
+		}
+		presentOrgs = append(presentOrgs, org)
+	}
+
+	logger.Printf("Missing Organization:%q in %v", p.Org, presentOrgs)
+	return errors.New("user is missing required organization")
+}
+
+func (p *GitHubProvider) hasOrgAndTeam(s *sessions.SessionState) error {
+	type orgTeam struct {
+		Org  string `json:"org"`
+		Team string `json:"team"`
+	}
+
+	var presentOrgTeams []orgTeam
+
+	for _, group := range s.Groups {
+		if strings.Contains(group, orgTeamSeparator) {
+			ot := strings.Split(group, orgTeamSeparator)
+			presentOrgTeams = append(presentOrgTeams, orgTeam{ot[0], ot[1]})
+		}
+	}
+
+	var hasOrg bool
+
+	presentOrgs := make(map[string]bool)
+	var presentTeams []string
+
+	for _, ot := range presentOrgTeams {
+		presentOrgs[ot.Org] = true
+
+		if strings.EqualFold(p.Org, ot.Org) {
+			hasOrg = true
+
+			teams := strings.Split(p.Team, ",")
+			for _, team := range teams {
+				if strings.EqualFold(strings.TrimSpace(team), ot.Team) {
+					logger.Printf("Found Github Organization/Team:%q/%q", ot.Org, ot.Team)
+					return nil
+				}
+			}
+			presentTeams = append(presentTeams, ot.Team)
+		}
+	}
+
+	if hasOrg {
+		logger.Printf("Missing Team:%q from Org:%q in teams: %v", p.Team, p.Org, presentTeams)
+		return errors.New("user is missing required team")
+	}
+
+	logger.Printf("Missing Organization:%q in %#v", p.Org, maps.Keys(presentOrgs))
+	return errors.New("user is missing required organization")
+}
+
+func (p *GitHubProvider) hasTeam(s *sessions.SessionState) error {
+	var teams []string
+
+	for _, group := range s.Groups {
+		if strings.Contains(group, orgTeamSeparator) {
+			teams = append(teams, strings.TrimSpace(group))
+		}
+	}
+
+	var presentTeams = make([]string, 0, len(teams))
+
+	for _, ot := range teams {
+		allowedTeams := strings.Split(p.Team, ",")
+		for _, team := range allowedTeams {
+			if !strings.Contains(team, orgTeamSeparator) {
+				logger.Printf("Please use fully qualified team names (org:team-slug) if you omit the organisation. Current Team name: %s", team)
+				return errors.New("team name is invalid")
+			}
+
+			if strings.EqualFold(strings.TrimSpace(team), ot) {
+				logger.Printf("Found Github Organization/Team:%s", ot)
+				return nil
+			}
+		}
+		presentTeams = append(presentTeams, ot)
+	}
+
+	logger.Printf("Missing Team:%q in teams: %v", p.Team, presentTeams)
+	return errors.New("user is missing required team")
+}
+
+func (p *GitHubProvider) hasRepoAccess(ctx context.Context, accessToken string) error {
+	// https://developer.github.com/v3/repos/#get-a-repository
+
+	type permissions struct {
+		Pull bool `json:"pull"`
+		Push bool `json:"push"`
+	}
+
+	type repository struct {
+		Permissions permissions `json:"permissions"`
+		Private     bool        `json:"private"`
+	}
+
+	endpoint := p.makeGitHubAPIEndpoint("/repos/"+p.Repo, nil)
+
+	var repo repository
+	err := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(accessToken)).
+		Do().
+		UnmarshalInto(&repo)
+
+	if err != nil {
+		return err
+	}
+
+	// Every user can implicitly pull from a public repo, so only grant access
+	// if they have push access or the repo is private and they can pull
+	if repo.Permissions.Push || (repo.Private && repo.Permissions.Pull) {
+		return nil
+	}
+
+	return errors.New("user doesn't have repository access")
+}
+
+func (p *GitHubProvider) hasUser(ctx context.Context, accessToken string) (bool, error) {
+	// https://developer.github.com/v3/users/#get-the-authenticated-user
+
+	var user struct {
+		Login string `json:"login"`
+		Email string `json:"email"`
+	}
+
+	endpoint := p.makeGitHubAPIEndpoint("/user", nil)
+
+	err := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(accessToken)).
+		Do().
+		UnmarshalInto(&user)
+	if err != nil {
+		return false, err
+	}
+
+	if p.isVerifiedUser(user.Login) {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (p *GitHubProvider) isCollaborator(ctx context.Context, username, accessToken string) (bool, error) {
+	//https://developer.github.com/v3/repos/collaborators/#check-if-a-user-is-a-collaborator
+
+	endpoint := p.makeGitHubAPIEndpoint("/repos/"+p.Repo+"/collaborators/"+username, nil)
+	result := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(accessToken)).
+		Do()
+	if result.Error() != nil {
+		return false, result.Error()
+	}
+
+	if result.StatusCode() != 204 {
+		return false, fmt.Errorf("got %d from %q %s",
+			result.StatusCode(), endpoint.String(), result.Body())
+	}
+
+	logger.Printf("got %d from %q %s", result.StatusCode(), endpoint.String(), result.Body())
+
+	return true, nil
+}
+
+// getEmail updates the SessionState Email
+func (p *GitHubProvider) getEmail(ctx context.Context, s *sessions.SessionState) error {
+
+	var emails []struct {
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
+	}
+
+	endpoint := p.makeGitHubAPIEndpoint("/user/emails", nil)
+
+	err := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(s.AccessToken)).
+		Do().
+		UnmarshalInto(&emails)
+	if err != nil {
+		return err
+	}
+
+	for _, email := range emails {
+		if email.Verified {
+			if email.Primary {
+				s.Email = email.Email
+				return nil
+			}
+		}
+	}
+
+	return nil
+}
+
+// getUser updates the SessionState User
+func (p *GitHubProvider) getUser(ctx context.Context, s *sessions.SessionState) error {
+	var user struct {
+		Login string `json:"login"`
+		Email string `json:"email"`
+	}
+
+	endpoint := p.makeGitHubAPIEndpoint("/user", nil)
+
+	err := requests.New(endpoint.String()).
+		WithContext(ctx).
+		WithHeaders(makeGitHubHeader(s.AccessToken)).
+		Do().
+		UnmarshalInto(&user)
+	if err != nil {
+		return err
+	}
+
+	// Now that we have the username we can check collaborator status
+	if !p.isVerifiedUser(user.Login) && p.Org == "" && p.Repo != "" && p.Token != "" {
+		if ok, err := p.isCollaborator(ctx, user.Login, p.Token); err != nil || !ok {
+			return err
+		}
+	}
+
+	s.User = user.Login
+	return nil
+}
+
+func (p *GitHubProvider) isVerifiedUser(username string) bool {
+	for _, u := range p.Users {
+		if username == u {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *GitHubProvider) checkRestrictions(ctx context.Context, s *sessions.SessionState) error {
+	// If a user is verified by username options, skip the following restrictions
+	if ok, err := p.checkUserRestriction(ctx, s); err != nil || ok {
+		return err
+	}
+
+	var err error
+	switch {
+	case p.Org != "" && p.Team != "":
+		err = p.hasOrgAndTeam(s)
+	case p.Org != "":
+		err = p.hasOrg(s)
+	case p.Team != "":
+		err = p.hasTeam(s)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if p.Org == "" && p.Repo != "" && p.Token == "" {
+		// If we have a token we'll do the collaborator check
+		return p.hasRepoAccess(ctx, s.AccessToken)
+	}
+
+	return nil
+}
+
+func (p *GitHubProvider) checkUserRestriction(ctx context.Context, s *sessions.SessionState) (bool, error) {
+	if len(p.Users) == 0 {
+		return false, nil
+	}
+
+	verifiedUser, err := p.hasUser(ctx, s.AccessToken)
+	if err != nil {
+		return verifiedUser, err
+	}
+
+	// org and repository options are not configured
+	if !verifiedUser && p.Org == "" && p.Repo == "" {
+		return false, errors.New("missing github user")
+	}
+
+	return verifiedUser, nil
+}
+
+func (p *GitHubProvider) getOrgAndTeam(ctx context.Context, s *sessions.SessionState) error {
+	err := p.getOrgs(ctx, s)
+	if err != nil {
+		return err
+	}
+
+	return p.getTeams(ctx, s)
+}
+
+func (p *GitHubProvider) getOrgs(ctx context.Context, s *sessions.SessionState) error {
+
+	type Organization struct {
+		// Support for Github organizations
+		// https://docs.github.com/en/rest/orgs/orgs#list-organizations-for-the-authenticated-user
+		Login string `json:"login,omitempty"`
+		// Support for Gitea organizations
+		// https://docs.gitea.com/api/1.24/#tag/organization/operation/orgGetAll
+		Name string `json:"name,omitempty"`
+	}
+
+	pn := 1
+	for {
+		params := url.Values{
+			"per_page": {"100"},
+			"page":     {strconv.Itoa(pn)},
+		}
+
+		endpoint := p.makeGitHubAPIEndpoint("/user/orgs", &params)
+
+		var orgs []Organization
+		err := requests.New(endpoint.String()).
+			WithContext(ctx).
+			WithHeaders(makeGitHubHeader(s.AccessToken)).
+			Do().
+			UnmarshalInto(&orgs)
+		if err != nil {
+			return err
+		}
+
+		if len(orgs) == 0 {
+			break
+		}
+
+		for _, org := range orgs {
+			var orgName string
+			if len(org.Login) > 0 {
+				orgName = org.Login
+				logger.Printf("Member of Github Organization: %q", orgName)
+			} else {
+				orgName = org.Name
+				logger.Printf("Member of Gitea Organization: %q", orgName)
+			}
+
+			s.Groups = append(s.Groups, orgName)
+		}
+		pn++
+	}
+
+	return nil
+}
+
+func (p *GitHubProvider) getTeams(ctx context.Context, s *sessions.SessionState) error {
+	// https://docs.github.com/en/rest/teams/teams?#list-user-teams
+	type Team struct {
+		Name string `json:"name"`
+		Slug string `json:"slug"`
+		Org  struct {
+			Login string `json:"login"`
+			Name  string `json:"name"`
+		} `json:"organization"`
+	}
+
+	pn := 1
+	for {
+		params := url.Values{
+			"per_page": {"100"},
+			"page":     {strconv.Itoa(pn)},
+		}
+
+		endpoint := p.makeGitHubAPIEndpoint("/user/teams", &params)
+
+		var teams []Team
+		err := requests.New(endpoint.String()).
+			WithContext(ctx).
+			WithHeaders(makeGitHubHeader(s.AccessToken)).
+			Do().
+			UnmarshalInto(&teams)
+		if err != nil {
+			return err
+		}
+
+		if len(teams) == 0 {
+			break
+		}
+
+		for _, team := range teams {
+			var orgName, teamName string
+
+			if len(team.Org.Login) > 0 {
+				orgName = team.Org.Login
+				teamName = team.Slug
+				logger.Printf("Member of Github Organization/Team: %q/%q", orgName, teamName)
+			} else {
+				orgName = team.Org.Name
+				teamName = team.Name
+				logger.Printf("Member of Gitea Organization/Team: %q/%q", orgName, teamName)
+			}
+
+			s.Groups = append(s.Groups, fmt.Sprintf("%s%s%s", orgName, orgTeamSeparator, teamName))
+		}
+
+		pn++
+	}
+
+	return nil
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 33/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 34/40 =====
+PATH: routes.caddy
+SHA256: d089cbb65414cd01600383df1bfbea10c0ab6c8e423ad4701324cb368e902033
+CONTENT_BYTES: 2238
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# Caddy 2.11.7; imported inside a site block. All app routes require auth.
+# The /oauth2/ path is forwarded ONLY to the gate, never to the application.
+# Callback failures can be CSRF, provider API/scope, profile or allowlist errors.
+# Preserve the error class; never expose the upstream body or claim a cause.
+handle /oauth2/callback {
+	reverse_proxy {$GATE_ADDR} {
+		import oauth-gateway.caddy
+		@callback_client_error status 4xx
+		handle_response @callback_client_error {
+			header Cache-Control "no-store"
+			header Content-Type "text/plain; charset=utf-8"
+			respond "Sign-in could not be completed. Please try again or contact the administrator." 403
+		}
+		@callback_server_error status 5xx
+		handle_response @callback_server_error {
+			header Cache-Control "no-store"
+			header Content-Type "text/plain; charset=utf-8"
+			respond "Sign-in could not be completed. Please try again or contact the administrator." 500
+		}
+	}
+}
+
+handle /oauth2/* {
+	reverse_proxy {$GATE_ADDR} {
+		import oauth-gateway.caddy
+	}
+}
+
+@api path /api /api/* /graphql /graphql/*
+handle @api {
+	forward_auth {$GATE_ADDR} {
+		uri /oauth2/auth
+		header_up -Authorization
+		header_up -Forwarded
+		header_up -X-Forwarded-User
+		header_up -X-Forwarded-Email
+		header_up -X-Auth-Request-*
+		header_up -X-Forwarded-Client-Cert
+		header_up -X-Forwarded-Prefix
+		header_up -X-Forwarded-Scheme
+		header_up -X-Original-URL
+		header_up -X-Rewrite-URL
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Host {$PUBLIC_AUTHORITY}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-For {remote_host}
+	}
+	import upstream.caddy
+}
+
+handle {
+	forward_auth {$GATE_ADDR} {
+		uri /oauth2/auth
+		header_up -Authorization
+		header_up -Forwarded
+		header_up -X-Forwarded-User
+		header_up -X-Forwarded-Email
+		header_up -X-Auth-Request-*
+		header_up -X-Forwarded-Client-Cert
+		header_up -X-Forwarded-Prefix
+		header_up -X-Forwarded-Scheme
+		header_up -X-Original-URL
+		header_up -X-Rewrite-URL
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Host {$PUBLIC_AUTHORITY}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-For {remote_host}
+		@unauth status 401
+		handle_response @unauth {
+			redir * /oauth2/sign_in 302
+		}
+	}
+	import upstream.caddy
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 34/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 35/40 =====
+PATH: test_caddy_mock.py
+SHA256: 59ae2a95c586ce49e9ca60071e192daecb0c144e539705ea8f1402efa30441ad
+CONTENT_BYTES: 11960
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Caddy 2.11.7 routing test with synthetic gate/upstream, loopback only.
+No OAuth, GitHub, Docker, Payload server, or external network is used.
+"""
+import http.client
+import json
+import os
+from pathlib import Path
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+BASE = Path(__file__).resolve().parent
+CADDY = os.environ.get('CADDY_BIN', 'caddy')
+
+class State:
+    valid = True
+    app_requests = []
+    auth_cookie_headers = []
+    auth_authorization = []
+
+class Gate(BaseHTTPRequestHandler):
+    def log_message(self, *_): pass
+    def do_GET(self):
+        State.auth_cookie_headers = self.headers.get_all('Cookie', [])
+        State.auth_authorization = self.headers.get_all('Authorization', [])
+        if self.path.startswith('/oauth2/auth'):
+            ok = State.valid and any(
+                part.strip() == '__Host-preview_gate=owner'
+                for value in State.auth_cookie_headers for part in value.split(';')
+            )
+            self.send_response(202 if ok else 401)
+            self.end_headers()
+        elif self.path.startswith('/oauth2/callback'):
+            status = 403 if 'scope-denied' in self.path else 500
+            self.send_response(status)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('X-Internal-Debug', 'SYNTHETIC INTERNAL SECRET')
+            self.send_header('Set-Cookie', 'synthetic-internal=do-not-forward; Path=/')
+            self.end_headers()
+            self.wfile.write(b'missing github user: INTERNAL SYNTHETIC DETAILS')
+        elif self.path.startswith('/oauth2/sign_out'):
+            State.valid = False
+            self.send_response(302)
+            self.send_header('Set-Cookie', '__Host-preview_gate=; Max-Age=0; Path=/')
+            self.end_headers()
+        else:
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'synthetic gate endpoint')
+
+class App(BaseHTTPRequestHandler):
+    def log_message(self, *_): pass
+    def do_GET(self):
+        State.app_requests.append((self.path, dict(self.headers)))
+        payload = {'path': self.path, 'headers': dict(self.headers), 'cookies': self.headers.get_all('Cookie', [])}
+        body = json.dumps(payload).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+def serve(handler):
+    server = ThreadingHTTPServer(('127.0.0.1', 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+def free_port():
+    with socket.socket() as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+def request(port, path, headers=None, multiple=None):
+    conn = http.client.HTTPConnection('127.0.0.1', port, timeout=4)
+    try:
+        if multiple is not None:
+            conn.putrequest('GET', path)
+            for name, value in multiple: conn.putheader(name, value)
+            conn.endheaders()
+        else:
+            conn.request('GET', path, headers=headers or {})
+        resp = conn.getresponse()
+        return resp.status, dict(resp.getheaders()), resp.read()
+    finally:
+        conn.close()
+
+def gate_cookie_name(name):
+    prefix = '__Host-preview_gate'
+    return name == prefix or (name.startswith(prefix + '_') and name[len(prefix)+1:].isdigit())
+
+def check(ok, label):
+    if not ok: raise AssertionError(label)
+    print('PASS', label)
+
+def main():
+    gate, app = serve(Gate), serve(App)
+    port = free_port()
+    env = dict(os.environ, GATE_ADDR=f'127.0.0.1:{gate.server_port}',
+               APP_ADDR=f'127.0.0.1:{app.server_port}',
+               PUBLIC_AUTHORITY='preview.xennic.ir')
+    version = subprocess.run([CADDY, 'version'], check=True, capture_output=True, text=True).stdout.strip()
+    if not version.startswith('v2.11.7 '): raise RuntimeError('Expected Caddy v2.11.7')
+    with tempfile.TemporaryDirectory(prefix='xennic-gate-review-') as tmp:
+        cfg = Path(tmp) / 'Caddyfile'
+        cfg.write_text('{\n admin off\n auto_https off\n}\n'
+                       f'http://127.0.0.1:{port} {{\n import {BASE / "routes.caddy"}\n}}\n')
+        log = open(Path(tmp) / 'caddy.log', 'w+')
+        proc = subprocess.Popen([CADDY, 'run', '--config', str(cfg), '--adapter', 'caddyfile'],
+                                cwd=BASE, env=env, stdout=log, stderr=log)
+        try:
+            for _ in range(100):
+                if proc.poll() is not None:
+                    log.flush(); log.seek(0); raise RuntimeError('Caddy exited: ' + log.read()[-2000:])
+                try: request(port, '/') ; break
+                except OSError: time.sleep(.05)
+            else: raise RuntimeError('Caddy did not start')
+            check(request(port, '/admin')[0] == 302, 'unauthenticated UI redirects')
+            check(request(port, '/api/test', {'Authorization':'Bearer synthetic'})[0] == 401,
+                  'Bearer alone does not bypass API gate')
+            check(request(port, '/graphql')[0] == 401, 'unauthenticated legacy GraphQL path denied')
+            check(request(port, '/api/graphql')[0] == 401, 'actual Payload /api/graphql path passes through gate')
+            check(request(port, '/media/file')[0] == 302, 'unauthenticated media redirects')
+            app_count = len(State.app_requests)
+            for url, status_expected in [('/oauth2/callback?code=synthetic', 500),
+                                         ('/oauth2/callback?error=scope-denied', 403)]:
+                status, headers, body = request(port, url)
+                check(status == status_expected, 'callback keeps generic server/client error class')
+                check(len(State.app_requests) == app_count, 'callback does not reach application')
+                check(b'Sign-in could not be completed' in body and b'INTERNAL' not in body and b'missing github user' not in body,
+                      'callback body is understandable and hides provider details')
+                check(headers.get('Cache-Control') == 'no-store' and 'X-Internal-Debug' not in headers and 'Set-Cookie' not in headers,
+                      'callback omits cacheability, internal headers and upstream cookies')
+            check(request(port, '/oauth2/other')[0] == 200 and len(State.app_requests) == app_count,
+                  'OAuth endpoints are routed only to gate')
+
+            incoming = {
+                'Cookie':'__Host-preview_gate=owner; __Host-preview_gate_0=chunk0; __Host-preview_gate_1=chunk1; payload-token=synthetic; other=keep',
+                'Authorization':'Bearer synthetic-payload', 'Forwarded':'for=evil;proto=http',
+                'X-Forwarded-User':'attacker', 'X-Auth-Request-Email':'attacker',
+                'X-Forwarded-Host':'evil.invalid', 'X-Forwarded-Proto':'http',
+                'Origin':'https://preview.xennic.ir', 'Sec-Fetch-Site':'same-origin',
+            }
+            status, _, body = request(port, '/api/users', incoming)
+            app_headers = json.loads(body)['headers']
+            check(status == 200 and app_headers.get('Authorization') == 'Bearer synthetic-payload',
+                  'Payload Bearer survives to upstream')
+            check('payload-token=synthetic' in app_headers.get('Cookie','') and 'other=keep' in app_headers.get('Cookie',''),
+                  'Payload and unrelated cookies survive')
+            app_names = [p.strip().partition('=')[0].strip() for p in app_headers.get('Cookie','').split(';')]
+            check(not any(gate_cookie_name(n) for n in app_names), 'gate cookie and numeric chunks are removed upstream')
+            check(any('__Host-preview_gate=owner' in value for value in State.auth_cookie_headers),
+                  'gate receives original cookie before selective upstream stripping')
+            check(app_headers.get('Origin') == 'https://preview.xennic.ir' and app_headers.get('Sec-Fetch-Site') == 'same-origin',
+                  'Origin and Fetch Metadata preserved')
+            check('Forwarded' not in app_headers and 'X-Forwarded-User' not in app_headers and
+                  app_headers.get('X-Forwarded-Host') == 'preview.xennic.ir' and
+                  app_headers.get('X-Forwarded-Proto') == 'https', 'spoofed forwarding/identity headers removed or rebuilt')
+
+            layouts = [
+                '__Host-preview_gate=owner; payload-token=synthetic',
+                'payload-token=synthetic; __Host-preview_gate=owner',
+                'payload-token=synthetic; __Host-preview_gate=owner; payload-other=abc',
+                '__Host-preview_gate=owner; __Host-preview_gate_0=chunk0; __Host-preview_gate_1=chunk1; payload-token=synthetic',
+                '__Host-preview_gate=owner; __Host-preview_gate_extra=keep; payload-token=synthetic',
+                '  __Host-preview_gate=owner; payload-token=synthetic',
+                '__Host-preview_gate =owner; payload-token=synthetic',
+                'payload-token=synthetic; __Host-preview_gate\t=owner; payload-other=abc',
+            ]
+            parser_cases = []
+            for value in layouts:
+                st, _, b = request(port, '/api/test', {'Cookie':value, 'Authorization':'Bearer synthetic-payload'})
+                returned = json.loads(b)['headers'].get('Cookie','')
+                names = [p.strip().partition('=')[0].strip() for p in returned.split(';')]
+                check(st == 200 and 'payload-token=synthetic' in returned and not any(gate_cookie_name(n) for n in names),
+                      'cookie layout filtered without losing Payload cookie')
+                if '__Host-preview_gate_extra=keep' in value:
+                    check('__Host-preview_gate_extra=keep' in returned, 'similarly named non-gate cookie preserved')
+                parser_cases.append({'cookie':returned})
+            st, _, b = request(port, '/api/test', multiple=[
+                ('Cookie','payload-token=synthetic; __Host-preview_gate=owner'),
+                ('Cookie','__Host-preview_gate_0=chunk0; __Host-preview_gate_1=chunk1; other=keep'),
+                ('Authorization','Bearer synthetic-payload')])
+            multi_cookies = json.loads(b)['cookies']
+            check(st == 200 and not any(gate_cookie_name(p.strip().partition('=')[0].strip())
+                  for value in multi_cookies for p in value.split(';')), 'all Cookie header fields have gate values removed')
+            check('payload-token=synthetic' in '; '.join(multi_cookies) and 'other=keep' in '; '.join(multi_cookies),
+                  'multiple Cookie fields preserve app cookies')
+            parser_cases.append({'cookie':'; '.join(multi_cookies)})
+            if os.environ.get('PAYLOAD_PACKAGE_DIR'):
+                result = subprocess.run(['node', str(BASE/'test_payload_extraction.mjs')],
+                    input=json.dumps(parser_cases), text=True, capture_output=True, check=True)
+                print(result.stdout.strip())
+            else:
+                print('SKIP Payload parser integration: set PAYLOAD_PACKAGE_DIR to Payload 3.91.0 package')
+            check(not State.auth_authorization, 'Bearer is not sent to synthetic gate')
+            print('SKIP gate outage test: no outage is requested or performed by this test.')
+            print('LIMITATION: no OAuth2 Proxy, GitHub, real browser, real Payload server or Docker network tested.')
+        finally:
+            proc.terminate()
+            try: proc.wait(timeout=5)
+            except subprocess.TimeoutExpired: proc.kill(); proc.wait()
+            gate.shutdown(); gate.server_close(); app.shutdown(); app.server_close(); log.close()
+
+if __name__ == '__main__':
+    try: main()
+    except Exception as exc:
+        print('FAIL', type(exc).__name__, file=sys.stderr)
+        raise SystemExit(1)
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 35/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 36/40 =====
+PATH: test_payload_browser.js
+SHA256: ab62d6736a87fcb24e855ad1d94bd2044f1a67ece3b32601165662ca2f03a78b
+CONTENT_BYTES: 3342
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+// Optional DevTools check against the isolated Caddy + REAL-Payload overlay only.
+// It uses the synthetic gate stub, not OAuth/GitHub. Do not run on public DNS,
+// production or a VPS. It prints booleans only, never tokens/cookies/passwords.
+(async () => {
+  if (location.origin !== 'https://preview.xennic.ir') throw new Error('Unexpected origin; stopped')
+  if (!confirm('Continue only if this browser maps preview.xennic.ir to local loopback and the isolated synthetic-gate stack?')) throw new Error('Stopped')
+  const form = document.createElement('form')
+  const email = document.createElement('input'); email.type='email'; email.autocomplete='username'; email.required=true
+  const password = document.createElement('input'); password.type='password'; password.autocomplete='current-password'; password.required=true
+  for (const [text,input] of [['Synthetic Staff email',email],['Synthetic Staff password',password]]) {
+    const label=document.createElement('label'); label.textContent=text+' '; label.append(input)
+    form.append(label,document.createElement('br'))
+  }
+  const button=document.createElement('button'); button.type='submit'; button.textContent='Run isolated test'; form.append(button)
+  Object.assign(form.style,{position:'fixed',zIndex:'2147483647',inset:'20% 20%',padding:'2rem',background:'white',color:'black'})
+  document.body.append(form)
+  const credentials=await new Promise(resolve=>form.addEventListener('submit',e=>{
+    e.preventDefault(); const v={email:email.value,password:password.value}; email.value='';password.value='';form.remove();resolve(v)
+  },{once:true}))
+  const results={}; let token=''
+  try {
+    // Public synthetic marker accepted only by gate_stub.py; never a real session.
+    document.cookie='__Host-preview_gate=synthetic-owner; Path=/; Secure; SameSite=Lax'
+    const first=await fetch('/api/staff/first-register',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Synthetic Preview Test',...credentials})})
+    results.firstStaff=first.status===200
+    let login
+    if(results.firstStaff) login=await fetch('/api/staff/login',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(credentials)})
+    credentials.password=''
+    const body=login?.ok?await login.json():{}
+    token=typeof body.token==='string'?body.token:''
+    results.login=Boolean(login?.ok&&token)
+    if(results.login){
+      const cookieMe=await fetch('/api/staff/me',{credentials:'same-origin',cache:'no-store'})
+      results.payloadCookie=Boolean(cookieMe.ok&&(await cookieMe.json()).user)
+      const logout=await fetch('/api/staff/logout',{method:'POST',credentials:'same-origin',cache:'no-store'})
+      results.payloadLogout=logout.ok
+      const bearerMe=await fetch('/api/staff/me',{credentials:'same-origin',cache:'no-store',headers:{Authorization:`Bearer ${token}`}})
+      results.payloadBearerWithoutPayloadCookie=Boolean(bearerMe.ok&&(await bearerMe.json()).user)
+    }
+  } catch { results.requestCompleted=false }
+  finally {
+    credentials.email='';credentials.password='';token=''
+    document.cookie='__Host-preview_gate=; Max-Age=0; Path=/; Secure; SameSite=Lax'
+  }
+  console.log('Synthetic Payload checks (booleans only):',results)
+})()
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 36/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 37/40 =====
+PATH: test_payload_caddy.mjs
+SHA256: a36a5d1c665e3fe66b306557b3e60d23482885f7b17b15b2a7a9952aeccf629d
+CONTENT_BYTES: 5366
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+// Isolated integration test for REAL Payload 3.91.0 behind Caddy + synthetic gate.
+// Requires website commit 418de2b5, a fresh disposable DB/media project, the
+// reviewed overlay and a public local Caddy CA. It maps only this Node process
+// to 127.0.0.1. Never targets VPS/public DNS and prints no credentials/tokens.
+import assert from 'node:assert/strict'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import https from 'node:https'
+
+const origin = 'https://preview.xennic.ir'
+const hostname = 'preview.xennic.ir'
+const caFile = process.env.LAB_CA_FILE
+assert(caFile, 'Set LAB_CA_FILE to the public root certificate from the isolated Caddy lab')
+const ca = readFileSync(caFile)
+const gateCookie = '__Host-preview_gate=synthetic-owner'
+
+function request(path, {method='GET', body, headers={}, withGate=true}={}) {
+  return new Promise((resolve, reject) => {
+    const outgoing = {Host:hostname, ...headers}
+    if (withGate) outgoing.Cookie = [gateCookie, outgoing.Cookie].filter(Boolean).join('; ')
+    if (body !== undefined) outgoing['Content-Length'] = Buffer.byteLength(body)
+    const req = https.request({hostname, servername:hostname, port:443, path, method, headers:outgoing,
+      ca, rejectUnauthorized:true,
+      lookup(_host, options, cb) {
+        if (options?.all) cb(null, [{address:'127.0.0.1', family:4}])
+        else cb(null, '127.0.0.1', 4)
+      },
+    }, res => {
+      const chunks=[]
+      res.on('data', c => chunks.push(c))
+      res.on('end', () => resolve({status:res.statusCode, headers:res.headers, body:Buffer.concat(chunks).toString('utf8')}))
+    })
+    req.on('error', reject)
+    if (body !== undefined) req.write(body)
+    req.end()
+  })
+}
+function check(ok, label) { assert(ok, label); console.log('PASS', label) }
+
+const json = {'Content-Type':'application/json', Origin:origin}
+const email = `lab-${randomUUID()}@example.invalid`
+const password = randomBytes(32).toString('base64url')
+let token = ''
+
+try {
+  let r = await request('/api/staff/me', {withGate:false})
+  check(r.status === 401, 'API denied without synthetic gate marker')
+  r = await request('/admin', {withGate:false})
+  check(r.status === 302, 'admin redirects without synthetic gate marker')
+
+  r = await request('/api/staff/first-register', {method:'POST', headers:json,
+    body:JSON.stringify({name:'Synthetic Preview Test', email, password})})
+  check(r.status === 200, 'fresh disposable DB creates synthetic first Staff')
+
+  r = await request('/api/staff/login', {method:'POST',
+    headers:{'Content-Type':'application/json', Origin:'https://untrusted.example.invalid'},
+    body:JSON.stringify({email,password})})
+  check(r.status === 403 && !r.headers['set-cookie'], 'untrusted-Origin login rejected without issuing cookie')
+
+  r = await request('/api/staff/login', {method:'POST', headers:json, body:JSON.stringify({email,password})})
+  check(r.status === 200, 'synthetic Staff login succeeds through Caddy')
+  const loginBody = JSON.parse(r.body)
+  token = typeof loginBody.token === 'string' ? loginBody.token : ''
+  check(Boolean(token), 'Payload returned synthetic Bearer token')
+  const setCookies = Array.isArray(r.headers['set-cookie']) ? r.headers['set-cookie'] : []
+  const setCookie = setCookies.find(v => /^payload-token=/.test(v))
+  check(Boolean(setCookie), 'Payload cookie passed through proxy')
+  check(/(?:^|;)\s*HttpOnly(?:=true)?(?:;|$)/i.test(setCookie), 'Payload cookie HttpOnly')
+  check(/(?:^|;)\s*SameSite=Lax(?:;|$)/i.test(setCookie), 'Payload cookie SameSite=Lax')
+  check(/(?:^|;)\s*Secure(?:=true)?(?:;|$)/i.test(setCookie), 'Payload cookie Secure')
+  check(/(?:^|;)\s*Path=\/(?:;|$)/i.test(setCookie), 'Payload cookie Path=/')
+  check(!/(?:^|;)\s*Domain=/i.test(setCookie), 'Payload cookie host-only')
+  const payloadCookie = setCookie.split(';',1)[0]
+
+  r = await request('/api/staff/me', {headers:{Cookie:payloadCookie, Origin:origin}})
+  const cookieMe = r.status === 200 ? JSON.parse(r.body) : {}
+  check(r.status === 200 && Boolean(cookieMe.user?.email), 'Payload Cookie auth works through Caddy')
+
+  r = await request('/api/staff/me', {headers:{Cookie:payloadCookie, Origin:'https://untrusted.example.invalid'}})
+  const untrustedMe = r.status === 200 ? JSON.parse(r.body) : {}
+  check(r.status === 200 && !untrustedMe.user, 'Payload rejects forwarded untrusted Origin for Cookie auth')
+
+  r = await request('/api/staff/logout', {method:'POST', headers:{Cookie:payloadCookie, Origin:origin}})
+  check(r.status === 200, 'Payload logout succeeds through Caddy')
+  const expired = Array.isArray(r.headers['set-cookie']) ? r.headers['set-cookie'].find(v => /^payload-token=/.test(v)) : r.headers['set-cookie']
+  check(Boolean(expired) && /(?:Max-Age=0|Expires=)/i.test(expired), 'Payload logout expires its cookie')
+
+  // No Payload Cookie is sent here. The synthetic gate marker is still supplied
+  // to Caddy and the Caddy upstream filter removes it before the real app.
+  r = await request('/api/staff/me', {headers:{Authorization:`Bearer ${token}`, Origin:origin}})
+  const bearerMe = r.status === 200 ? JSON.parse(r.body) : {}
+  check(r.status === 200 && Boolean(bearerMe.user?.email), 'Payload Bearer works with Payload Cookie omitted')
+  console.log('LIMITATION: synthetic gate only; no OAuth2 Proxy or GitHub account was tested.')
+} finally {
+  token = ''
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 37/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 38/40 =====
+PATH: test_payload_extraction.mjs
+SHA256: c09459695a37c014ba87cda302e0492d21b47f73d0672d47af00aa21245c8385
+CONTENT_BYTES: 1361
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+// Uses the real extractJWT code from the exact Payload package installed by the
+// website at commit 418de2b5. Synthetic headers only; not a full Payload server.
+import assert from 'node:assert/strict'
+import { pathToFileURL } from 'node:url'
+import { resolve } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+const root = process.env.PAYLOAD_PACKAGE_DIR
+assert(root, 'PAYLOAD_PACKAGE_DIR must point to the tested Payload package directory')
+const pkg = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'))
+assert.equal(pkg.version, '3.91.0', 'Refusing to test an unexpected Payload version')
+const { extractJWT } = await import(pathToFileURL(resolve(root, 'dist/auth/extractJWT.js')))
+let raw = ''
+for await (const chunk of process.stdin) raw += chunk
+const cases = JSON.parse(raw)
+for (const test of cases) {
+  const headers = new Headers({Cookie:test.cookie, Authorization:'Bearer synthetic-payload', Origin:'https://preview.xennic.ir'})
+  const payload = {config:{cookiePrefix:'payload', csrf:['https://preview.xennic.ir'], auth:{jwtOrder:['cookie']}}}
+  assert.equal(extractJWT({headers,payload}), 'synthetic')
+  payload.config.auth.jwtOrder = ['Bearer']
+  assert.equal(extractJWT({headers,payload}), 'synthetic-payload')
+}
+console.log(`PASS actual Payload ${pkg.version} extractJWT: ${cases.length} cookie layouts and Bearer`)
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 38/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 39/40 =====
+PATH: upstream.caddy
+SHA256: 59bdf04300141b80d114a96621165c5cf3a7e4f673554de2204cf70c928e40a8
+CONTENT_BYTES: 979
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+# Review/lab only: strip ONLY the OAuth2 Proxy session cookie and numbered chunks.
+# Preserve Payload cookies, unrelated cookies, Origin/Fetch Metadata and Authorization.
+# Keep this base cookie name synchronized with cookie_name in the OAuth2 Proxy config.
+reverse_proxy {$APP_ADDR} {
+	header_up Cookie "(^[\t ]*|;[\t ]*)__Host-preview_gate(_[0-9]+)?[\t ]*=[^;]*" "$1"
+	header_up Host {$PUBLIC_AUTHORITY}
+	header_up -Forwarded
+	header_up -X-Forwarded-User
+	header_up -X-Forwarded-Email
+	header_up -X-Forwarded-Groups
+	header_up -X-Forwarded-Access-Token
+	header_up -X-Forwarded-Client-Cert
+	header_up -X-Forwarded-Prefix
+	header_up -X-Forwarded-Uri
+	header_up -X-Forwarded-Method
+	header_up -X-Forwarded-Scheme
+	header_up -X-Auth-Request-*
+	header_up -Remote-User
+	header_up -X-Original-URL
+	header_up -X-Rewrite-URL
+	header_up X-Real-IP {remote_host}
+	header_up X-Forwarded-Host {$PUBLIC_AUTHORITY}
+	header_up X-Forwarded-Proto https
+	header_up X-Forwarded-For {remote_host}
+}
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 39/40 =====
+
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 BEGIN FILE 40/40 =====
+PATH: verify_bundle.py
+SHA256: ce890c5ea01b7799e28331fbca4e6f9dd93ef3688764bcc0973d6069e8668424
+CONTENT_BYTES: 5646
+ENCODING: UTF-8
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT BEGIN =====
+#!/usr/bin/env python3
+"""Static non-secret/integrity check for this review bundle; starts no services."""
+import hashlib
+import json
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parent
+REQUIRED = {
+    'README.fa.md','REVIEW-REPORT.fa.md','RUNBOOK.fa.md','FILES-FOR-WEBSITE-ASSISTANT.fa.md',
+    'VERSIONS-DIGESTS.fa.md','CHANGELOG.fa.md','VALIDATION.fa.md',
+    'Caddyfile','Caddyfile.lab','Caddyfile.payload.lab','routes.caddy','oauth-gateway.caddy','upstream.caddy',
+    'compose.oauth-lab.reference.yml','compose.payload-lab.override.yml',
+    'oauth2-proxy.example.toml','oauth2-proxy.lab.example.toml',
+    'fixture.py','gate_stub.py','prepare_lab_config.py','prepare_payload_lab_env.py',
+    'check_caddy_config.py','test_caddy_mock.py','test_payload_extraction.mjs','test_payload_caddy.mjs','test_payload_browser.js',
+    'provider-policy-test/go.mod','provider-policy-test/generate.py','provider-policy-test/provider_extracted.go',
+    'provider-policy-test/harness.go','provider-policy-test/provider_test.go',
+    'provider-policy-test/requests/requests.go','provider-policy-test/sessions/sessions.go',
+    'provider-policy-test/testdata/github.v7.15.5.go.txt','provider-policy-test/testdata/LICENSE.oauth2-proxy',
+    'compose.preview.yml','.env.preview.example',
+    'verify_bundle.py','MANIFEST.json','SHA256SUMS',
+}
+BAD_SUFFIXES = {'.pem','.key','.p12','.pfx','.env'}
+BAD_NAMES = {'.env','oauth2.toml','credentials.json','cookies.txt','secrets.json'}
+PRIVATE_KEY = re.compile(rb'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')
+GH_TOKEN = re.compile(rb'\bgh[oprsu]_[A-Za-z0-9_]{30,}\b')
+SECRET_ASSIGNMENT = re.compile(rb'(?im)^\s*(?:client_secret|cookie_secret)\s*=\s*["\'](?!REPLACE_IN_PRIVATE_FILE|REPLACE_WITH|UNAPPROVED)[^"\']{8,}["\']')
+
+
+def fail(message):
+    print('FAIL:', message, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def main():
+    actual = set()
+    for path in ROOT.rglob('*'):
+        if path.is_dir():
+            if path.name in {'.git','node_modules','__pycache__'}:
+                fail(f'forbidden generated/private directory: {path.relative_to(ROOT)}')
+            continue
+        if path.is_symlink() or not path.is_file():
+            fail(f'non-regular or symlinked entry: {path.relative_to(ROOT)}')
+        rel = path.relative_to(ROOT).as_posix()
+        actual.add(rel)
+        if path.name in BAD_NAMES or path.suffix.lower() in BAD_SUFFIXES:
+            fail(f'private/credential-like file is not allowed: {rel}')
+        data = path.read_bytes()
+        # This scanner necessarily contains its own private-key detection regex.
+        if rel != 'verify_bundle.py' and (PRIVATE_KEY.search(data) or GH_TOKEN.search(data) or SECRET_ASSIGNMENT.search(data)):
+            fail(f'credential-shaped content found: {rel}')
+    if actual != REQUIRED:
+        fail('unexpected/missing files; unexpected=' + repr(sorted(actual-REQUIRED)) + ' missing=' + repr(sorted(REQUIRED-actual)))
+
+    # Guardrails for the two Compose references.
+    payload_override=(ROOT/'compose.payload-lab.override.yml').read_text()
+    if '127.0.0.1:443:443/tcp' not in payload_override or 'ports: !reset []' not in payload_override:
+        fail('Payload overlay is missing loopback-only Caddy or app-port reset guard')
+    if re.search(r'(?m)^\s*-\s*["\']?0\.0\.0\.0:', payload_override):
+        fail('Payload overlay contains a public bind')
+    if 'preview_gate_lab:' not in payload_override or 'internal: true' not in payload_override:
+        fail('Payload overlay lacks its project-scoped internal network')
+    if payload_override.count('networks: [preview_gate_lab]') != 4:
+        fail('all four Payload-lab services must use the isolated network')
+    sample=(ROOT/'.env.preview.example').read_text()
+    for line in sample.splitlines():
+        if not line or line.lstrip().startswith('#'):
+            continue
+        if '=' not in line or not re.search(r'<[^>]+>', line.split('=',1)[1]):
+            fail('environment sample contains a non-placeholder value')
+    oauth=(ROOT/'compose.oauth-lab.reference.yml').read_text()
+    if 'DO NOT RUN' not in oauth or '127.0.0.1:18443:443/tcp' not in oauth:
+        fail('legacy OAuth Compose reference is not clearly marked unsafe/loopback')
+    final_toml=(ROOT/'oauth2-proxy.example.toml').read_text()
+    if 'scope = "UNAPPROVED_DO_NOT_RUN"' not in final_toml:
+        fail('final OAuth template must remain explicitly unapproved')
+
+    manifest_path=ROOT/'MANIFEST.json'
+    manifest=json.loads(manifest_path.read_text())
+    listed={entry['path']:entry for entry in manifest['files']}
+    expected=set(actual)-{'MANIFEST.json','SHA256SUMS'}
+    if set(listed)!=expected:
+        fail('MANIFEST.json file set differs from current payload files')
+    for rel,entry in listed.items():
+        data=(ROOT/rel).read_bytes()
+        if len(data)!=entry['size'] or hashlib.sha256(data).hexdigest()!=entry['sha256']:
+            fail(f'manifest mismatch: {rel}')
+    sums={}
+    for line in (ROOT/'SHA256SUMS').read_text().splitlines():
+        digest,rel=line.split('  ',1)
+        sums[rel]=digest
+    if set(sums)!=actual-{'SHA256SUMS'}:
+        fail('SHA256SUMS file set differs from package')
+    for rel,digest in sums.items():
+        if hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()!=digest:
+            fail(f'SHA256SUMS mismatch: {rel}')
+    print(f'PASS bundle structure, placeholder-only secret checks, guardrails, manifest and {len(sums)} SHA256 entries')
+    print('LIMITATION: this script does not validate Caddy/Compose/Go syntax, OCI image provenance, or deployment safety.')
+
+if __name__=='__main__':
+    main()
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 CONTENT END =====
+===== XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327 END FILE 40/40 =====
+
+END FILE RECORDS — 40 files; framing token XENN1C-TEXT-EXPORT-1.1.0-2a5f13979f2c3b1de327

@@ -1,0 +1,478 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════════════
+# IEE 1405 — بازبینی دسترسی ربات بله به آینهٔ فهرست نمایشگاه (barghpa)
+#
+# اجرا روی VPS (از مسیر iee1405-deploy):
+#   bash 03_ops/check_bot_access.sh            # فقط‌خواندنی: گرنت‌ها + پاسخ /c
+#   bash 03_ops/check_bot_access.sh --full     # + مسیر کامل ربات (bot_dispatch_json)
+#
+# چرا این فایل هست: گرنت‌های آینه اگر **پیش از** ساخته‌شدن نقش اجرا شوند
+# بی‌صدا رد می‌شوند (نقش وجود ندارد) و نتیجه‌اش فقط در بله دیده می‌شود:
+#   ERROR: permission denied for schema barghpa
+# این بررسی همان‌جا جلوی تحویل را می‌گیرد.
+#
+# چه چیزی را سبز می‌شمارد:
+#   ۱) نقش iee_app روی اسکیمای barghpa دسترسی USAGE دارد
+#   ۲) همهٔ شش جدول آینه برای iee_app خواندنی‌اند
+#   ۳) همهٔ توابع آینه برای iee_app اجراشدنی‌اند (bot_reply, selftest, …)
+#   ۴) iee_app نمی‌تواند در آینه بنویسد (فقط‌خواندنی بودن واقعاً برقرار است)
+#   ۵) selftest وقتی با نقش ربات اجرا می‌شود همه سبز است
+#   ۶) barghpa.bot_reply('') با نقش ربات خلاصهٔ غیرخالی می‌دهد
+#   ۷) CRM دست‌نخورده است (شمار سازمان‌ها گزارش می‌شود)
+# ═══════════════════════════════════════════════════════════════════════
+set -uo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=/dev/null
+source "$HERE/03_ops/lib_common.sh"
+
+# ── حالت آزمایشی/بدون کانتینر ─────────────────────────────────────────
+if [[ -n "${PG_DIRECT_PSQL:-}" ]]; then
+    dk_detect() { return 0; }
+    ct_detect() { return 0; }
+    pg_user_detect() { return 0; }
+    PG_CT="(مستقیم)"; PG_USER="${PG_USER:-postgres}"
+    pgq()          { local db="$1"; shift; $PG_DIRECT_PSQL -X -t -A -d "$db" "$@"; }
+    pgq_pretty()   { local db="$1"; shift; $PG_DIRECT_PSQL -X -P pager=off -d "$db" "$@"; }
+    pg_db_exists() { [[ -n "$($PG_DIRECT_PSQL -X -t -A -d postgres \
+                        -c "SELECT 1 FROM pg_database WHERE datname='$1'")" ]]; }
+fi
+
+FULL=0
+case "${1:-}" in
+    "")       FULL=0 ;;
+    --full)   FULL=1 ;;
+    *)        c_bad "گزینهٔ ناشناخته: $1"; c_hint "استفاده: bash 03_ops/check_bot_access.sh [--full]"; exit 2 ;;
+esac
+
+echo "════════════════════════════════════════════════"
+echo " بازبینی دسترسی ربات به آینهٔ نمایشگاه"
+echo "════════════════════════════════════════════════"
+
+dk_detect || { c_bad "docker پیدا نشد"; exit 1; }
+ct_detect || { c_bad "کانتینر PostgreSQL بالا نیست"; exit 1; }
+pg_user_detect || true
+
+# pgq در lib_common منتظر ‎-c‎ است؛ این میان‌بر فقط SQL می‌گیرد
+q() { pgq "$PG_DB" -c "$1"; }
+
+FAILS=0
+pass() { c_ok "$1"; }
+fail() { c_bad "$1"; [[ $# -gt 1 ]] && c_hint "$2"; FAILS=$((FAILS+1)); }
+
+# ── ۰) پیش‌نیازها ─────────────────────────────────────────────────────
+c_head "۰) پیش‌نیازها"
+
+if [[ "$(q "SELECT to_regclass('barghpa.company') IS NOT NULL")" == "t" ]]; then
+    pass "اسکیمای آینه موجود است"
+else
+    fail "اسکیمای barghpa ساخته نشده" "bash 03_ops/deploy_sql.sh && bash 03_ops/load_exhibitors.sh"
+    echo
+    c_bad "بازبینی بی‌معناست؛ اول آینه را بسازید."
+    exit 1
+fi
+
+if [[ "$(q "SELECT count(*) FROM pg_roles WHERE rolname='iee_app'")" == "1" ]]; then
+    pass "نقش iee_app موجود است"
+else
+    fail "نقش iee_app ساخته نشده" "PG_APP_PASSWORD=… bash 03_ops/deploy_sql.sh  (فایل ۰۶)"
+    exit 1
+fi
+
+ROWS="$(q "SELECT count(*) FROM barghpa.company")"
+if [[ "${ROWS:-0}" -gt 0 ]]; then
+    pass "آینه داده دارد: $ROWS شرکت"
+else
+    fail "آینه خالی است" "bash 03_ops/load_exhibitors.sh"
+fi
+
+# ── ۱) گرنت‌های نقش ربات ──────────────────────────────────────────────
+c_head "۱) گرنت‌های iee_app"
+
+chk_priv() {  # $1=label  $2=SQL برمی‌گرداند t/f  $3=راه رفع
+    if [[ "$(q "$2")" == "t" ]]; then pass "$1"; else fail "$1" "$3"; fi
+}
+
+chk_priv "USAGE روی اسکیمای barghpa" \
+    "SELECT has_schema_privilege('iee_app','barghpa','USAGE')" \
+    "bash 03_ops/deploy_sql.sh   (گرنت آینه در 06_roles.sql است؛ فایل ۰۸ پیش از ساخت نقش اجرا می‌شود)"
+
+for t in company contact participation company_flag pilot load_batch; do
+    chk_priv "SELECT روی barghpa.$t" \
+        "SELECT has_table_privilege('iee_app','barghpa.$t','SELECT')" \
+        "bash 03_ops/deploy_sql.sh"
+done
+
+# توابع: با شناسهٔ pg_proc بررسی می‌شوند تا به امضای دقیق وابسته نباشیم
+for f in bot_reply selftest stats_text search card by_hall conf_label fa_digits; do
+    chk_priv "EXECUTE روی barghpa.$f()" \
+        "SELECT coalesce((SELECT bool_and(has_function_privilege('iee_app', p.oid, 'EXECUTE'))
+                           FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                          WHERE n.nspname = 'barghpa' AND p.proname = '$f'), false)" \
+        "bash 03_ops/deploy_sql.sh"
+done
+
+# ── ۲) فقط‌خواندنی بودن (نباید بتواند بنویسد) ─────────────────────────
+c_head "۲) آینه فقط‌خواندنی است"
+
+# INSERT با شناسهٔ منفی: اگر دسترسی اشتباهاً داده شده باشد، همین ردیف پیدا می‌شود.
+W_OUT="$(q "SET ROLE iee_app;
+    INSERT INTO barghpa.company (id, name_fa, name_norm)
+    VALUES (-999999, 'آزمون دسترسی', 'آزمون دسترسی');
+    RESET ROLE;
+    SELECT count(*) FROM barghpa.company WHERE id = -999999;" 2>&1)"
+
+if [[ "$W_OUT" == *"permission denied"* ]]; then
+    pass "INSERT با نقش ربات رد می‌شود (همان‌طور که باید)"
+elif [[ "$W_OUT" == *"0"* ]]; then
+    fail "نقش ربات می‌تواند در آینه بنویسد" "GRANT بیش از حد؛ REVOKE INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA barghpa FROM iee_app"
+    q "DELETE FROM barghpa.company WHERE id = -999999" >/dev/null 2>&1 || true
+else
+    fail "نتیجهٔ آزمون نوشتن روشن نبود" "$W_OUT"
+fi
+
+# ── ۳) توابع با نقش ربات ─────────────────────────────────────────────
+c_head "۳) پاسخ توابع با نقش iee_app"
+
+ST="$(q "SET ROLE iee_app; SELECT count(*) || '/' || count(*) FILTER (WHERE ok) FROM barghpa.selftest();" 2>&1 | tail -1)"
+if [[ "$ST" == "9/9" ]]; then
+    pass "selftest با نقش ربات: ۹ از ۹ سبز"
+else
+    fail "selftest با نقش ربات سبز نیست: $ST" "psql -c \"SET ROLE iee_app; SELECT * FROM barghpa.selftest();\""
+fi
+
+REPLY="$(q "SET ROLE iee_app; SELECT barghpa.bot_reply('');" 2>&1)"
+if [[ "$REPLY" == *"آینه"* && "$REPLY" == *"شرکت:"* ]]; then
+    pass "barghpa.bot_reply('') با نقش ربات خلاصهٔ آینه را داد"
+    echo "$REPLY" | sed -n '2,5p' | sed 's/^/       /'
+elif [[ "$REPLY" == *"permission denied"* ]]; then
+    fail "bot_reply با نقش ربات «permission denied» داد" "bash 03_ops/deploy_sql.sh   (گرنت USAGE/EXECUTE آینه در 06_roles.sql)"
+else
+    fail "bot_reply پاسخ مورد انتظار را نداد: $REPLY"
+fi
+
+HALL="$(q "SET ROLE iee_app; SELECT barghpa.bot_reply('38B');" 2>&1)"
+if [[ "$HALL" == *"سالن"* ]]; then
+    pass "پرس‌وجوی سالن با نقش ربات کار می‌کند"
+else
+    fail "پرس‌وجوی سالن کار نکرد: $HALL"
+fi
+
+# ── ۳.۵) فهرست دکمه‌ای شرکت‌ها (inline keyboard) ─────────────────────
+# اگر این تابع‌ها نباشند یا گرنت نداشته باشند، دکمهٔ «لیست شرکت‌ها» در بله
+# پیام خطا می‌دهد. سنجش، خودِ خروجی است نه وجود تابع.
+c_head "۳.۵) فهرست دکمه‌ای شرکت‌ها"
+
+LIST="$(q "SET ROLE iee_app; SELECT text_body || '«|»' || COALESCE(markup, '') FROM iee1405.co_page(1);" 2>&1 | tail -1)"
+if [[ "$LIST" == *"inline_keyboard"* && "$LIST" == *"c:"* ]]; then
+    pass "صفحهٔ فهرست با نقش ربات ساخته شد (دکمهٔ شیشه‌ای دو‌ستونی)"
+    if [[ "$LIST" == *"صفحه بعد"* && "$LIST" == *"صفحه قبل"* ]]; then
+        pass "ردیف ناوبری «صفحه قبل/بعد» در همان صفحه هست"
+    else
+        fail "دکمه‌های صفحه قبل/بعد در صفحه‌کلید نیست" "bash 03_ops/deploy_sql.sh   (فایل ۰۹)"
+    fi
+elif [[ "$LIST" == *"does not exist"* ]]; then
+    fail "تابع فهرست شرکت‌ها نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/09_company_list.sql)"
+elif [[ "$LIST" == *"permission denied"* ]]; then
+    fail "نقش ربات به فهرست شرکت‌ها دسترسی ندارد" "bash 03_ops/deploy_sql.sh   (گرنت انتهای فایل ۰۹)"
+else
+    fail "صفحهٔ فهرست خروجی درست نداد: ${LIST:0:80}"
+fi
+
+CARD="$(q "SET ROLE iee_app; SELECT replace(text_body, E'\\n', ' ¶ ') || '«|»' || COALESCE(markup, '') FROM iee1405.co_card((SELECT min(id) FROM barghpa.company));" 2>&1 | tail -1)"
+if [[ "$CARD" == *"l:"* ]]; then
+    pass "کارت شرکت + دکمهٔ بازگشت با نقش ربات کار می‌کند"
+else
+    fail "کارت شرکت یا دکمهٔ بازگشت ناقص است: ${CARD:0:80}"
+fi
+if [[ "$CARD" == *"حوزه فعالیت"* ]]; then
+    pass "حوزهٔ فعالیت روی کارت، زیر نام شرکت می‌آید"
+else
+    fail "حوزهٔ فعالیت روی کارت نیست" "bash 03_ops/deploy_sql.sh   (01_sql/08_exhibitor_mirror.sql)"
+fi
+
+# ── ۳.۶) مصاحبهٔ غرفه (دکمه، پرسش‌ها، ثبت) ───────────────────────────
+# اگر جدول مصاحبه یا تابع گام مصاحبه نباشد، دکمهٔ «🎤 مصاحبه در غرفه» در بله
+# یا خطا می‌دهد یا بی‌صدا می‌ماند. سنجش با نقش ربات انجام می‌شود، نه postgres.
+c_head "۳.۶) مصاحبهٔ غرفه"
+
+IVN="$(q "SET ROLE iee_app; SELECT count(*) || '/' || count(*) FILTER (WHERE ask_default) FROM iee1405.iv_bank;" 2>&1 | tail -1)"
+if [[ "$IVN" =~ ^([0-9]+)/([0-9]+)$ && "${BASH_REMATCH[2]:-0}" -ge 5 ]]; then
+    pass "بانک سؤال مصاحبه با نقش ربات خوانده شد (${IVN} سؤال · پیش‌فرض)"
+elif [[ "$IVN" == *"does not exist"* ]]; then
+    fail "بانک سؤال مصاحبه نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/10_interview.sql)"
+elif [[ "$IVN" == *"permission denied"* ]]; then
+    fail "نقش ربات به بانک سؤال مصاحبه دسترسی ندارد" "bash 03_ops/deploy_sql.sh   (گرنت انتهای فایل ۰۹ و ۱۰)"
+else
+    fail "بانک سؤال مصاحبه خروجی درست نداد: ${IVN:0:80}"
+fi
+
+if [[ "$CARD" == *"i:"* ]]; then
+    pass "دکمهٔ «🎤 مصاحبه در غرفه» روی کارت شرکت هست"
+else
+    fail "دکمهٔ مصاحبه روی کارت شرکت نیست" "bash 03_ops/deploy_sql.sh   (01_sql/09_company_list.sql)"
+fi
+
+# گام اول مصاحبه باید «نام مصاحبه‌شونده» را بپرسد و وضعیت را iv_name کند.
+IV_STEP="$(q "SET ROLE iee_app; SELECT state || '«|»' || left(regexp_replace(reply, '\\s+', ' ', 'g'), 200)
+                 FROM iee1405.iv_step(0, 'probe', 'i:' || (SELECT min(id) FROM barghpa.company),
+                                      'idle', '{}'::jsonb);" 2>&1 | tail -1)"
+if [[ "$IV_STEP" == iv_name* && "$IV_STEP" == *"نام مصاحبه"* ]]; then
+    pass "شروع مصاحبه اول نام مصاحبه‌شونده را می‌پرسد (وضعیت iv_name)"
+elif [[ "$IV_STEP" == *"permission denied"* ]]; then
+    fail "نقش ربات به تابع گام مصاحبه دسترسی ندارد" "bash 03_ops/deploy_sql.sh"
+elif [[ "$IV_STEP" == *"does not exist"* ]]; then
+    fail "تابع گام مصاحبه نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/10_interview.sql)"
+else
+    fail "شروع مصاحبه خروجی درست نداد: ${IV_STEP:0:80}"
+fi
+
+IV_TAB="$(q "SET ROLE iee_app; SELECT count(*) FROM iee1405.interviews;" 2>&1 | tail -1)"
+if [[ "$IV_TAB" =~ ^[0-9]+$ ]]; then
+    pass "جدول مصاحبه‌ها با نقش ربات در دسترس است ($IV_TAB مورد ثبت‌شده)"
+elif [[ "$IV_TAB" == *"permission denied"* ]]; then
+    fail "نقش ربات به جدول مصاحبه‌ها دسترسی ندارد" "bash 03_ops/deploy_sql.sh   (گرنت انتهای فایل ۱۰)"
+else
+    fail "جدول مصاحبه‌ها خوانده نشد: ${IV_TAB:0:80}"
+fi
+
+# ── ۳.۶.۵) شرکت‌های ثبت‌شده در ربات (CRM) در فهرست ────────────────────
+# گزارش مالک: «با ثبت شرکت جدید، در لیست شرکت‌ها ثبت نمی‌گردد و در جست‌وجو بالا
+# نمی‌آید.» این بخش می‌سنجد که بخش «ثبت‌شده در ربات» و دکمهٔ `o:` سرِ جایش
+# باشد — چه شرکتی در CRM باشد، چه نباشد.
+c_head "۳.۶.۵) شرکت‌های ثبت‌شده در ربات در فهرست"
+
+CRM_N="$(q "SET ROLE iee_app; SELECT count(*) FROM iee1405.co_crm_rows(NULL, 8);" 2>&1 | tail -1)"
+if [[ "$CRM_N" =~ ^[0-9]+$ ]]; then
+    pass "شرکت‌های ثبت‌شده در ربات با نقش ربات خوانده شدند ($CRM_N مورد)"
+elif [[ "$CRM_N" == *"does not exist"* ]]; then
+    fail "تابع فهرست شرکت‌های ربات نصب نشده" \
+         "bash 03_ops/deploy_sql.sh   (01_sql/09_company_list.sql)"
+elif [[ "$CRM_N" == *"permission denied"* ]]; then
+    fail "نقش ربات به فهرست شرکت‌های ثبت‌شده دسترسی ندارد" "bash 03_ops/deploy_sql.sh"
+else
+    fail "فهرست شرکت‌های ثبت‌شده در ربات خروجی درست نداد: ${CRM_N:0:80}"
+fi
+
+if [[ "${CRM_N:-0}" =~ ^[0-9]+$ && "${CRM_N:-0}" -gt 0 ]]; then
+    # یک پرس‌وجوی تک‌خطی: متن و دکمه با هم سنجیده شوند (متن صفحه چندخطی است و
+    # tail روی خط آخر، بخش «ثبت‌شده» را که بالای صفحه است نمی‌دید).
+    CRM_MERGE="$(q "SET ROLE iee_app; SELECT (text_body LIKE '%ثبت‌شده در ربات%')::text
+                            || '|' || (markup LIKE '%\"o:ORG-%')::text
+                       FROM iee1405.co_page(1);" 2>&1 | tail -1)"
+    if [[ "$CRM_MERGE" == "true|true" ]]; then
+        pass "شرکت‌های ثبت‌شده در ربات روی صفحهٔ اول فهرست‌اند و دکمهٔ o:<code> دارند"
+    else
+        fail "شرکت ثبت‌شده در CRM روی صفحهٔ اول فهرست نیامد ($CRM_MERGE)" \
+             "bash 03_ops/deploy_sql.sh   (01_sql/09_company_list.sql)"
+    fi
+else
+    c_hint "هیچ شرکتی با /new ثبت نشده؛ فقط وجود مسیر سنجیده شد"
+fi
+
+# ── ۳.۶.۶) کارت مدیریتی: مصاحبه، ویرایش، حذف ─────────────────────────
+# خواستهٔ مالک: شرکت‌های تازه باید کلید مصاحبه داشته باشند و ویرایش/حذف هم با
+# تأیید انجام شود. این بخش با نقش ربات می‌سنجد که سه دکمه سرِ جایشان باشند و
+# مسیر تأیید هم وجود داشته باشد.
+c_head "۳.۶.۶) کارت مدیریتی شرکت (ویرایش و حذف)"
+
+CARD_BTNS="$(q "SET ROLE iee_app; 
+    WITH c AS (SELECT code FROM crm.organizations WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 1)
+    SELECT CASE WHEN (SELECT count(*) FROM c) = 0 THEN 'none'
+                ELSE (SELECT replace(COALESCE(k.text_body, ''), E'\\n', ' ¶ ') || '|' || (COALESCE(k.markup, ''))::text
+                        FROM c, LATERAL iee1405.co_org_card(c.code) k) END;" 2>&1 | tail -1)"
+
+if [[ "$CARD_BTNS" == "none" ]]; then
+    c_hint "هیچ شرکتی در ربات ثبت نشده؛ بخش مدیریت فقط از وجود توابع سنجیده می‌شود"
+    if [[ -n "$(q "SELECT to_regprocedure('iee1405.ca_step(bigint, text, text, text, jsonb)')" 2>&1 | tail -1)" ]]; then
+        pass "توابع ویرایش/حذف نصب شده‌اند (کارت هنوز شرکتی برای نمایش ندارد)"
+    else
+        fail "توابع ویرایش/حذف نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/11_company_admin.sql)"
+    fi
+elif [[ "$CARD_BTNS" == *"does not exist"* ]]; then
+    fail "تابع کارت مدیریتی نصب نشده" "bash 03_ops/deploy_sql.sh   (01_sql/11_company_admin.sql)"
+elif [[ "$CARD_BTNS" == *"permission denied"* ]]; then
+    fail "نقش ربات به کارت مدیریتی دسترسی ندارد" "bash 03_ops/deploy_sql.sh"
+elif [[ "$CARD_BTNS" == *'"i:ORG-'* && "$CARD_BTNS" == *'"e:ORG-'* && "$CARD_BTNS" == *'"d:ORG-'* ]]; then
+    pass "کارت شرکت: «🎤 مصاحبه» + «✏️ ویرایش» + «🗑 حذف» با نقش ربات"
+    if [[ "$CARD_BTNS" == *"حوزه فعالیت"* ]]; then
+        pass "کارت شرکت، حوزهٔ فعالیت و سالن/غرفه را نشان می‌دهد"
+    else
+        fail "کارت مدیریتی حوزهٔ فعالیت ندارد" "bash 03_ops/deploy_sql.sh"
+    fi
+else
+    fail "کارت مدیریتی یکی از سه دکمه را ندارد: ${CARD_BTNS: -120}"
+fi
+
+# مسیر تأیید ویرایش: گام «انتخاب فیلد» فقط می‌پرسد و **هیچ چیزی نمی‌نویسد**؛
+# همین پرس‌وجو هم فقط‌خواندنی است (هیچ UPDATEای در ca_step برای ef: نیست).
+# اثبات کامل «بدون تأیید نوشته نمی‌شود» در test_buttons.sql (T29) است.
+CONF="$(q "SET ROLE iee_app; 
+    WITH c AS (SELECT code FROM crm.organizations WHERE deleted_at IS NULL
+                ORDER BY created_at DESC LIMIT 1)
+    SELECT (SELECT state FROM c, LATERAL iee1405.ca_step(0, 'checkbot', 'ef:name:' || c.code,
+                                                         'idle', '{}'::jsonb));" 2>&1 | tail -1)"
+
+if [[ "$CONF" == "ca_val" ]]; then
+    pass "ویرایش: گام گرفتن مقدار تازه فعال است (نوشتن فقط پس از تأیید نهایی)"
+elif [[ "$CONF" == *"permission denied"* ]]; then
+    fail "نقش ربات به مسیر ویرایش دسترسی ندارد" "bash 03_ops/deploy_sql.sh"
+elif [[ -z "$CONF" || "$CONF" == "none" ]]; then
+    c_hint "شرکتی برای سنجش مسیر ویرایش ثبت نشده است"
+else
+    fail "مسیر ویرایش خروجی درست نداد: ${CONF:0:80}"
+fi
+
+# ── ۳.۷) ویرایش پیام به‌جای پیام تازه ─────────────────────────────────
+c_head "۳.۷) ویرایش پیام به‌جای پیام تازه"
+
+EDIT_COL="$(q "SELECT string_agg(attname, ',' ORDER BY attnum)
+                 FROM pg_attribute
+                WHERE attrelid = 'iee1405.bot_updates'::regclass
+                  AND attname = 'edit_message_id' AND NOT attisdropped" 2>&1 | tail -1)"
+if [[ "$EDIT_COL" == "edit_message_id" ]]; then
+    pass "ستون edit_message_id در bot_updates هست"
+else
+    fail "ستون edit_message_id نیست؛ دکمه‌ها پیام تازه می‌فرستند" \
+         "bash 03_ops/deploy_sql.sh   (01_sql/05_ops_helpers.sql)"
+fi
+
+PR_RES="$(q "SELECT pg_get_function_result('iee1405.pending_replies(int, boolean)'::regprocedure)" 2>&1 | tail -1)"
+if [[ "$PR_RES" == *"edit_message_id"* ]]; then
+    pass "pending_replies شناسهٔ پیام برای ویرایش را برمی‌گرداند (ستون ۶)"
+else
+    fail "pending_replies ستون edit_message_id را ندارد: $PR_RES" \
+         "bash 03_ops/deploy_sql.sh   (01_sql/05_ops_helpers.sql)"
+fi
+
+# ── ۴) نسخهٔ تابع ربات (نه نسخهٔ قدیمیِ جامانده در پایگاه) ─────────────
+c_head "۴) نسخهٔ تابع ربات"
+
+RET="$(q "SELECT pg_get_function_result('iee1405.bot_dispatch_json(jsonb)'::regprocedure)")"
+if [[ "$RET" == "TABLE(chat_id bigint, status text, reply_text text, org_code text)" ]]; then
+    pass "bot_dispatch_json همان امضای کد است (۴ ستون)"
+elif [[ -z "$RET" ]]; then
+    fail "تابع bot_dispatch_json در پایگاه نیست" "bash 03_ops/deploy_sql.sh"
+else
+    fail "پایگاه نسخهٔ قدیمیِ bot_dispatch_json را اجرا می‌کند: $RET" \
+         "bash 03_ops/deploy_sql.sh   (فایل ۰۴ امضا را DROP و از نو می‌سازد)"
+    c_hint "این حالت همان چیزی است که ربات را بی‌صدا می‌کند: پاسخ خالی، بدون خطا"
+fi
+
+# پیام راهنما باید متن داشته باشد، وگرنه ربات پاسخ خالی می‌فرستد
+HLEN="$(q "SELECT coalesce(length(btrim(template)), 0) FROM iee1405.bot_messages WHERE key = 'help'")"
+if [[ "${HLEN:-0}" -gt 20 ]]; then
+    pass "قالب پیام «help» پر است ($HLEN نویسه)"
+else
+    fail "قالب پیام «help» خالی است؛ ربات پاسخ خالی می‌فرستد" \
+         "bash 03_ops/deploy_sql.sh   (فایل ۰۴ قالب خالی را ترمیم می‌کند)"
+fi
+
+# ── ۴.۵) مسیر کامل ربات (اختیاری) ─────────────────────────────────────
+CHAT="$(q "SELECT coalesce((SELECT bale_chat_id FROM crm.users
+                         WHERE bale_chat_id IS NOT NULL AND is_active
+                         ORDER BY id LIMIT 1), 0)")"
+c_head "۴.۵) مسیر کامل ربات (bot_dispatch_json)"
+if [[ $FULL -eq 1 ]]; then
+    if [[ "${CHAT:-0}" == "0" ]]; then
+        c_warn "هیچ کاربر مجاز بله ثبت نشده؛ آزمون مسیر کامل رد شد"
+        c_hint "کاربر را اضافه کنید، یا در بله /start بزنید و شناسه را ثبت کنید"
+    else
+        UPD=$(( $(date +%s) * 10 + RANDOM % 10 ))
+        D_OUT="$(q "SET ROLE iee_app;
+            SELECT (iee1405.bot_dispatch_json(jsonb_build_object(
+                       'update_id', $UPD,
+                       'message', jsonb_build_object(
+                           'chat', jsonb_build_object('id', $CHAT),
+                           'text', '/c')))).reply_text;" 2>&1 | tail -n +2)"
+        if [[ "$D_OUT" == *"آینه"* ]]; then
+            pass "wf-01 → bot_dispatch_json با نقش ربات پاسخ داد (چت $CHAT)"
+        elif [[ "$D_OUT" == *"permission denied"* ]]; then
+            fail "مسیر کامل ربات «permission denied» داد" "bash 03_ops/deploy_sql.sh"
+        else
+            fail "مسیر کامل ربات پاسخ نداد: $D_OUT"
+            c_hint "اگر «این حساب مجاز نیست» بود، یعنی چت $CHAT در crm.users مجاز نیست"
+        fi
+    fi
+else
+    c_hint "برای آزمون مسیر کامل (bot_dispatch_json) با --full اجرا کنید."
+fi
+
+# ── ۴.۶) پرس‌وجوهای واقعی گردش‌کارهای n8n ─────────────────────────────
+# چرا؟ یک بار گرهٔ «ارسال پاسخ» در n8n ستون `reply_markup` را خواست و تابع
+# پایگاه آن را برنگرداند؛ نتیجه «column "reply_markup" does not exist» و
+# سکوت کامل ربات بود. این بخش همان SQLهایی را که در فایل‌های گردش‌کار هست،
+# روی همین پایگاه اجرا می‌کند تا ناهم‌خوانی پیش از کاربر پیدا شود.
+c_head "۴.۶) پرس‌وجوهای گردش‌کارهای n8n"
+
+if ! command -v python3 >/dev/null 2>&1; then
+    c_warn "python3 نیست؛ بررسی SQL گردش‌کارها رد شد"
+else
+    # ⚠️ درس گران‌قیمت: هر فراخوانی psql با «docker exec -i» **stdin را
+    # می‌بلعد**. بار اول این بخش با «while read ... < <(python3 ...)» نوشته شده
+    # بود و روی سرور فقط **یک** پرس‌وجو اجرا شد: docker.exec.stdin بقیهٔ فهرست
+    # را خورد و بازبینی سبز شد بدون اینکه چیزی را سنجیده باشد. حالا کل فهرست
+    # اول در آرایه خوانده می‌شود و هر فراخوانی psql با </dev/null اجرا می‌شود.
+    QLINES=()
+    while IFS= read -r line; do
+        QLINES+=("$line")
+    done < <(python3 - "$HERE/02_n8n" <<'PYEOF'
+import glob, json, re, sys
+
+def probe(q):
+    """پارامترهای n8n با مقدار بی‌اثر: هدف سنجش ستون‌هاست، نه نتیجه."""
+    q = re.sub(r"\$\d+::jsonb", "'{}'::jsonb", q)
+    q = re.sub(r"\$\d+::bigint", "0", q)
+    q = re.sub(r"\$\d+::text", "''", q)
+    return re.sub(r"\$\d+", "NULL", q)
+
+for f in sorted(glob.glob(sys.argv[1] + "/*.json")):
+    try:
+        d = json.load(open(f, encoding="utf-8"))
+    except Exception:
+        continue
+    for n in d.get("nodes", []):
+        q = (n.get("parameters") or {}).get("query")
+        if isinstance(q, str) and q.strip():
+            print("%s\t%s\t%s" % (f.rsplit("/", 1)[-1], n.get("name", "?"),
+                                   probe(re.sub(r"\s+", " ", q.strip())).rstrip(";")))
+PYEOF
+    )
+
+    NQ=0; NBAD=0
+    for line in "${QLINES[@]}"; do
+        [[ -z "$line" ]] && continue
+        IFS=$'\t' read -r wf node sql <<< "$line"
+        [[ -z "${sql:-}" ]] && continue
+        NQ=$((NQ+1))
+        err="$(q "BEGIN; $sql; ROLLBACK;" 2>&1 >/dev/null </dev/null \
+               | grep -E "ERROR|FATAL" | head -1)"
+        if [[ -n "$err" ]]; then
+            NBAD=$((NBAD+1))
+            fail "$wf · $node" "$err"
+        fi
+    done
+
+    if [[ $NQ -eq 0 ]]; then
+        fail "هیچ پرس‌وجویی در 02_n8n پیدا نشد" \
+             "فایل‌های wf-*.json باید در $HERE/02_n8n باشند؛ این حالت یعنی بازبینی چیزی را نسنجیده"
+    elif [[ $NBAD -eq 0 ]]; then
+        pass "همهٔ $NQ پرس‌وجوی گردش‌کارها روی این پایگاه اجرا شد"
+    fi
+fi
+
+# ── ۵) CRM دست‌نخورده ─────────────────────────────────────────────────
+c_head "۵) مرز CRM"
+ORG="$(q "SELECT count(*) FROM crm.organizations")"
+c_ok "سازمان‌های CRM: ${ORG:-?} (آینه چیزی به آن‌ها اضافه نمی‌کند)"
+
+echo
+if [[ $FAILS -eq 0 ]]; then
+    c_ok "همهٔ بازبینی‌ها سبز است — ربات می‌تواند در بله /c بزند"
+    echo
+    c_hint "در بله امتحان کنید:  /c   ·   /c 38B   ·   /c نام شرکت"
+    exit 0
+else
+    c_bad "$FAILS بازبینی ناموفق است؛ تا رفع، /c در بله کار نمی‌کند"
+    exit 1
+fi

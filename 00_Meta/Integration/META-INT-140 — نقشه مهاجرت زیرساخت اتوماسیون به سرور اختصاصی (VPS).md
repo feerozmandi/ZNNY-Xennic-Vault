@@ -1,20 +1,23 @@
 ---
 id: META-INT-140
 title: نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)
-status: draft
+status: review
 created: 2026-10-23
 tags: [integration, infrastructure, vps, migration, automation, governance, team-readiness]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.6.0
+version: 0.7.0
 dependencies: [META-INT-080, META-INT-100, META-INT-110, META-INT-130]
 ---
 
 # نقشه مهاجرت زیرساخت اتوماسیون به سرور اختصاصی (VPS)
 
 > [!abstract] هدف
-> ثبت تصمیم صریح مالک (۱۴۰۵-۰۸-۰۱) برای مهاجرت فوری زیرساخت اتوماسیون (n8n، Qdrant، TEI Embedding، Open Notebook، Hermes) از کامپیوتر شخصی به یک سرور مجازی اختصاصی (VPS) با دیتاسنتر داخل ایران؛ و تعریف دقیق معماری حاکمیتی بین این سرور و Obsidian Vault، به‌گونه‌ای که Vault بدون نیاز به اتصال زنده به سرور، همیشه مرجع قوانین و وضعیت واقعی اجرا باقی بماند.
+> ثبت تصمیم صریح مالک (۱۴۰۵-۰۸-۰۱) برای مهاجرت فوری زیرساخت اتوماسیون (n8n، Qdrant، TEI Embedding، Open Notebook، Hermes) از کامپیوتر شخصی به یک سرور مجازی اختصاصی (VPS) با دیتاسنتر داخل ایران؛ تعریف معماری حاکمیتی بین این سرور و Obsidian Vault تا Vault بدون نیاز به اتصال زنده، مرجع قوانین و وضعیت واقعی اجرا بماند؛ و نگهداری قرارداد یکپارچهٔ پیش‌نمایش محافظت‌شدهٔ وب‌سایت و مسیر تحویل از merge تا deploy در بخش ۱۰.
+
+> [!warning] وضعیت قرارداد پیش‌نمایش وب‌سایت — ۱۴۰۵-۰۸-۰۹
+> بخش ۱۰ همین سند، تنها مرجع یکپارچهٔ طرح انتقال از merge تا deploy برای `https://preview.xennic.ir` است. این بخش برای بازبینی و **یک تأیید یک‌جای مالک** آماده شده، نه برای اجرا؛ تا پیش از آن هیچ VPS، DNS، Secret عملیاتی، gate فعال یا منبع موجود تغییر نمی‌کند. شواهد CI، گزارش‌های محلی و موارد آزمون‌نشده در همان بخش از هم تفکیک شده‌اند.
 
 ## فهرست
 
@@ -24,7 +27,8 @@ dependencies: [META-INT-080, META-INT-100, META-INT-110, META-INT-130]
 | ۲ | تصمیم مالک (و ۲.۱ تحلیل کفایت پلن) | ۷ | نقشه راه اجرایی فازبندی‌شده |
 | ۳ | مشخصات فنی پیشنهادی سرور | ۸ | ریسک‌ها و تصمیمات باز |
 | ۴ | گزینه‌های ارائه‌دهنده VPS داخلی (مقایسه و گزینه‌های جایگزین) | ۹ | ارجاعات |
-| ۵ | پشته نرم‌افزاری و نقشه استقرار | ۱۰ | Changelog |
+| ۵ | پشته نرم‌افزاری و نقشه استقرار | ۱۰ | قرارداد یکپارچه پیش‌نمایش محافظت‌شده و تحویل تا استقرار |
+| | | ۱۱ | Changelog |
 
 ---
 
@@ -282,6 +286,9 @@ CPU (۴ vCore)، دیسک (۷۵ گیگابایت NVMe) و ترافیک (نامح
 | **D — مشاهده‌پذیری واقعی** | طبق META-INT-130 فاز D، بدون تغییر محتوایی | جدول رخداد مرکزی در Postgres؛ Dashboard خودکار در Obsidian | دید کامل وضعیت بدون بررسی دستی هر Workflow | فاز C |
 | **E — آمادگی چندعاملی/چندکاربره** | هم‌راستا با بند ۶ META-INT-080 و هدف بلندمدت تیم‌سازی | تعریف کاربران/کلیدهای SSH جداگانه برای اعضای آیندهٔ تیم؛ تعریف محدودهٔ دسترسی MCP هر عامل هوشمند آینده | زیرساخت آمادهٔ پیوستن نفر دوم تیم، بدون بازطراحی | فاز D |
 
+> [!warning] مرزبندی دامنه — ۱۴۰۵-۰۸-۰۹
+> ردیف A.5 بالا بخشی از roadmap تاریخیِ پشتهٔ اتوماسیون است و به `xennic.ir` اشاره دارد؛ این ردیف مجوز DNS یا اجرای فعلی نیست و طرح پیش‌نمایش وب‌سایت را تعریف نمی‌کند. قرارداد preview فقط برای زیردامنهٔ `preview.xennic.ir` در بخش ۱۰ است؛ apex و دامنهٔ اصلی در این کار تغییر نمی‌کند. در صورت تعارض تعبیر، بخش ۱۰ مرجع محدودهٔ preview است.
+
 ---
 
 ## ۸. ریسک‌ها و تصمیمات باز
@@ -311,11 +318,166 @@ CPU (۴ vCore)، دیسک (۷۵ گیگابایت NVMe) و ترافیک (نامح
 - [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی|META-INT-110]] — دستورالعمل کامل Backup/IaC و برنامهٔ DR (بدون تغییر، فقط اجرا از VPS)
 - [[META-INT-130 — معماری هدف و نقشه راه مدرن‌سازی زیرساخت اتوماسیون و RAG|META-INT-130]] — معماری هدف، فازهای A تا E اصلی، جدول کامل ابزارهای ضروری/غیرضروری
 - [[META-INT-050 — راه‌اندازی کامل Hermes|META-INT-050]]
+- [[META-INT-150 — یکپارچه‌سازی معماری وب‌سایت و پلتفرم Xennic|META-INT-150]] — معماری وب‌سایت؛ بخش ۱۰ این سند قرارداد اجرای preview را یکپارچه می‌کند.
+- [PR شمارهٔ ۱۱ وب‌سایت](https://github.com/feerozmandi/xennic-website/pull/11) — ورودی و شاهد بازبینی؛ این PR طبق تصمیم مالک باز می‌ماند.
 
 ---
 
-## ۱۰. Changelog
+## ۱۰. قرارداد یکپارچهٔ پیش‌نمایش اینترنتی محافظت‌شده و تحویل تا استقرار
 
+> [!important] مرجع یکتا و وضعیت
+> این بخش، قرارداد مشترک و مرجع یکتای مسیر «merge → آزمون → GHCR → SSH → استقرار → سلامت/بازگشت» برای پیش‌نمایش وب‌سایت است؛ گزارش‌های وب‌سایت و PR شمارهٔ ۱۱ ورودی و شاهدند، نه طرح اجرایی موازی. دامنهٔ موردنظر `https://preview.xennic.ir` است، نه دامنهٔ اصلی و نه انتشار عمومی وب‌سایت.
+>
+> وضعیت: **پیشنهاد یکپارچه برای بازبینی؛ اجرا نشده و آمادهٔ اجرا تلقی نمی‌شود.** تصویب این بخش باید یک‌جا و پس از بازبینی کل قرارداد انجام شود. تا آن زمان هیچ VPS، DNS، Secret عملیاتی، دروازهٔ فعال، پورت، Volume، شبکه یا دادهٔ موجود تغییر نمی‌کند. این سند به‌تنهایی مجوز اجرای هیچ گام زنده‌ای نیست.
+
+### ۱۰.۱ دامنه، مبنای کد و شواهد فعلی
+
+- مبنای ثابت وب‌سایت: `feerozmandi/xennic-website`، شاخهٔ `dev` در `418de2b5b3a272e79a824ccde5411dc25f1002cc`، پس از PR شمارهٔ ۱۰. این commit مبنای محتوایی/فنی است؛ تاریخچهٔ PR #10 و baseline آن نباید بازنویسی یا با ZIP آزمایشی جایگزین شود.
+- [PR شمارهٔ ۱۱ وب‌سایت](https://github.com/feerozmandi/xennic-website/pull/11) هنگام نگارش **باز** است؛ head برابر `9edb0b07df4cd0f2377ea3557a152835fa06c697` و مقصد `dev` است. طبق دستور مالک، این PR تا پایان بازبینی و هماهنگی باز می‌ماند؛ در این کار نه ویرایش شده و نه ادغام می‌شود.
+- اجرای CI شمارهٔ [41186812509](https://github.com/feerozmandi/xennic-website/actions/runs/41186812509) برای head فوق و رویداد `pull_request` موفق بود: `checks`، `compose-smoke` و `production-preview` همگی `success`؛ `publish-preview-image` عمداً `skipped` بود. این اجرای واقعی Docker/Compose و برنامه در runner میزبانی‌شدهٔ GitHub است، **نه** اجرای VPS، اینترنت عمومی، Caddy، OAuth2 Proxy یا پذیرش نهایی gate. این اجرای PR نه ایمیج را منتشر کرده و نه استقرار انجام داده است.
+- مرور ایستای YAML در PR #11 نشان می‌دهد job انتشار فقط روی `push` به `dev`، پس از موفقیت jobهای آزمون، با `linux/amd64` و tag مبتنی بر SHA تعریف شده است؛ job استقرار SSH در workflow فعلی وجود ندارد. حفاظت شاخهٔ `dev`، دسترسی package، انتشار واقعی GHCR و digest نهایی هنوز تأیید نشده‌اند.
+- آزمون دروازهٔ مصنوعی در رایانهٔ مالک به‌صورت گزارش‌شده موفق بوده است؛ این گزارش مستقل از طرف این دستیار اجرا/تأیید نشده. مالک همچنین بازشدن سایت محلی پس از تنظیم موقت `read:org` برای App آزمایشی جدا را گزارش کرده است؛ این شاهد، پذیرش کامل OAuth، تأیید مستقل هویت، آزمون دو دستگاه یا مجوز `read:org` برای App نهایی نیست.
+- بسته‌های تاریخی v1.1.0 تا v1.1.2 برای حفظ سابقه باقی می‌مانند، اما برای انتشار این قرارداد **منسوخ/صرفاً آزمایشی** هستند. ZIP/TXT میانی v1.1.3 که پس از آخرین ویرایش Runbook ساخته شده بود stale است و در checkout فعلی موجود نیست؛ هیچ‌یک را deploy نکنید. منبع انتشار آینده باید image ساخته‌شده از commit دقیق `dev` و digest ثبت‌شدهٔ همان اجرا باشد.
+- این پیش‌نمایش پایگاه‌داده و فایل‌های خودش را دارد؛ هیچ دادهٔ عملیاتی/مشتری، Postgres مربوط به n8n، Credential یا Volume موجود به آن متصل یا کپی نمی‌شود. Open Notebook موقتاً متوقف است و پیش‌نیاز preview نیست؛ Hermes یا `[RAG-02]` را برای این طرح شروع نکنید.
+
+### ۱۰.۲ مقصد، معماری و تغییرهای اولیهٔ VPS/DNS
+
+**مقصد پیشنهادی:** `preview.xennic.ir` به‌صورت HTTPS و پشت GitHub OAuth؛ کاربران مجاز بتوانند از چند دستگاه به‌طور هم‌زمان استفاده کنند. دامنهٔ اصلی `xennic.ir`، رکوردهای دیگر و سرویس‌های فعلی خارج از دامنهٔ این تغییرند.
+
+**حقایق تاریخی، نه وضعیت زندهٔ تأییدشده:** META-INT-140 ثبت کرده است که IP وب عمومی VPS برابر `185.192.113.85` و مسیر مدیریتی SSH برابر `185.192.113.199:33878` با NAT به `185.192.113.85:22` بوده است. از این سند قدیمی نمی‌توان نتیجه گرفت IP، پورت، NAT، فایروال، DNS، Caddy یا وضعیت فعلی سرور هنوز همان است. IP مدیریتی `.199` برای رکورد وب نیست. گزارش‌های قدیمی دربارهٔ Caddy با گزارش جدید PR #11 مبنی بر نیافتن reverse proxy فعال هم‌خوان نیستند؛ وضعیت زندهٔ Caddy باید پیش از انتخاب مسیر تأیید شود.
+
+**ترتیب پیشنهادی، فقط پس از تصویب یک‌جای این قرارداد:**
+
+۱. ابتدا از سمت مالک/دستیار زیرساخت، inventory فقط‌خواندنی و redacted از OS، Docker/Compose، معماری CPU، پورت‌های درحال‌استفاده، firewall/NAT، reverse proxy، حجم RAM/CPU/disk، Volumeها و خروجی شبکه به GHCR فراهم شود. در این مرحله چیزی متوقف، پاک یا تغییر داده نمی‌شود.
+۲. یک Compose project مستقل با نام نهاییِ پس از بررسی عدم برخورد، مسیر `/srv/xennic-preview/`، شبکهٔ staging، پایگاه‌داده و Volume رسانهٔ جدا ساخته شود. هیچ شبکه یا Volume موجود به این پروژه attach نشود.
+۳. اول برنامه، proxy و allowlist روی شبکهٔ داخلی آماده شوند؛ هیچ upstream برنامه یا پایگاه‌داده‌ای به اینترنت bind نشود. فقط یک Caddy edge تأییدشده می‌تواند ورودی عمومی داشته باشد. اگر Caddy فعلی روی همان پورت‌ها فعال باشد، route جدید باید پس از بازبینی به همان edge افزوده شود؛ Caddy دوم روی `80/443` اجرا نشود. اگر inventory زنده نبودن edge را ثابت کرد، نصب یک Caddy یگانه به‌عنوان edge فقط در همین طرحِ تصویب‌شده بررسی می‌شود. اگر مالکیت/وضعیت edge یا امکان route امن نامعلوم باشد، این گام متوقف می‌ماند.
+۴. پیش از تغییر DNS، مسیرهای اصلی، `/admin`، API، GraphQL، media، خطای کاربر غیرمجاز و عدم دسترسی مستقیم به upstream با تنظیم محلی/SSH محدود آزموده شوند. دسترسی مستقیم به App، PostgreSQL و OAuth2 Proxy از host/internet منتشر نمی‌شود؛ فقط edge مسئول TLS و route است.
+۵. تنها پس از تأیید authority واقعی DNS، بررسی رکوردهای فعلی/TTL و یک تصویب یک‌جای این برنامه، رکورد **فقط** `preview` از نوع A به `185.192.113.85` افزوده/اصلاح می‌شود؛ در همان زمان باید مالکیت/تخصیص فعلی این IP به VPS زنده تأیید شود. اگر IP یا مقصد فعلی با این طرح ناسازگار بود، توقف و بازبینی/تصویب نسخهٔ تازه لازم است؛ IP دیگری خودسرانه جایگزین نمی‌شود. هیچ تغییر NS، apex، رکورد وب دیگر یا AAAA بدون تأیید IPv6 انجام نمی‌شود. اگر authority یا وضعیت رکورد قابل‌تأیید نبود، DNS تغییر نمی‌کند.
+۶. فقط پس از آماده و محافظت‌شدن edge، قوانین firewall/دسترسی عمومی لازم و TLS عمومی Caddy فعال می‌شوند؛ HTTP به HTTPS هدایت می‌شود و درخواست با Host/IP اشتباه هرگز به App نمی‌رسد. هیچ مسیر مستقیمی نباید gate را دور بزند.
+
+هیچ‌یک از این مراحل تاکنون اجرا نشده است. بازبودن/بسته‌بودن فعلی پورت‌ها یا رکورد `preview` در این کار بررسی زنده نشده؛ این‌ها شرط preflight هستند، نه فرض.
+
+### ۱۰.۳ قرارداد از merge تا deploy و قفل مشترک
+
+۱. **Pull Request:** PRها فقط typecheck/lint/tests/build/Compose smoke و production-preview آزمایشی اجرا می‌کنند. PRها هیچ package-write، SSH، Secret deploy یا دسترسی VPS ندارند و deploy نمی‌کنند. CI موفق، به‌تنهایی مجوز merge یا استقرار نیست.
+۲. **Merge به `dev`:** تنها commit ادغام‌شده و تأییدشده به `dev` کاندید انتشار است. پیش از اتصال deploy باید branch protection واقعی بررسی شود: reviewهای لازم، jobهای الزامی و منع bypass/push مستقیم. اگر این کنترل‌ها موجود یا قابل‌تأیید نباشند، deployment job فعال نمی‌شود.
+۳. **آزمون همان SHA:** پس از push به `dev`، سه job `checks`، `compose-smoke` و `production-preview` باید برای `github.sha` دقیقاً موفق شوند. هر شکست، لغو یا کمبود شاهد = توقف؛ ایمیج منتشر یا مستقر نمی‌شود.
+۴. **ساخت و ثبت image:** پس از موفقیت هر سه job، CI image `ghcr.io/feerozmandi/xennic-website` را برای `linux/amd64` می‌سازد و tag تغییرناپذیر `sha-<40-character-commit>` و digest آن را در Summary ثبت می‌کند. سرور از source یا mutable tag build نمی‌کند. فقط `ghcr.io/feerozmandi/xennic-website@sha256:<digest>` مجاز است.
+۵. **شکاف هویت artifact که باید پیش از deploy بسته شود:** در workflow فعلی `production-preview` و job انتشار دو build جدا هستند. بنابراین موفقیت production-preview به‌تنهایی ثابت نمی‌کند artifact منتشرشده byte-for-byte همان image آزموده‌شده است. پیش از اتصال deploy باید همان digest منتشرشده به‌صورت runtime اجرا و سلامت/آزمون‌های لازم روی آن اثبات شود، یا CI یک artifact واحد را بسازد، آزمون کند و همان را منتشر/promote کند. نه tag و نه همسانی source commit جای تأیید digest آزموده‌شده را می‌گیرد.
+۶. **Deploy job:** فقط پس از تأیید این قرارداد و فراهم‌شدن GitHub Environment مخصوص `preview`، job مجزای deploy به SSH خروجی می‌دهد. Environment فقط branch محافظت‌شدهٔ `dev` را می‌پذیرد و Secretها را در همان job محدود می‌کند. پس از تصویب یک‌جای این طرح، deployهای واجدشرایط خودکارند و برای هر commit approval دستی جداگانه لازم نیست؛ اگر تنظیمات repository چنین تأیید per-run تحمیل کنند، آن تصمیم باید آشکارا بازبینی شود و مسیر «خودکار» تلقی نشود. مجوزهای همان job حداقلی‌اند: `contents: read` و `packages: read`؛ هیچ `packages: write`، OAuth Secret یا credential برنامه در jobهای PR وجود ندارد. deploy فقط manifest شامل repository، commit SHA، run number، digest و `linux/amd64` را می‌فرستد؛ سرور مقادیر را با allowlist ثابت اعتبارسنجی می‌کند.
+۷. **ترتیب/قفل:** تمام jobهای deploy از CI و مسیر deploy دستی/rollback باید یک گروه concurrency مشترک با `cancel-in-progress: false` و یک قفل قطعی سمت VPS داشته باشند؛ jobهای صرفاً آزمونی PR deploy نیستند و Secret دسترسی ندارند. قفل پیشنهادی `/run/lock/xennic-preview-deploy.lock` با `flock` روی **کل** توالی backup → migration → تعویض نسخه → health check/rollback است. قفل host مرجع نهایی است، چون GitHub concurrency به‌تنهایی deploy دستی را پوشش نمی‌دهد. ثبت `run_number`/نسخهٔ پذیرفته‌شده زیر همان قفل جلوی اعمال دوبارهٔ اجرای قدیمی پس از اجرای جدید را می‌گیرد. سیاست preview، «آخرین commit موفق و سالم `dev`» است: runهای superseded پیش از تغییر ترافیک رد می‌شوند؛ run جاری وسط migration لغو نمی‌شود. اگر نیاز آینده اجرای تک‌تک mergeها باشد، صف durable جدا لازم است و باید در همین قرارداد بازبینی شود.
+۸. **موفقیت انتشار:** فقط پس از migration موفق و تمام health/acceptance checkها، digest به‌عنوان last-healthy ثبت و traffic به آن هدایت می‌شود. انتشار image یا پاسخ `docker pull` به‌تنهایی «deploy موفق» نیست.
+
+### ۱۰.۴ هویت، SSH، GHCR و مرز دسترسی
+
+- **هویت سرور:** GitHub Actions باید host key سرور را با `StrictHostKeyChecking=yes` و `known_hosts` ثابت بررسی کند. fingerprint از مسیر مستقل و مورد اعتماد مالک/کنسول ارائه‌دهنده تأیید شود؛ `ssh-keyscan` در همان اتصال deploy مبنای اعتماد نیست. endpoint مدیریتی قدیمی `.199:33878` فقط بعد از تأیید زنده قابل استفاده است؛ host key، IP، port و مسیر باید در همان زمان ثبت شوند.
+- **کلید deploy:** کلید خصوصی SSH در GitHub Environment Secret مخصوص preview نگهداری می‌شود، نه در Git، متن گفتگو، runner cache یا Secret سراسریِ قابل‌دسترس PRها. کلید عمومی فقط برای حساب محدود deploy نصب می‌شود. هیچ کلیدی در این تغییر ساخته، نصب یا ذخیره نشده است.
+- **محدودیت شبکهٔ SSH:** خروجی GitHub-hosted runner می‌تواند پویا باشد؛ IP ثابت فرض نمی‌شود. پیش از فعال‌سازی باید یک مسیر آزموده و تصویب‌شده انتخاب شود: allowlist کردن محدوده‌های رسمی GitHub Actions با به‌روزرسانی کنترل‌شده، یا مسیر خصوصی/overlay موردتأیید. تا انتخاب و آزمون مسیر، firewall/SSH بازتر نمی‌شود و دسترسی مدیریتی مالک نباید مختل شود.
+- **حساب VPS:** حساب پیشنهادی `preview-deploy` shell تعاملی، sudo عمومی، TTY، agent/X11/port forwarding و دسترسی به پروژه‌های دیگر ندارد؛ `authorized_keys` به forced-command ثابت و root-owned محدود می‌شود. اگر برای اجرای عملیات Docker نیاز به privilege elevation باشد، `sudoers` فقط همان helper root-owned و بدون آرگومان دلخواه را مجاز می‌کند؛ نه shell یا دستور دلخواه. حساب عضو گروه `docker` نیست و Docker socket را مستقیم نمی‌بیند. manifest ورودی از نظر طول و ساختار محدود و image/repository/path/service از پیش allowlist می‌شوند.
+- **هشدار privilege مهم:** عضویت در گروه `docker` یا دسترسی مستقیم به Docker socket عملاً **دسترسی مدیر سیستم/ریشهٔ host** می‌دهد؛ حسابی که فقط «deploy» نام دارد ولی عضو `docker` است کم‌دسترسی محسوب نمی‌شود. helper محدود root-owned از دسترسی مستقیم بهتر است، اما همچنان یک قابلیت ممتاز برای تغییر containerهای preview است و باگ در آن می‌تواند host را در معرض خطر بگذارد؛ نباید آن را least-privilege مطلق یا کم‌خطر معرفی کرد. helper/Compose ثابت، غیرقابل‌نوشتن توسط deploy، بدون Dockerfile/Compose دلخواه از repository و محدود به یک project هستند. عضویت یا مجوز حساب‌های موجود (از جمله `xennic`) در این کار تغییر نمی‌کند.
+- **GHCR:** job deploy از `GITHUB_TOKEN` کوتاه‌عمر با `packages: read` استفاده می‌کند؛ package باید برای repository مجاز باشد. token فقط از stdin به helper داده می‌شود تا login/pull انجام شود، نه در آرگومان فرایند، shell history یا log؛ Docker config موقت با مجوز `0700` ساخته و پس از کار حذف می‌شود. PAT دائمی روی VPS یا token نوشتن image لازم نیست. دسترسی واقعی سرور به GHCR هنوز از محیط مالک آزموده نشده است.
+- **اجرای container:** App با کاربر غیر-root داخل container، بدون `privileged`، بدون mount از `/var/run/docker.sock`، با capabilityهای حذف‌شده، filesystem ریشهٔ فقط‌خواندنی تا حد سازگاری، مسیرهای writable محدود به media/tmp و limitهای CPU/RAM اجرا می‌شود. Postgres فقط در شبکهٔ داخلی است؛ هیچ پورت App/DB/OAuth2 Proxy روی host یا اینترنت publish نمی‌شود. Caddy تنها edge عمومی مجاز است.
+- **Secrets برنامه:** OAuth Client Secret، cookie-encryption key، `PAYLOAD_SECRET`، رمز Postgres و `DATABASE_URL` هرکدام یکتا و پس از تصویب در فایل root-owned بیرون Git/image نگهداری می‌شوند؛ مقدارها نه در log، `docker compose config`، خروجی diagnostic، chat، image label یا command line چاپ نمی‌شوند. فایل env/secret پیشنهادی `root:root 0600` است؛ اگر Docker env را در `inspect` نشان دهد، دسترسی Docker daemon همچنان سطح مدیر سیستم تلقی می‌شود. Secretهای فعلی n8n یا سایر سرویس‌ها reuse نمی‌شوند.
+
+### ۱۰.۵ مدل Gate، allowlist و نشست هشت‌ساعته
+
+- مسیر پیشنهادی: Caddy با TLS عمومی → OAuth2 Proxy/GitHub OAuth → App؛ یک فهرست مجاز **قابل‌گسترش** از GitHub identityهای دقیق/شناسهٔ پایدار، با default-deny و رویهٔ افزودن/حذف مستند. تغییر allowlist به rebuild وب‌سایت نیاز ندارد؛ فایل/تنظیم root-owned جدا از App است و فقط مالک/مسئول مجاز آن را پس از تأیید تغییر می‌دهد. اثر حذف کاربر روی نشست موجود باید صریح و آزموده شود: cookie ممکن است تا پایان ۸ ساعت معتبر بماند؛ اگر حذف فوری لازم است، بررسی allowlist در هر درخواست یا مکانیزم revoke/session-version لازم است و نباید ضمنی فرض شود.
+- Gate باید کل host و مسیرهای خانه، `/admin`، `/api/*`، GraphQL، Next assets و media را پوشش دهد. Headerهای ورودیِ جعلی از client حذف/بازنویسی شوند؛ App/DB به‌طور مستقیم از اینترنت قابل‌دسترسی نباشند. پاسخ unauthorized فقط پیام عمومی و کاربرپسند فارسی بدهد، مثلاً «این پیش‌نمایش برای حساب شما مجاز نیست؛ با مدیر سایت تماس بگیرید»؛ نام internal provider، scope، allowlist یا جزئیات خطا به کاربر نشان داده نمی‌شود.
+- طول نشست Gate **۸ ساعت دقیق با سقف مطلق ۸ ساعت** است؛ refresh/sliding renewal نشست را تمدید نمی‌کند. Cookie باید `Secure`, `HttpOnly`, `SameSite` مناسب و فقط روی preview باشد. هر دستگاه/browser نشست مستقل دارد و ورود هم‌زمان همان کاربر در چند دستگاه مجاز است؛ خروج از یک دستگاه cookie همان دستگاه را پاک می‌کند و نشست دستگاه‌های دیگر را خودبه‌خود revoke نمی‌کند. ابطال اضطراری همهٔ نشست‌ها نیازمند چرخش کنترل‌شدهٔ cookie key/روش revoke است و به‌عنوان عملیاتی حساس ثبت می‌شود.
+- OAuth نهایی باید فقط کمترین scope لازم را بگیرد. `read:org` صرفاً در App آزمایشی محلی، با اجازهٔ محدود همان آزمون، استفاده شده است؛ **برای App نهایی مجاز فرض نمی‌شود** و قبل از درخواست آن تأیید جداگانه لازم است. انتخاب provider/config باید allowlist را با identity قابل‌اتکا بدون فرض عضویت سازمانی ممکن کند؛ اگر profile، scope یا API پاسخ ندهد، rollout متوقف می‌شود.
+- تشخیص نتیجه باید جدا ثبت کند: (الف) scope/token معتبر است یا نه، (ب) دریافت GitHub profile و پاسخ آن، (پ) تصمیم allowlist. خطای `500` یا پیام `missing github user` به‌تنهایی اثبات رد allowlist نیست. logها برای عیب‌یابی redacted می‌مانند؛ پیام داخلی به کاربر نمایش داده نمی‌شود.
+- آزمون پذیرش Payload جدا از Gate است: logout در Payload نباید به‌تنهایی Gate را logout/revoke کند؛ پس از Payload logout، Bearer قبلی در `/api/staff/me` باید `HTTP 200` با `user:null` بدهد و login بعدی توکن تازه بگیرد. Gate logout فقط نشست Gate همان browser را پاک می‌کند. این رفتار با Gate واقعی هنوز runtime-verified نشده است.
+- آزمون outage با نشست Gate معتبر **مجاز نشده** است؛ این acceptance item باز می‌ماند تا مالک مجوز تازه دهد. هیچ gate فعال یا نشست معتبر موجود برای این طرح تغییر/قطع نمی‌شود.
+
+### ۱۰.۶ مسیر staging، migration، backup، rollback و نگهداری نسخهٔ سالم
+
+**مالکیت و فایل‌سیستم پیشنهادی روی VPS** (پس از inventory و تصویب؛ مسیر فعلاً ایجاد نشده است):
+
+```text
+/srv/xennic-preview/                         root:root 0750
+├── config/                                   root:root 0750; Compose/Caddy root:root 0640
+├── releases/<commit-sha>/                    root:root 0750; metadata فقط برای digest/commit/run
+├── secrets/preview.env                       root:root 0600; هیچ‌گاه در Git یا release image
+├── state/                                    root:root 0700; last-healthy، migration و قفل/sequence
+└── staging/                                  root:root 0700; ورودی موقت، پاک‌سازی پس از اجرا
+```
+
+حساب SSH deploy فایل/Compose دلخواه را مستقیم نمی‌نویسد؛ root-owned helper پس از اعتبارسنجی manifest فایل release را می‌سازد. Compose و Caddy config از کد وب‌سایتِ قابل‌تغییر در PR جدا و root-owned می‌مانند. دادهٔ runtime در Volumeهای نام‌دارِ مستقلِ `xennic_preview_db` و `xennic_preview_media` (نام نهایی پس از inventory) است؛ هرگز از Volumeهای n8n/پروژه‌های دیگر استفاده نمی‌شود. container App فقط مسیرهای data/tmp لازم را writable می‌گیرد.
+
+**قبل از هر schema migration یا تغییر release که داده را لمس می‌کند:**
+
+۱. run lock را بگیرید و وضعیت نسخه/DB/media فعلی را ثبت کنید؛ اگر lock، backup target یا فضای کافی در دسترس نیست، stop.
+۲. backup هماهنگ PostgreSQL **و** media از staging بگیرید؛ در صورت لزوم نوشتن را در بازهٔ کنترل‌شده متوقف کنید تا snapshotها سازگار باشند. Backup با کلید مجزا رمزنگاری و به مقصد خصوصیِ خارج از همین VPS منتقل شود؛ مخزن Git عمومی ممنوع است. مقصد و دسترسی آن هنوز انتخاب نشده‌اند.
+۳. صحت فایل/checksum را بررسی و restore را در DB/Volume آزمایشی جداگانه نشان دهید، قبل از اتکا به آن برای rollback. Backup نامعتبر یا restore آزموده‌نشده = عدم شروع migration.
+۴. فقط migration نسخه‌بندی‌شده و بازبینی‌شدهٔ Payload برای همان image اجرا شود. در production از `db:init` توسعه‌ای، schema push خودکار، `migrate:fresh`، reset یا seed روی هر startup استفاده نمی‌شود. Seed محتوای مصوب فقط به‌صورت کنترل‌شده/تک‌اجرا و بدون overwrite رکوردهای ویرایش‌شده است.
+۵. هر خطای command، migration یا readiness فوراً کل run را fail می‌کند؛ `set -e`/معادل، exit code و log redacted حفظ می‌شوند. اجرای بعدی متوقف است؛ هیچ `|| true`، cleanup مخرب، حذف Volume یا promote خودکار انجام نمی‌شود. وضعیت نیمه‌کاره بررسی می‌شود؛ تا تصمیم امن، نسخهٔ سالم قبلی/maintenance حفظ می‌شود.
+
+**Rollback سازگار با schema:** migrationها ابتدا با الگوی expand/contract طراحی می‌شوند: نسخهٔ جدید و نسخهٔ قبلی باید در بازهٔ بازگشت با schema مشترک کار کنند؛ حذف/rename ستون یا تغییر مخرب در همان release مجاز نیست. پس از مرحلهٔ expand، App جدید را می‌توان با image digest قبلی جایگزین کرد، مشروط به تأیید سازگاری schema. Down-migration مخرب یا rollback خودکار فرض نمی‌شود. اگر migration ناسازگار/نیمه‌اجرا شد یا داده تغییر کرده، فقط restore هماهنگ DB **و** media از backup قبل از انتشار، پس از بررسی اثر از دست‌رفتن داده و تأیید مالک انجام می‌شود؛ ابتدا snapshot وضعیت شکست‌خورده حفظ می‌شود. در صورت شک، traffic تغییر نمی‌کند و داده پاک/بازنویسی نمی‌شود.
+
+**Health/last-healthy:** پس از اجرا، readiness Postgres، اجرای `SELECT 1`، migration status، Docker health و endpoint داخلی App `/health` بررسی شوند؛ route فعلی با `SELECT 1` وضعیت `{status: ok}` یا 503 می‌دهد و نباید جزئیات DB را افشا کند. سپس از edge، TLS/Host، redirect به HTTPS، عدم دسترسی بدون Gate، ورود allowlist، درخواست‌های حفاظت‌شده و asset/media بررسی شوند. Health داخلی App به‌تنهایی قبولی OAuth یا browser را ثابت نمی‌کند. نسخه تنها پس از همهٔ کنترل‌ها `healthy` می‌شود؛ digest قبلی و config/migration متناظر به‌عنوان last-healthy باقی می‌مانند. حداقل **دو نسخهٔ سالم قبلی** تا زمان retention نگهداری می‌شوند؛ هیچ image/backup سالمی برای آزادسازی فضا خودکار prune نمی‌شود.
+
+**Retention پیشنهادی برای تصویب:** backup رمزنگاری‌شدهٔ روزانه با ۷ نسخهٔ روزانه، ۴ هفتگی و ۳ ماهانه؛ backup پیش از migration حداقل ۳۰ روز و تا موفقیت دو deploy بعدی (هرکدام دیرتر است) حفظ شود. مقصد off-host، هزینه، retention واقعی و restore drill دوره‌ای هنوز تأیید نشده‌اند؛ این اعداد پیشنهادند، نه پیکربندی فعال.
+
+### ۱۰.۷ منابع، image registry و شروط ظرفیت
+
+هیچ build، `docker pull`، pruning یا نصب ابزار روی VPS در این مرحله انجام نمی‌شود. Build باید بیرون VPS (GitHub Actions یا CI موردتأیید) انجام شود تا CPU/RAM/cache پشتهٔ موجود مصرف نشود. هیچ سرویس موجود برای آزادکردن منابع متوقف نمی‌شود.
+
+| ورودی | آخرین دادهٔ قابل‌ردیابی | قید تصمیم |
+|---|---|---|
+| VPS | مشخصات تاریخی META-INT-140: ۴ vCore، ۶ GiB RAM و ۷۵ GB NVMe. گزارش زیرساختی درج‌شده در PR #11 در ۱۴۰۵-۰۸-۰۹ یک نمونهٔ حدود ۵٫۸ GiB RAM، ۱٫۷ GiB حافظهٔ available و حدود ۵۳ GiB دیسک آزاد را ذکر می‌کند؛ وضعیت Caddy در همان گزارش فعال تأیید نشده است. | هیچ‌کدام در این turn از VPS به‌صورت زنده راستی‌آزمایی نشده‌اند و snapshotها زمان/روش اندازه‌گیری یکسانی ندارند. پیش از اجرا `docker stats`, `free`, `df`, مصرف/رشد Volume و منابع اوج به‌صورت redacted دوباره ثبت شود. اگر ظرفیت با حاشیهٔ ایمن برای stack موجود، preview، migration، backup و بازگردانی کافی نیست، deploy متوقف و ارتقای منابع فقط با تصمیم جداگانه مطرح شود. |
+| limits آغازین | `compose.preview.yml` آزمایشی در وب‌سایت برای App `512 MiB` و Postgres `256 MiB` limit دارد؛ اینها نمونهٔ CI/آزمایش‌اند، نه ظرفیت تأییدشدهٔ VPS. OAuth2 Proxy و Caddy هنوز بودجهٔ نهایی ندارند. | اندازه‌گیری runtime/migration و peak حافظه در CI و سرور مالک لازم است. سقف‌ها در Compose نهایی باید با حاشیهٔ آزاد تأیید شوند؛ از روی CI runner کفایت ۶ GiB نتیجه‌گیری نشود. |
+| دیسک/backup | snapshot قدیمی حدود ۵۳ GB آزاد گزارش شده؛ اندازهٔ نهایی image، DB، media، دو image سالم، log و retention backup معلوم نیست. | پیش از deploy فضای لازم برای image جدید+قبلی، داده، موقت migration، backup رمزنگاری‌شده و restore باید محاسبه شود. `docker system prune` یا حذف image/Volume موجود برای جا بازکردن ممنوع است. |
+| دسترسی registry | CI در PR روی runner GitHub اجرا شده؛ اتصال VPS به GHCR و محدودیت شبکهٔ سرور آزموده نشده. | پیش از deploy با دسترسی owner/CI از همان شبکهٔ سرور بررسی شود؛ در صورت عدم دسترسی، mirror یا مسیر انتقال فقط پس از review و تصویب اضافه می‌شود، نه با دورزدن امنیت یا افشای token. |
+
+**وضعیت pin و معماری image:** در Dockerfile فعلی وب‌سایت base tag `node:22.22.3-bookworm-slim` (build/runtime) است؛ Compose آزمایشی `postgres:16.14-bookworm` را دارد. این tagها از متن source استخراج شده‌اند، اما digest رسمی یا child digest مربوط به `linux/amd64` در checkout ثبت نشده‌اند. CI موفق روی runner GitHub شاهد اجرای همان stack آزمایشی است، نه digest pin یا انتشار image نهایی. Caddy و OAuth2 Proxy هنوز نسخه/tag نهاییِ قابل‌استقرار ندارند. پیش از نهایی‌شدن Compose، owner/CI از registry رسمی باید برای هر image نسخه/tag، digest شاخص multi-arch (اگر وجود دارد)، digest فرزند `linux/amd64`، و سازگاری platform را ثبت کند؛ digest شاخص با digest child یکی فرض نمی‌شود و هیچ digestی حدس زده نمی‌شود. metadata شاخص Caddy (`sha256:36c24ad91a7ff7bc4c87fe22bfa8df3c4b18da0773d73fc12ee2c52b98c0bb7e`) و OAuth2 Proxy (`sha256:8498b0d0ef0a7b29686414000a08aee467f02d0299c9ed1e006a8f33fc017916`) که پیش‌تر مالک ارائه کرده، مستقل در این turn بازبینی نشده و tag/child `linux/amd64` متناظر در این سند ثبت نیست؛ برای deploy قابل استفاده تلقی نمی‌شوند تا owner/CI آن‌ها را با repository/tag رسمی و child digest تطبیق دهد.
+
+| Image | Source/tag فعلی | Digest و `linux/amd64` | وضعیت |
+|---|---|---|---|
+| Website | `ghcr.io/feerozmandi/xennic-website:sha-<commit>` | digest انتشار واقعی هنوز وجود ندارد؛ workflow `linux/amd64` را درخواست می‌کند. digest فقط از اجرای موفق `dev` ثبت خواهد شد. | PR #11 publish را skip کرده؛ هیچ image فعلی برای deploy انتخاب نشده است. |
+| Node base | `node:22.22.3-bookworm-slim` | registry digest/index و child digest هنوز ثبت نشده؛ CI build موفق، pin را جایگزین نمی‌کند. | تأیید رسمی/مستند owner/CI لازم است. |
+| PostgreSQL | `postgres:16.14-bookworm` | registry digest/index و child digest هنوز ثبت نشده؛ CI runtime نمونه‌ای pass شده است. | تأیید رسمی/مستند owner/CI لازم است. |
+| Caddy / OAuth2 Proxy | نسخه/tag نهایی انتخاب نشده | metadata مالک به‌تنهایی برای تعیین tag و child digest کافی نیست. | پیش از deployment انتخاب/pin و بررسی `linux/amd64` لازم است. |
+
+### ۱۰.۸ مسئولیت‌ها، معیارهای پذیرش باز و اقدامات مالک
+
+**مرزبندی نقش‌ها:**
+
+- دستیار/مسئول زیرساخت: inventory و ظرفیت، images/digests و GHCR، Compose/secret path، Docker network/volume، Caddy/TLS، OAuth2 Proxy، allowlist، قفل deploy، backup/restore، اجرای آزمون‌های زیرساخت و گزارش redacted.
+- دستیار وب‌سایت: migration و baseline Payload، خطاهای App، سازگاری schema، seed، API/GraphQL/media/Staff و اصلاحات برنامه.
+- مالک: تأیید یک‌جای همین قرارداد پیش از هر تغییر زنده، کنترل/اجازهٔ DNS، ایجاد یا تأیید OAuth App و scope، نگهداری امن Secretها، تأیید retention/منابع، و اقدام‌های لازم در browser محلی/موبایل و دو دستگاه. مالک نباید مقدار Secret را در chat یا Git بفرستد.
+
+اگر رایانهٔ مالک در دسترس نیست، build/runtime evidence از مسیر GitHub Actions وب‌سایت و هماهنگی دستیار وب‌سایت و زیرساخت تولید می‌شود؛ Arena و ماشین این دستیار runtime target نیستند و Docker روی آن‌ها نصب نمی‌شود. آزمون browser/دو دستگاه همچنان به اقدام مالک در زمان دسترسی نیاز دارد.
+
+**اقدام‌های لازم از مالک/مسئول، پیش از deploy:**
+
+- [ ] authority و پنل واقعی DNS، رکوردهای فعلی و TTL `preview.xennic.ir` را تأیید کند؛ اگر مجاز/قابل‌تأیید نبود، رکورد تغییر نکند.
+- [ ] از کنسول/مسیر مستقل، fingerprint کلید host، SSH endpoint و mapping عمومی را redacted تأیید کند؛ کلید private ارسال نمی‌شود؛ مسیر شبکهٔ GitHub Actions تا SSH نیز با allowlist رسمی یا overlay تأییدشده انتخاب و آزموده شود.
+- [ ] حفاظت branch `dev`، وضعیت GitHub Environment، دسترسی package به `GITHUB_TOKEN` و اجرای واقعی `push` به `dev` را تأیید کند؛ CI فعلی PR معادل publish نیست.
+- [ ] inventory لحظه‌ای منابع، پورت‌ها، proxy و فضای Volumeها را ارائه/تأیید کند؛ پنجرهٔ peak و حداقل headroom را تعیین کند. اگر با حاشیهٔ امن کافی نیست، هیچ سرویسی برای جا بازکردن خاموش نشود.
+- [ ] مقصد backup خصوصی خارج از VPS، کلید جدا، retention و روند restore را تأیید کند؛ restore روی نمونهٔ جدا قبل از استفادهٔ عملیاتی ثابت شود.
+- [ ] OAuth App نهایی/redirect URI و scope کمینه را پس از بررسی تأیید کند؛ `read:org` از آزمایش محلی منتقل نمی‌شود. Secretها فقط پس از تصویب یک‌جای کل برنامه در محل امن/Environment مربوط اضافه شوند.
+- [ ] نسخه/tag/digest و پشتیبانی `linux/amd64` Node، PostgreSQL، Caddy و OAuth2 Proxy در registry رسمی از محیط مجاز/CI ثبت شود؛ index و child digest جدا بمانند.
+- [ ] پس از استقرار آزمایشیِ مجاز، owner browser testهای واقعی را انجام دهد: حساب مجاز، حساب غیرمجاز، allowlist قابل‌افزایش، پایان نشست در ۸ ساعت، دو دستگاه هم‌زمان، خروج یک دستگاه بدون اخراج دیگری، redirect/TLS، RTL/responsive و رفتار Payload مشخص‌شده در §۱۰.۵.
+
+**شواهد/وضعیت آزمون‌ها:**
+
+| قلم | وضعیت فعلی | مرز نتیجه |
+|---|---|---|
+| typecheck/lint/compat/build و Compose/production-preview | `PASS` در GitHub Actions run `41186812509`، commit PR `9edb0b0…` | runtime در runner آزمایشی؛ نه VPS، DNS، Caddy یا OAuth واقعی. |
+| CI روی `dev` و انتشار GHCR | `NOT RUN` برای این PR؛ publish job در `pull_request` skip شده است. | digest نهایی، read access سرور و deployment ثابت نشده‌اند. |
+| Synthetic gate | `owner-reported PASS` در محیط ایزولهٔ محلی | مستقلاً اجرا نشده؛ real OAuth یا اینترنت عمومی را اثبات نمی‌کند. |
+| ورود OAuth محلی | `owner-reported site opened` پس از scope محلی `read:org` | هویت/allowlist، scope نهایی، دو دستگاه، انقضا و رفتار کامل API/browser پذیرش نشده‌اند. |
+| VPS/DNS/TLS/SSH/Compose نهایی | `NOT RUN` | هیچ VPS/DNS/Secret/live gate در این کار تغییر یا آزمون نشده است. |
+| migration و restore preview روی VPS | `NOT RUN` | backup operational، مقصد off-host و rollback واقعی هنوز بازند. |
+| gate outage با نشست معتبر | `NOT AUTHORIZED` | acceptance باز می‌ماند تا اجازهٔ تازه؛ این سناریو اجرا نشده است. |
+
+معیار نهایی go/no-go: آزمون دقیق digest منتشرشده، host-key verified SSH، دسترسی فقط GHCR read، migration/backup restore موفق، health و gate real acceptance، ظرفیت/فضا با headroom، و آماده‌بودن last-healthy rollback همگی باید مدرک‌دار باشند. هر مورد ناموفق/نامعلوم به‌معنای **عدم deploy و عدم DNS cutover** است؛ خطای scope، پاسخ profile و تصمیم allowlist جداگانه گزارش می‌شوند. هیچ آزمون runtime تأییدنشده‌ای PASS اعلام نمی‌شود.
+
+---
+
+## ۱۱. Changelog
+
+- **v0.7.0 (۱۴۰۵-۰۸-۰۹):** افزودن قرارداد یکتای preview وب‌سایت از merge تا deploy در همین مرجع مشترک، با مرز یک‌تأییدی قبل از هر تغییر زنده؛ ثبت وضعیت واقعی PR #11 و تفکیک شواهد CI از آزمون‌های VPS و OAuth؛ طراحی SSH با تأیید host identity و pull حداقلی GHCR، تصریح هم‌ارزی Docker group با اختیار root، مسیر/مالکیت staging، قفل مشترک CI/manual، Gate هشت‌ساعته و allowlist چنددستگاهی، backup، migration سازگار و rollback، retention آخرین نسخهٔ سالم، ظرفیت/registry، مسئولیت‌ها و موارد آزمون‌نشده. هیچ VPS، DNS، Secret یا gateی تغییر نکرد.
 - **v0.6.0 (۱۴۰۵-۰۸-۰۶):** سومین Workflow (`[API-01] Semantic Search`، اولین Webhook/API عمومی) به‌طور کامل اصلاح و end-to-end تست شد. دو مشکل رفع شد: Endpoint ناقص (`/points` به‌جای `/points/search`) و نبود Authentication روی `HTTP Request: Qdrant Search` (رفع با Credential موجود `Qdrant Header Auth`). تست واقعی با کوئری «خط گرم» ۳ نتیجهٔ مرتبط با امتیاز شباهت بالا (`0.88`–`0.85`) از نود `FND-003` برگرداند — تایید اول‌به‌آخر کل زنجیرهٔ RAG (Ingestion در `[RAG-01]`/`[RAG-02]` → Retrieval در `[API-01]`). یک محدودیت غیرمسدودکننده ثبت شد: قابلیت `filter` در این نود به فیلدی متصل است که هنوز در `Code: Parse Query` ساخته نمی‌شود. مرحلهٔ بعدی: پاک‌سازی اقلام باقی‌ماندهٔ فاز A (آرشیو Workflow‌های تستی، تبدیل Manual→Schedule، Global Error Workflow → Bale).
 - **v0.5.0 (۱۴۰۵-۰۸-۰۶):** دومین Workflow واقعی RAG (`[RAG-02] Open Notebook → Qdrant`) به‌طور کامل اصلاح و end-to-end تست شد (۹۹ نقطهٔ جدید در Qdrant؛ مجموع Collection از ۸۹ به ۱۸۸). هفت مشکل واقعی رفع شد: Endpoint اشتباه `/api/notebooks` به‌جای `/api/sources`؛ ریسک گم‌شدن آیتم با `$input.first()` در `Code (Parse Sources)`؛ هاست‌نیم قدیمی `open-notebook-open_notebook-1` در نود `Source Details`؛ نبود Authentication روی `Qdrant Upsert` (رفع با Credential موجود `Qdrant Header Auth`)؛ **کشف جدید:** نیاز Authentication مستقل Open Notebook (هدر `Authorization: Bearer <OPEN_NOTEBOOK_PASSWORD>`) روی هر دو نود `List Sources`/`Source Details`، Credential جدید `Open Notebook Header Auth` ساخته شد؛ Mode اشتباه (`Run Once for All Items` به‌جای `Run Once for Each Item`) در `Code Node (Merge)` که باعث گم‌شدن ۹۸ از ۹۹ Chunk می‌شد؛ فراخوانی تکراری ۹۹باره روی `HTTP Request (Qdrant Upsert)` رفع‌شده با فعال‌سازی `Execute Once`. مرحلهٔ بعدی: `[API-01] Semantic Search`.
 - **v0.4.0 (۱۴۰۵-۰۸-۰۵):** اولین Workflow واقعی RAG (`[RAG-01] Obsidian Founder → Qdrant`) به‌طور کامل اصلاح و end-to-end تست شد (۸۹ نقطه در Qdrant). معماری دسترسی به Vault روی VPS نهایی شد: Git Mirror فقط-خواندنی (Deploy Key + Cron ۳۰ دقیقه‌ای) در `/opt/xennic-vault-ro`، Mount شده به‌صورت `read-only` در Container `n8n`. سه مشکل واقعی در Workflow رفع شد (آدرس‌های اشتباه سرویس‌های Embedding/Qdrant، نبود Authentication روی نود Upsert). دو رفتار جدید و مهم n8n نسخهٔ ۲.x کشف و مستند شد: (۱) غیرفعال‌بودن پیش‌فرض `Execute Command`/`Local File Trigger` (جایگزین‌شده با `Read/Write Files from Disk` + `N8N_RESTRICT_FILE_ACCESS_TO`)؛ (۲) لزوم استفاده از `this.helpers.getBinaryDataBuffer()` به‌جای `$helpers`/خواندن مستقیم باینری در Code Node (به‌خاطر Task Runner Sandbox جدید). Collection هدف Qdrant (`xennic_shared_knowledge`, size:384, distance:Cosine) برای اولین‌بار دستی ساخته شد. مرحلهٔ بعدی: تکرار همین الگو برای `[RAG-02]` و `[API-01] Semantic Search`.
