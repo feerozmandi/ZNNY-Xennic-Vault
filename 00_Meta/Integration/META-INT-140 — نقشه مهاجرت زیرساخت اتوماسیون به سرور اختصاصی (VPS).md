@@ -7,7 +7,7 @@ tags: [integration, infrastructure, vps, migration, automation, governance, team
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.7.0
+version: 0.7.1
 dependencies: [META-INT-080, META-INT-100, META-INT-110, META-INT-130]
 ---
 
@@ -329,6 +329,9 @@ CPU (۴ vCore)، دیسک (۷۵ گیگابایت NVMe) و ترافیک (نامح
 > این بخش، قرارداد مشترک و مرجع یکتای مسیر «merge → آزمون → GHCR → SSH → استقرار → سلامت/بازگشت» برای پیش‌نمایش وب‌سایت است؛ گزارش‌های وب‌سایت و PR شمارهٔ ۱۱ ورودی و شاهدند، نه طرح اجرایی موازی. دامنهٔ موردنظر `https://preview.xennic.ir` است، نه دامنهٔ اصلی و نه انتشار عمومی وب‌سایت.
 >
 > وضعیت: **پیشنهاد یکپارچه برای بازبینی؛ اجرا نشده و آمادهٔ اجرا تلقی نمی‌شود.** تصویب این بخش باید یک‌جا و پس از بازبینی کل قرارداد انجام شود. تا آن زمان هیچ VPS، DNS، Secret عملیاتی، دروازهٔ فعال، پورت، Volume، شبکه یا دادهٔ موجود تغییر نمی‌کند. این سند به‌تنهایی مجوز اجرای هیچ گام زنده‌ای نیست.
+>
+> > [!warning] مشاهدهٔ زنده (۱۴۰۵-۰۹-۰۲ / 2026-11-23) — صرفاً مشاهدهٔ `docker ps -a` روی VPS، نه تأیید اجرا
+> > در بررسی زندهٔ VPS (2026-11-23 ~۰۸:۱۲ UTC) کانتینرهایی با نام `xennic-preview-app-1` (Up حدود ۱۰ روز؛ `3000/tcp` داخلی)، `xennic-preview-gateway-caddy-1` (Up حدود ۱۱ روز؛ `0.0.0.0:80/443` و **`2019/tcp` روی همهٔ interfaceها**)، `xennic-preview-gateway-gate-1` و `xennic-preview-postgres-1` (هر دو Up حدود ۱۲ روز) در حال اجرا مشاهده شدند. این با متن «هیچ‌یک از این مراحل تاکنون اجرا نشده است» ناسازگار است. **این مشاهده فقط نشان می‌دهد چیزی شبیه preview روی VPS بالا آمده است؛ تأیید اجرای قرارداد این بخش (DNS/`preview.xennic.ir`، گیت OAuth، استقرار معتبر همان digest، rollback، gate هشت‌ساعته) یا مجوز آن نیست و هیچ تست زنده‌ای انجام نشد.** همچنین درگاه admin Caddy روی `0.0.0.0:2019` به‌عنوان پیگیری **امنیتی جداگانه** ثبت شد؛ بدون تصمیم جداگانه هیچ قاعدهٔ فایروال/پیکربندی (UFW/Caddy/پورت 33878) تغییر نمی‌کند. این بخش تا reconciliation مستند با شواهد واقعی، «پیش‌نویس» باقی می‌ماند.
 
 ### ۱۰.۱ دامنه، مبنای کد و شواهد فعلی
 
@@ -477,6 +480,7 @@ CPU (۴ vCore)، دیسک (۷۵ گیگابایت NVMe) و ترافیک (نامح
 
 ## ۱۱. Changelog
 
+- **v0.7.1 (۱۴۰۵-۰۹-۰۲ / 2026-11-23):** ثبت صرفاً-مشاهده‌ای از VPS (۲۰۲۶-۱۱-۲۳ ~۰۸:۱۲ UTC) برای reconciliation بخش ۱۰: کانتینرهای `xennic-preview-app-1` (~Up ۱۰ روز، `3000/tcp` داخلی)، `xennic-preview-gateway-caddy-1` (~Up ۱۱ روز، `0.0.0.0:80/443` و **`2019/tcp` روی همهٔ interfaceها**)، `xennic-preview-gateway-gate-1` و `xennic-preview-postgres-1` (~Up ۱۲ روز) در حال اجرا مشاهده شدند. این با متن «هیچ‌یک از این مراحل تاکنون اجرا نشده است» (بخش ۱۰.۱) ناسازگار است و با یک callout هشدار جدید کنار قرارداد preview ثبت شد. **مرز ثبت:** مشاهدهٔ `docker ps -a` است؛ اجرای قرارداد preview (DNS، `preview.xennic.ir`، گیت OAuth، استقرار digest آزموده‌شده، rollback، gate هشت‌ساعته) یا مجوز آن نیست؛ تست زنده انجام نشد و هیچ تغییر VPS/DNS/Caddy/فایروال (شامل پورت 33878 و درگاه admin کادی روی `0.0.0.0:2019`) انجام نشد — این آخری فقط به‌عنوان پیگیری امنیتی جداگانه ثبت شد. وضعیت سند `review` و بخش ۱۰ همچنان «پیشنهاد برای بازبینی» باقی ماند تا reconciliation کامل با شواهد انجام شود. جز همین ثبت Vault، فایل عملیاتی تغییر نکرد.
 - **v0.7.0 (۱۴۰۵-۰۸-۰۹):** افزودن قرارداد یکتای preview وب‌سایت از merge تا deploy در همین مرجع مشترک، با مرز یک‌تأییدی قبل از هر تغییر زنده؛ ثبت وضعیت واقعی PR #11 و تفکیک شواهد CI از آزمون‌های VPS و OAuth؛ طراحی SSH با تأیید host identity و pull حداقلی GHCR، تصریح هم‌ارزی Docker group با اختیار root، مسیر/مالکیت staging، قفل مشترک CI/manual، Gate هشت‌ساعته و allowlist چنددستگاهی، backup، migration سازگار و rollback، retention آخرین نسخهٔ سالم، ظرفیت/registry، مسئولیت‌ها و موارد آزمون‌نشده. هیچ VPS، DNS، Secret یا gateی تغییر نکرد.
 - **v0.6.0 (۱۴۰۵-۰۸-۰۶):** سومین Workflow (`[API-01] Semantic Search`، اولین Webhook/API عمومی) به‌طور کامل اصلاح و end-to-end تست شد. دو مشکل رفع شد: Endpoint ناقص (`/points` به‌جای `/points/search`) و نبود Authentication روی `HTTP Request: Qdrant Search` (رفع با Credential موجود `Qdrant Header Auth`). تست واقعی با کوئری «خط گرم» ۳ نتیجهٔ مرتبط با امتیاز شباهت بالا (`0.88`–`0.85`) از نود `FND-003` برگرداند — تایید اول‌به‌آخر کل زنجیرهٔ RAG (Ingestion در `[RAG-01]`/`[RAG-02]` → Retrieval در `[API-01]`). یک محدودیت غیرمسدودکننده ثبت شد: قابلیت `filter` در این نود به فیلدی متصل است که هنوز در `Code: Parse Query` ساخته نمی‌شود. مرحلهٔ بعدی: پاک‌سازی اقلام باقی‌ماندهٔ فاز A (آرشیو Workflow‌های تستی، تبدیل Manual→Schedule، Global Error Workflow → Bale).
 - **v0.5.0 (۱۴۰۵-۰۸-۰۶):** دومین Workflow واقعی RAG (`[RAG-02] Open Notebook → Qdrant`) به‌طور کامل اصلاح و end-to-end تست شد (۹۹ نقطهٔ جدید در Qdrant؛ مجموع Collection از ۸۹ به ۱۸۸). هفت مشکل واقعی رفع شد: Endpoint اشتباه `/api/notebooks` به‌جای `/api/sources`؛ ریسک گم‌شدن آیتم با `$input.first()` در `Code (Parse Sources)`؛ هاست‌نیم قدیمی `open-notebook-open_notebook-1` در نود `Source Details`؛ نبود Authentication روی `Qdrant Upsert` (رفع با Credential موجود `Qdrant Header Auth`)؛ **کشف جدید:** نیاز Authentication مستقل Open Notebook (هدر `Authorization: Bearer <OPEN_NOTEBOOK_PASSWORD>`) روی هر دو نود `List Sources`/`Source Details`، Credential جدید `Open Notebook Header Auth` ساخته شد؛ Mode اشتباه (`Run Once for All Items` به‌جای `Run Once for Each Item`) در `Code Node (Merge)` که باعث گم‌شدن ۹۸ از ۹۹ Chunk می‌شد؛ فراخوانی تکراری ۹۹باره روی `HTTP Request (Qdrant Upsert)` رفع‌شده با فعال‌سازی `Execute Once`. مرحلهٔ بعدی: `[API-01] Semantic Search`.
