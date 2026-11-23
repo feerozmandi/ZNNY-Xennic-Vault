@@ -7,7 +7,7 @@ tags: [integration, security, secrets, credentials, governance]
 layer: Meta
 domain: INT
 owner: احمد فیروزمندی بندپی
-version: 0.3.0
+version: 0.3.1
 dependencies: [META-INT-080, META-INT-050, META-INT-033, META-INT-090, L2-SEC-001]
 ---
 
@@ -207,6 +207,7 @@ dependencies: [META-INT-080, META-INT-050, META-INT-033, META-INT-090, L2-SEC-00
 
 ## ۱۱. Changelog
 
+- **v0.3.1 (۱۴۰۵-۰۹-۰۲ / 2026-11-23):** ثبت یادداشت تطبیقی دربارهٔ مسیر `[OPS-01]` و Secrets بر اساس گزارش موفقیت snapshot مورخ 2026-11-23 (commit `2b44000e0ee7a8fd88926414e3dfedee764be9f1`، `PUSH CONFIRMED`): مسیر SSH پورت ۴۴۳ فقط در `docker-compose.override.yml` **سرویس n8n** تنظیم شد با همان Deploy Key موجود؛ `.env` مشترک تغییر نکرد؛ هیچ Credential/Secret جدیدی ساخته یا چرخانده نشد و هیچ مقداری ثبت نشد. یک fingerprint میزبان SSH که پیش‌تر به‌اشتباه در changelog نود [[META-INT-110 — زیرساخت به‌صورت کد و بازیابی پس از خرابی|META-INT-110]] v0.4.3 نگهداری شده بود، در به‌روزرسانی ۱۴۰۵-۰۹-۰۲ به `<redacted-fingerprint>` جایگزین شد (همسو با اصل «هیچ fingerprint/credential/محتوای dump در Vault»). نسخهٔ پشتیبان override خارج از مخزن (`/home/xennic/xennic-infra/docker-compose.override.yml.bak.timeout120.20261123-083235`) ذخیره شد و عمداً در git نگهداری نمی‌شود. هیچ Secret، Credential یا `.env`ی توسط همین ثبت تغییر/افزودن/حذف نشد و هیچ خروجی حاوی Secret در این Vault یا چت درج نشد.
 - **v0.3.0 (۱۴۰۵-۰۸-۰۷):** افزودن بخش ۶.۱ — مستندسازی کامل رویداد چرخش هر ۸ Secret/Credential زیرساخت خودمیزبانی VPS (n8n، SurrealDB/Open Notebook، Qdrant، Postgres، Bale) که با نشت تصادفی دو Secret در یک گفتگوی تشخیصی آغاز شد. ثبت روش دقیق تعویض و تأیید هرکدام، و پنج درسِ کلیدی عملیاتی (مهم‌ترین‌شان: تأیید کلامی کاربر برای موفقیت یک چرخش Secret کافی نیست، باید خروجی واقعی HTTP/CLI دیده شود — که دقیقاً همین نکته باعث کشف یک چرخش ناقص در `SURREAL_PASSWORD` شد که قبلاً به‌اشتباه «انجام‌شده» گزارش شده بود). دو مورد اقدام جدید اضافه شد (ادغام کردنشیال‌های تکراری Header Auth، فیلتر فهرست کامل Credentialها پیش از هر چرخش آینده)؛ یک اقدام قدیمی (تعیین تاریخ شروع چرخه Rotation) برای Secretهای VPS بسته شد.
 - **v0.2.1 (۱۴۰۵-۰۸-۰۱):** رفع اشکال رندر جدول — Escape کردن `|` داخل یک لینک Wiki در جدول بخش ۴ که باعث شکستن ستون‌بندی جدول در رندررهای استاندارد Markdown (از جمله GitHub) می‌شد؛ بدون تغییر محتوایی.
 - **v0.2.0 (۱۴۰۵-۰۷-۳۰):** تکمیل جدول Credentialها با داده واقعی استخراج‌شده از `docker exec xennic-n8n n8n export:credentials --all` (۹ مورد، بدون افشای مقدار رمزگذاری‌شده)؛ تصحیح فرض نادرست «Open Notebook بدون Auth است» (واقعاً `Header Auth account` دارد)؛ شناسایی تکرار دو Credential Qdrant؛ شناسایی Credential ناشناخته `APITemplate.io account`؛ ثبت یادآوری حیاتی درباره Rotation کلید Local REST API و گواهی‌های RSA/CA Obsidian که قبلاً به‌صورت متن ساده مشاهده شدند؛ تغییر وضعیت به `review`.
